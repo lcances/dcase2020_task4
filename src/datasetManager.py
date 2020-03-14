@@ -1,6 +1,7 @@
 import os
 import pandas
 import tqdm
+import h5py
 import numpy as np
 
 import torch.utils.data
@@ -62,19 +63,24 @@ class DatasetManager(torch.utils.data.Dataset):
             self.meta["train"][key] = df
 
     def _load_audio(self):
+        hdf_file = h5py.File(self.hdf_dataset)
+
         # load raw audio for all training set
         for key in self.meta["train"]:
-            self.load_subset("train", key)
+            self.load_subset(hdf_file, "train", key)
 
-    def load_subset(self, dataset: str, subset: str = None):
+        hdf_file.close()
+
+    def load_subset(self, hdf_file, dataset: str, subset: str = None):
         if subset is not None:
             path = os.path.join(self.audio_root, dataset, subset)
-            self.audio[dataset][subset] = self._hdf_to_dict(self.hdf_dataset, path)
+            self.audio[dataset][subset] = self._hdf_to_dict(hdf_file, path)
         else:
             path = os.path.join(self.audio_root, dataset)
-            self.audio[dataset] = self._hdf_to_dict(self.hdf_dataset, path)
+            self.audio[dataset] = self._hdf_to_dict(hdf_file, path)
 
     def _hdf_to_dict(self, hdf_file, path: str):
+        print("path: ", path)
         filenames = hdf_file[path]["filenames"]
         raw_audios = hdf_file[path]["data"]
 
