@@ -80,9 +80,7 @@ class DatasetManager(torch.utils.data.Dataset):
             self.audio[dataset] = self._hdf_to_dict(hdf_file, path)
 
     def _hdf_to_dict(self, hdf_file, path: str):
-        print("path: ", path)
         filenames = hdf_file[path]["filenames"]
-        print(list(filenames))
         raw_audios = hdf_file[path]["data"]
 
         # minimun sanity check
