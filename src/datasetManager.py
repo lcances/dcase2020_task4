@@ -1,13 +1,29 @@
 import os
 import pandas
+import tqdm
+import numpy as np
 
 import torch.utils.data
 
 
 class DatasetManager(torch.utils.data.Dataset):
-    def __init__(self, metadata_root, audio_root):
+    def __init__(self, metadata_root, audio_root, sampling_rate: int = 22050, preload: bool = True, verbose: int = 1):
         self.metadata_root = metadata_root
         self.audio_root = audio_root
+        self.preload = preload
+        self.verbose = verbose
+        self.sampling_rate = sampling_rate
+
+        # recover dataset hdf file
+        self.hdf_dataset = os.path.join("..", "dataset", "dcase2020_dataset_%s.hdf5" % self.sampling_rate)
+
+
+        # verbose mode
+        self.verbose = verbose
+        if self.verbose == 1:
+            self.tqdm_func = tqdm.tqdm
+        elif self.verbose == 2:
+            self.tqdm_func = tqdm.tqdm_notebook
 
         self.meta = {
             "train": {
@@ -27,21 +43,48 @@ class DatasetManager(torch.utils.data.Dataset):
                 "synthetic20": None,
             },
 
-            "validaiton": None,
+            "validation": None,
             "evaluation": None,
         }
 
         self._load_metadata()
+        self._load_audio()
 
     def _load_metadata(self):
         # load metadata for all training dataset
         for key in self.meta["train"]:
             path = os.path.join(self.metadata_root, "train", key + ".tsv")
+            print(path)
 
-            self.meta["train"][key] = pandas.read_csv(path, sep="\t")
+            df = pandas.read_csv(path, sep="\t")
+            df.set_index("filename", inplace=True)
 
-    def _hdf_to_dict(self):
-        pass
+            self.meta["train"][key] = df
+
+    def _load_audio(self):
+        # load raw audio for all training set
+        for key in self.meta["train"]:
+            self.load_subset("train", key)
+
+    def load_subset(self, dataset: str, subset: str = None):
+        if subset is not None:
+            path = os.path.join(self.audio_root, dataset, subset)
+            self.audio[dataset][subset] = self._hdf_to_dict(self.hdf_dataset, path)
+        else:
+            path = os.path.join(self.audio_root, dataset)
+            self.audio[dataset] = self._hdf_to_dict(self.hdf_dataset, path)
+
+    def _hdf_to_dict(self, hdf_file, path: str):
+        filenames = hdf_file[path]["filenames"]
+        raw_audios = hdf_file[path]["data"]
+
+        # minimun sanity check
+        if len(filenames) != len(raw_audios):
+            raise Warning("nb filenames != nb raw audio in subset %s" % path)
+
+        output = dict(zip(filenames, raw_audios))
+
+        return output
 
 
 if __name__ == '__main__':
