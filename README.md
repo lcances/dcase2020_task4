@@ -13,6 +13,17 @@ pip install librosa
 pip install tqdm
 ```
 
+## Minimun change on the DESED dataset architecture. (for easier manipulation)
+For a more homogeneous architecture of the metadata file, and therefore a easier manipulation in the
+datasetManager class, the sole file *soundscapes.tsv* is rename *synthetic20.tsv* and move one level above
+
+```bash
+cd DESED
+cd dataset/metadata/train
+mv synthetic20/soundscapes.tsv synthetic20.tsv
+rmdir synthetic20/
+```
+
 ## dataset organisation
 - DESED
     - dataset
