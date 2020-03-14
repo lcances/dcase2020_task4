@@ -7,6 +7,8 @@ conda activate dcase2020
 
 conda install pytorch
 conda install h5py
+conda install pandas
+
 pip install librosa
 pip install tqdm
 ```
