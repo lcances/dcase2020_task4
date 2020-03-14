@@ -63,7 +63,7 @@ class DatasetManager(torch.utils.data.Dataset):
             self.meta["train"][key] = df
 
     def _load_audio(self):
-        hdf_file = h5py.File(self.hdf_dataset)
+        hdf_file = h5py.File(self.hdf_dataset, "r")
 
         # load raw audio for all training set
         for key in self.meta["train"]:
@@ -82,6 +82,7 @@ class DatasetManager(torch.utils.data.Dataset):
     def _hdf_to_dict(self, hdf_file, path: str):
         print("path: ", path)
         filenames = hdf_file[path]["filenames"]
+        print(filenames)
         raw_audios = hdf_file[path]["data"]
 
         # minimun sanity check
