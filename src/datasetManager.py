@@ -18,7 +18,6 @@ class DatasetManager(torch.utils.data.Dataset):
         # recover dataset hdf file
         self.hdf_dataset = os.path.join("..", "dataset", "dcase2020_dataset_%s.hdf5" % self.sampling_rate)
 
-
         # verbose mode
         self.verbose = verbose
         if self.verbose == 1:
@@ -80,8 +79,11 @@ class DatasetManager(torch.utils.data.Dataset):
             self.audio[dataset] = self._hdf_to_dict(hdf_file, path)
 
     def _hdf_to_dict(self, hdf_file, path: str):
-        filenames = hdf_file[path]["filenames"]
-        raw_audios = hdf_file[path]["data"]
+        print(path)
+        filenames = list(hdf_file[path]["filenames"])
+
+        raw_audios = np.zeros(hdf_file[path]["data"].shape)
+        hdf_file[path]["data"].read_direct(raw_audios)
 
         # minimun sanity check
         if len(filenames) != len(raw_audios):

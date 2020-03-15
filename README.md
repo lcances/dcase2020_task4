@@ -18,10 +18,13 @@ For a more homogeneous architecture of the metadata file, and therefore a easier
 datasetManager class, the sole file *soundscapes.tsv* is rename *synthetic20.tsv* and move one level above
 
 ```bash
-cd DESED
-cd dataset/metadata/train
+cd DESED/dataset/metadata/train
 mv synthetic20/soundscapes.tsv synthetic20.tsv
 rmdir synthetic20/
+
+cd ../../audio/train
+mv synthetic20/soundscapes/* synthetic20
+rmdir synthetic20/soundscapes
 ```
 
 ## dataset organisation
