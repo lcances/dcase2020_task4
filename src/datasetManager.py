@@ -28,24 +28,24 @@ class DatasetManager(torch.utils.data.Dataset):
 
         self.meta = {
             "train": {
-                "weak": None,
-                "unlabel_in_domain": None,
-                "synthetic20": None,
+                "weak": {},
+                "unlabel_in_domain": {},
+                "synthetic20": {},
             },
 
-            "validation": None,
-            "evaluation": None,
+            "validation": {},
+            "evaluation": {},
         }
 
         self.audio = {
             "train": {
-                "weak": None,
-                "unlabel_in_domain": None,
-                "synthetic20": None,
+                "weak": {},
+                "unlabel_in_domain": {},
+                "synthetic20": {},
             },
 
-            "validation": None,
-            "evaluation": None,
+            "validation": {},
+            "evaluation": {},
         }
 
         self._load_metadata()
