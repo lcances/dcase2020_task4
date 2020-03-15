@@ -27,6 +27,27 @@ mv synthetic20/soundscapes/* synthetic20
 rmdir synthetic20/soundscapes
 ```
 
+## Pre-processing
+Extract the raw-audio using librosa and store the dataset into a HDF file.
+
+| :warning: final hdf file is 65 Go without compression.see below example with compression |
+| --- |
+
+```bash
+conda activate dcase2020
+cd standalone
+
+# without compression: 65 Go
+python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 4
+```
+```bash
+conda activate dcase2020
+cd standalone
+
+#With compression. all h5py compression supported
+python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 4 --conpression lzf
+```
+
 ## dataset organisation
 - DESED
     - dataset
