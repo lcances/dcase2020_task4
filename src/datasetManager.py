@@ -3,8 +3,11 @@ import pandas
 import tqdm
 import h5py
 import numpy as np
+import librosa
 
 import torch.utils.data
+
+from .utils import feature_cache, multiprocess_feature_cache
 
 
 class DatasetManager(torch.utils.data.Dataset):
@@ -93,6 +96,19 @@ class DatasetManager(torch.utils.data.Dataset):
 
         return output
 
+    @multiprocess_feature_cache
+    def extract_feature(self, raw_data, filename = None, cached = False):
+        """
+        extract the feature for the model. Cache behaviour is implemented with the two parameters filename and cached
+        :param raw_data: to audio to transform
+        :param filename: the key used by the cache system
+        :param cached: use or not the cache system
+        :return: the feature extracted from the raw audio
+        """
+        feat = librosa.feature.melspectrogram(
+            raw_data, self.sampling_rate, n_fft=2048, hop_length=512, n_mels=64, fmin=0, fmax=self.sampling_rate // 2)
+        feat = librosa.power_to_db(feat, ref=np.max)
+        return feat
 
 if __name__ == '__main__':
     manager = DatasetManager(
