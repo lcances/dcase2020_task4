@@ -33,19 +33,36 @@ Extract the raw-audio using librosa and store the dataset into a HDF file.
 | :warning: final hdf file is 65 Go without compression.see below example with compression |
 | --- |
 
+Without compression.
+- Time with 8 workers: ~14 minutes
+- Final file size: 65 Go
 ```bash
 conda activate dcase2020
 cd standalone
 
-# without compression: 65 Go
 python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 4
 ```
+
+With compression. All h5py conpression are supported.
+
+LZF conpression:
+- Time with 8 workers: ~20 minutes
+- Final file size: 57 go
 ```bash
 conda activate dcase2020
 cd standalone
 
-#With compression. all h5py compression supported
-python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 4 --conpression lzf
+python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 4 --compression lzf
+```
+
+GZIP conpression:
+- Time with 8 workers: ~20 minutes
+- Final file size: 57 go
+```bash
+conda activate dcase2020
+cd standalone
+
+python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 4 --compression gzip
 ```
 
 ## dataset organisation
