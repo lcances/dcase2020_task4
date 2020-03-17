@@ -4,7 +4,17 @@ import datetime
 import random
 import numpy as np
 import torch
+import logging
+import time
 
+# TODO write q timer decorator that deppend on the logging level
+def timeit_logging(func):
+    def decorator(*args, **kwargs):
+        start_time = time.time()
+        func(*args, **kwargs)
+        logging.info("%s executed in: %.3fs" % (func.__name__, time.time()-start_time))
+        
+    return decorator
 
 def feature_cache(func):
     """
