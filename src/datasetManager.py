@@ -153,7 +153,7 @@ class DESEDManager(DatasetManager):
 
 
 if __name__ == '__main__':
-    metadata_root="../dataset/DESED/dataset/metadata",
+    metadata_root="../dataset/DESED/dataset/metadata"
     audio_root="../dataset/DESED/dataset/audio"
 
     train_weak_dataset = DESEDManager(metadata_root, audio_root, 22050, subset="weak", validation=False)
