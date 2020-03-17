@@ -92,3 +92,60 @@ python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 4 --compressio
         - train
         - validation
         - eval
+
+# Minimal documentation
+## Using the datasetManager and create a pytorch dataset
+- So far, only the DESED manager is supported. The manager allow to load
+the different subset independantly and create a train / validation split.
+- The DESEDDatasets take care of extracting the feature in time, applying the augmentations. the same class is used for both train and validation. It has the folowing features
+  - **Data augmentation** that can be apply on the signal before extraction, or on the feature after extraction.
+  - **Process safe cache**  for storing the extracted feature to calculate them only once. It greatly improve training speed. :warning: The cache is automatically deactivate when using augmentation.
+
+### Loading subset and create a train / val split
+```python
+import ...
+
+from datasetManager import DESEDManager
+
+metadata_root = "../path/to/metadata"
+audio_root = "../path/to/audio"
+
+manager = DESEDManager(
+    metadata_root, audio_root,
+    sampling_rate = 22050,
+    validation_ratio = 0.2,
+    verbose = 1
+    )
+
+manager.add_subset("weak")
+manager.add_subset("unlabel_in_domain")
+manager.add_subset("synthetic20")
+
+manager.split_train_validation()
+```
+
+### Creating the pytorch dataset for train and val
+- Without augmentations
+```python
+from datasets import DESEDDataset
+
+train_dataset = DESEDDatasets(manager, train=True, val=False, augments=[], cached=True)
+val_dataset = DESEDDatasets(manager, train=False, val=True, augments=[], cached=True)
+```
+ - With augmentation:
+   - noise on signal with a target SNR of 15db and 
+   - random time dropout of 30% on the mel-spectrogram
+ ```python
+ from datasets import DESEDDataset
+
+ import augmentation_utils.signal_augmentations as signal_augmentations
+ import augmentation_utils.spec_augmentations as spec_augmentations
+
+ augments = [
+     signal_augmentations.Noise(0.5, target_snr=15),
+     spec_augmentations.RandomTimeDropout(0.5, dropout=0.3)
+ ]
+
+ train_dataset = DESEDDatasets(manager, train=True, val=False, augments=augments, cached=True) # <-- cache automatically deactivate
+ val_dataset = DESEDDatasets(manager, train=False, val=True, augments=[], cached=True)
+ ```
