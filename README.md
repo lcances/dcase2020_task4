@@ -56,8 +56,8 @@ python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 4 --compressio
 ```
 
 GZIP conpression:
-- Time with 8 workers: ~20 minutes
-- Final file size: 57 go
+- Time with 8 workers: ~60 minutes
+- Final file size: 49 go
 ```bash
 conda activate dcase2020
 cd standalone
