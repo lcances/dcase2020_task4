@@ -13,6 +13,8 @@ from utils import feature_cache, multiprocess_feature_cache, timeit_logging
 
 
 class DatasetManager:
+    LENGTH = 10
+    
     def __init__(self, metadata_root, audio_root, sampling_rate: int = 22050, verbose: int = 1):
         self.metadata_root = metadata_root
         self.audio_root = audio_root
@@ -191,6 +193,7 @@ if __name__ == '__main__':
 
     manager = DESEDManager(metadata_root, audio_root, 22050, validation_ratio=0.2, verbose=1)
 
+    print("")
     manager.add_subset("weak")
     manager.add_subset("unlabel_in_domain")
     manager.add_subset("synthetic20")
