@@ -3,14 +3,16 @@ import pandas
 import tqdm
 import h5py
 import numpy as np
+import pandas as pd
 import librosa
+import logging
 
 import torch.utils.data
 
-from utils import feature_cache, multiprocess_feature_cache
+from utils import feature_cache, multiprocess_feature_cache, timeit_logging
 
 
-class DatasetManager(torch.utils.data.Dataset):
+class DatasetManager:
     def __init__(self, metadata_root, audio_root, sampling_rate: int = 22050, verbose: int = 1):
         self.metadata_root = metadata_root
         self.audio_root = audio_root
@@ -38,17 +40,6 @@ class DatasetManager(torch.utils.data.Dataset):
             "evaluation": {},
         }
 
-        self.audio = {
-            "train": {
-                "weak": {},
-                "unlabel_in_domain": {},
-                "synthetic20": {},
-            },
-
-            "validation": {},
-            "evaluation": {},
-        }
-
         self._load_metadata()
 
     def _load_metadata(self):
@@ -62,24 +53,19 @@ class DatasetManager(torch.utils.data.Dataset):
 
             self.meta["train"][key] = df
 
-    def _load_audio(self):
-        # load raw audio for all training set
-        for key in self.meta["train"]:
-            self.load_subset("train", key)
-
-    def load_subset(self, dataset: str, subset: str = None):
+    def get_subset(self, dataset: str, subset: str = None) -> dict:
         hdf_file = h5py.File(self.hdf_dataset, "r")
 
         if subset is not None:
             path = os.path.join(self.audio_root, dataset, subset)
-            self.audio[dataset][subset] = self._hdf_to_dict(hdf_file, path)
         else:
             path = os.path.join(self.audio_root, dataset)
-            self.audio[dataset] = self._hdf_to_dict(hdf_file, path)
 
         hdf_file.close()
 
-    def _hdf_to_dict(self, hdf_file, path: str):
+        return self._hdf_to_dict(hdf_file, path)
+
+    def _hdf_to_dict(self, hdf_file, path: str) -> dict:
         print(path)
         filenames = list(hdf_file[path]["filenames"])
 
@@ -111,42 +97,89 @@ class DatasetManager(torch.utils.data.Dataset):
 
 class DESEDManager(DatasetManager):
     def __init__(self, metadata_root, audio_root, sampling_rate: int = 22050, verbose: int = 1,
-            subset: str = "weak", validation: bool = False, validation_ratio: float = 0.2):
+            validation_ratio: float = 0.2):
 
         super().__init__(metadata_root, audio_root, sampling_rate, verbose)
         
-        self.subset = subset
         self.validation_ratio = validation_ratio
-
-        # load only the concern audio
-        self.load_subset("train", self.subset)
+        self.validation_exist = False   # True if the function split_train_validation have been runned
 
         # prepare the variables
-        self.X = self.audio["train"][self.subset]
-        self.y = self.audio["train"][self.subset]
+        self._X, self._y = None , None
 
-        self.filenames = self.X.keys()
+        self.X = self._X        # if validation split not perform, then the default training set is all file loaded
+        self.y = self._y
+        self.val_X = None
+        self.filenames = None
 
-        # if it is a validation set
-        self._prepare_validation()
+    @timeit_logging
+    def add_subset(self, key: str):
+        train_subsets = ["weak", "unlabel_in_domain", "synthetic20"]
 
-    def _prepare_validation(self):
+        if key in train_subsets:
+            dataset = "train"
+            subset = key
+        else:
+            dataset = key
+            subset = None
+
+        logging.info("Loading dataset: %s, subset: %s" % (dataset, subset))
+
+        # Load the audio and concat directly in main dict self._X
+        self._X = {**self._X, **self.get_subset(dataset, subset)}
+        
+        # concat the metadata into self._y
+        target_meta = self.meta[dataset][subset] if key in train_subsets else self.meta[dataset]
+        self._y = pd.concat([self._y, target_meta]) # TODO check if need to specify an axis
+
+    def split_train_validation(self):
+        logging.warning("The function consume the previous load of the data. In order to perform a new split, \
+        data must be reset and reloaded")
+
+        # TODO check if there is not a more efficient way, maybe a .select with drop
+        filenames = list(self._X.keys())
+
+        self.X, self.y = dict(), dict()
+
         # count how many file is in the validation fold
-        nb_file = len(self.filenames)
+        nb_file = len(filenames)
         nb_validation = nb_file // self.validation_ratio
 
         # pick it from the filename list
         validation_filenames = np.random.choice(nb_validation, size=nb_validation)
 
-        # remove other file from the dictionnary to free memory
-        for name in self.X:
+        # split the audio dictionary into a training and validation one (X, X_val)
+        # deleting file directly after the move to avoid high memory usage
+        for name in self._X:
             if name not in validation_filenames:
-                self.X.pop(name, None)
+                self.X[name] = self._X[name]
+            else:
+                self.X_val = self._X[name]
 
-        # remove other file from the metadata
-        for name in self.y.filename.value:
-            if name not in validation_filenames:
-                self.y.drop(name, inplace=True)
+            self._X.pop(name, None)
+
+        # set the filenames
+        self.filenames = list(self.X.keys())
+
+        # split the metadata dataframe into a training and validation ones (y, y_val)
+        # TODO check if there is not a more efficient way, maybe a .select with drop
+        self.y = self._y.loc[self._y.index.isin(validation_filenames)]
+        self.y_val = self._y.loc[self._y.index.isin(self.filenames)]
+
+        # set the validation flag to allow datasets to use validation set
+        self.validation_exist
+
+    def reset(self): 
+        # TODO check if it actually work
+        # all the audio and metadata are delete
+        self._X, self._y = None , None
+
+        self.X = self._X
+        self.y = self._y
+        self.val_X = None
+        self.filenames = None
+ 
+
 
         
 
@@ -156,12 +189,10 @@ if __name__ == '__main__':
     metadata_root="../dataset/DESED/dataset/metadata"
     audio_root="../dataset/DESED/dataset/audio"
 
-    train_weak_dataset = DESEDManager(metadata_root, audio_root, 22050, subset="weak", validation=False)
-    val_weak_dataset = DESEDManager(metadata_root, audio_root, 22050, subset="weak", validation=True, validation_ratio=0.2)
+    manager = DESEDManager(metadata_root, audio_root, 22050, validation_ratio=0.2, verbose=1)
 
-    train_uid_dataset = DESEDManager(metadata_root, audio_root, 22050, subset="unlabel_in_domain", validation=False)
-    val_uid_dataset = DESEDManager(metadata_root, audio_root, 22050, subset="unlabel_in_domain", validation=True, validation_ratio=0.2)
-
-    train_synth_dataset = DESEDManager(metadata_root, audio_root, 22050, subset="synthetic20", validation=False)
-    val_synth_dataset = DESEDManager(metadata_root, audio_root, 22050, subset="synthetic20", validation=True, validation_ratio=0.2)
+    manager.add_subset("weak")
+    manager.add_subset("unlabel_in_domain")
+    manager.add_subset("synthetic20")
+    manager.split_train_validation()
 
