@@ -13,7 +13,7 @@ pip install librosa
 pip install tqdm
 ```
 
-## Minimun change on the DESED dataset architecture. (for easier manipulation)
+## 1 - Minimun change on the DESED dataset architecture. (for easier manipulation)
 For a more homogeneous architecture of the metadata file, and therefore a easier manipulation in the
 datasetManager class, the sole file *soundscapes.tsv* is rename *synthetic20.tsv* and move one level above
 
@@ -27,7 +27,7 @@ mv synthetic20/soundscapes/* synthetic20
 rmdir synthetic20/soundscapes
 ```
 
-## Pre-processing
+## 2 - Create the HDF file
 Extract the raw-audio using librosa and store the dataset into a HDF file.
 
 | :warning: final hdf file is 65 Go without compression.see below example with compression |
@@ -45,55 +45,12 @@ python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 4
 
 With compression. All h5py conpression are supported.
 
-LZF conpression:
-- Time with 8 workers: ~20 minutes
-- Final file size: 57 go
-```bash
-conda activate dcase2020
-cd standalone
+| algorytms | exec time | final size | command line argument |
+| --------- | --------- | ---------- | --------------------- |
+| no        | ~15 min   | 65 Go      | ` `                   |
+| LZF       | ~20 min   | 57 Go      | `--compression lzf`   |
+| GZIP      | ~60 min   | 49 Go      | `--compression gzip`  |
 
-python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 4 --compression lzf
-```
-
-GZIP conpression:
-- Time with 8 workers: ~60 minutes
-- Final file size: 49 go
-```bash
-conda activate dcase2020
-cd standalone
-
-python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 4 --compression gzip
-```
-
-## dataset organisation
-- DESED
-    - dataset
-        - audio
-            - train
-            - validation
-        - metadata
-            - train
-            - validation
-        - missing_files
-- FUSS
-    - fsd_data
-        - train
-        - validation
-        - eval
-    - rir_data
-        - train
-        - validation
-        - eval
-    - ssdata
-        - train
-        - validation
-        - eval
-    - ssdata_reverb
-        - train
-        - validation
-        - eval
-
-# Minimal documentation
 ## Using the datasetManager and create a pytorch dataset
 - So far, only the DESED manager is supported. The manager allow to load
 the different subset independantly and create a train / validation split.
@@ -149,3 +106,37 @@ val_dataset = DESEDDatasets(manager, train=False, val=True, augments=[], cached=
  train_dataset = DESEDDatasets(manager, train=True, val=False, augments=augments, cached=True) # <-- cache automatically deactivate
  val_dataset = DESEDDatasets(manager, train=False, val=True, augments=[], cached=True)
  ```
+
+# 3 - Reproduction results_bool
+
+| :warning: Please be sure that you have follow step 1 and 2  |
+| --- |
+
+## dataset organisation
+- DESED
+    - dataset
+        - audio
+            - train
+            - validation
+        - metadata
+            - train
+            - validation
+        - missing_files
+- FUSS
+    - fsd_data
+        - train
+        - validation
+        - eval
+    - rir_data
+        - train
+        - validation
+        - eval
+    - ssdata
+        - train
+        - validation
+        - eval
+    - ssdata_reverb
+        - train
+        - validation
+        - eval
+
