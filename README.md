@@ -1,5 +1,12 @@
 # dcase2020
 
+To clone the project, be awere that there is some submodules used:
+```bash
+git clone https://github.com/leocances/dcase2020.git
+git submodule init
+git submodule update:w
+``` 
+
 ## Requirement
 ```Bash
 conda create -n dcase2020 python=3 pip
