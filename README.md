@@ -37,7 +37,7 @@ Extract the raw-audio using librosa and store the dataset into a HDF file.
 conda activate dcase2020
 cd standalone
 
-python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 4
+python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 8
 ```
 
 With compression. All h5py conpression are supported.
