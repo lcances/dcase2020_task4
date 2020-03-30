@@ -1,3 +1,5 @@
 [submodule "src/augmentation_utils"]
 	path = src/augmentation_utils
 	url = https://github.com/leocances/augmentation_utils.git
+[submodule "bar1"]
+	branch = master
