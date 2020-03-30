@@ -1,5 +1,6 @@
 [submodule "src/augmentation_utils"]
 	path = src/augmentation_utils
 	url = https://github.com/leocances/augmentation_utils.git
-[submodule "bar1"]
-	branch = master
+[submodule "src/pytorch_metrics"]
+	path = src/pytorch_metrics
+	url = https://github.com/leocances/pytorch_metrics.git
