@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 [submodule "dcase2020/pytorch_metrics"]
 	path = dcase2020/pytorch_metrics
 	url = https://github.com/leocances/pytorch_metrics.git
