@@ -3,6 +3,7 @@
 To clone the project, be awere that there is some submodules used:
 ```bash
 git clone https://github.com/leocances/dcase2020.git
+cd dcase2020
 git submodule init
 git submodule update
 ``` 
