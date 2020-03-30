@@ -1,3 +1,6 @@
-[submodule "src/augmentation_utils"]
-	path = src/augmentation_utils
+[submodule "dcase2020/pytorch_metrics"]
+	path = dcase2020/pytorch_metrics
+	url = https://github.com/leocances/pytorch_metrics.git
+[submodule "dcase2020/augmentation_utils"]
+	path = dcase2020/augmentation_utils
 	url = https://github.com/leocances/augmentation_utils.git
