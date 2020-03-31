@@ -7,11 +7,13 @@ from multiprocessing import Pool
 
 import argparse
 
-parser = argparse.ArgumentParser()
+parser = argparse.ArgumentParser(prefix_chars="-+")
 parser.add_argument("-sr", "--sampling_rate", default=22050, type=int)
 parser.add_argument("-l", "--length", default=10, type=int)
 parser.add_argument("-a", "--audio_root", default="../dataset/" , type=str)
 parser.add_argument("-n", "--name", default="dcase2020_dataset", type=str)
+parser.add_argument("+DESED", action="store_true", default=False)
+parser.add_argument("+FUSS", action="store_true", default=False)
 parser.add_argument("--num_workers", default=4, type=int)
 parser.add_argument("--compression", default=None, type=str)
 args = parser.parse_args()
@@ -42,12 +44,14 @@ def load_file(folder_path, f):
 
 to_remove = [".DS_Store"]
 
-directory_to_load = [
+DESED_directories = [
     os.path.join("DESED", "dataset", "audio", "train", "weak"),
     os.path.join("DESED", "dataset", "audio", "train", "unlabel_in_domain"),
     os.path.join("DESED", "dataset", "audio", "train", "synthetic20"),
     os.path.join("DESED", "dataset", "audio", "validation"),
+]
 
+FUSS_directories = [
     os.path.join("FUSS", "fsd_data", "train"),
     os.path.join("FUSS", "fsd_data", "validation"),
     os.path.join("FUSS", "fsd_data", "eval"),
@@ -64,6 +68,14 @@ directory_to_load = [
     os.path.join("FUSS", "ssdata_reverb", "validation"),
     os.path.join("FUSS", "ssdata_reverb", "eval"),
 ]
+
+# add the directories from DESED or / and FUSS depending on the user choice
+directory_to_load = []
+if args.DESED:
+    directory_to_load += DESED_directories
+if args.FUSS:
+    directory_to_load += FUSS_directories
+
 
 for directory in tqdm.tqdm(directory_to_load):
     print("loading : %s" % directory)
