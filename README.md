@@ -38,6 +38,8 @@ rmdir synthetic20/soundscapes
 ## 2 - Create the HDF file
 Extract the raw-audio using librosa and store the dataset into a HDF file.
 
+To remove DESED or FUSS, remove the `+DESED` or `+FUSS`
+
 | :warning: final hdf file is 65 Go without compression. See below example with compression |
 | --- |
 
@@ -45,7 +47,7 @@ Extract the raw-audio using librosa and store the dataset into a HDF file.
 conda activate dcase2020
 cd standalone
 
-python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 8
+python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 8 +DESED +FUSS
 ```
 
 With compression. All h5py conpression are supported.
