@@ -9,6 +9,7 @@ git submodule update
 ``` 
 
 ## Requirement
+##### 1. Environement
 ```Bash
 conda create -n dcase2020 python=3 pip
 conda activate dcase2020
@@ -20,6 +21,9 @@ conda install pandas
 pip install librosa
 pip install tqdm
 ```
+
+##### 2. Download the dataset
+visit: https://github.com/turpaultn/DESED/tree/master/real
 
 ## 1 - Minimun change on the DESED dataset architecture. (for easier manipulation)
 For a more homogeneous architecture of the metadata file, and therefore a easier manipulation in the
