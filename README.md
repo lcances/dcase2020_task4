@@ -20,6 +20,10 @@ conda install pandas
 
 pip install librosa
 pip install tqdm
+
+# Install the repo as a local pip package 
+cd dcase2020
+pip install -e .
 ```
 
 ##### 2. Download the dataset
