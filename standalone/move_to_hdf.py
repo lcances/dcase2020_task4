@@ -106,7 +106,7 @@ for directory in directory_to_load:
         results = workers.starmap(load_file, zip(folder_path_duplicate[index:index+args.chunk_size], file_list[index:index+args.chunk_size]))
 
         # add the chunk to the hdf file
-        hdf_fold["data"][index:index+1000] = results
+        hdf_fold["data"][index:index+args.chunk_size] = results
 
     workers.close()
     workers.join()
