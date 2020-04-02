@@ -1,5 +1,9 @@
 import librosa
 import os
+os.environ["MKL_NUM_THREADS"] = "2"
+os.environ["NUMEXPR_NU M_THREADS"] = "2"
+os.environ["OMP_NUM_THREADS"] = "2"
+
 import h5py
 import tqdm
 import numpy as np
