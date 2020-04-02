@@ -78,7 +78,7 @@ if args.FUSS:
     directory_to_load += FUSS_directories
 
 
-for directory in tqdm.tqdm(directory_to_load):
+for directory in directory_to_load:
     print("loading : %s" % directory)
     folder_path = os.path.join("../dataset", directory)
 
@@ -101,7 +101,7 @@ for directory in tqdm.tqdm(directory_to_load):
     for i in range(len(file_list)):
         hdf_fold["filenames"][i] = file_list[i]
 
-    for index in range(0, dataset_shape[0] - args.chunk_size, args.chunk_size):
+    for index in tqdm.tqdm(range(0, dataset_shape[0] - args.chunk_size, args.chunk_size)):
 
         results = workers.starmap(load_file, zip(folder_path_duplicate[index:index+args.chunk_size], file_list[index:index+args.chunk_size]))
 
