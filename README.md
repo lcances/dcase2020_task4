@@ -66,6 +66,13 @@ With compression. All h5py conpression are supported.
 | LZF       | ~20 min   | 57 Go      | `--compression lzf`   |
 | GZIP      | ~60 min   | 49 Go      | `--compression gzip`  |
 
+# 3 - Reproduction results_bool
+
+| :warning: Please be sure that you have follow step 1 and 2  |
+| --- |
+
+
+# Fast documentation
 ## Using the datasetManager and create a pytorch dataset
 - So far, only the DESED manager is supported. The manager allow to load
 the different subset independantly and create a train / validation split.
@@ -122,10 +129,6 @@ val_dataset = DESEDDatasets(manager, train=False, val=True, augments=[], cached=
  val_dataset = DESEDDatasets(manager, train=False, val=True, augments=[], cached=True)
  ```
 
-# 3 - Reproduction results_bool
-
-| :warning: Please be sure that you have follow step 1 and 2  |
-| --- |
 
 ## dataset organisation
 - DESED
