@@ -2,3 +2,9 @@
 .vs/
 .vscode/
 dataset/
+dataset/
+dcase2020/.ipynb_checkpoints/
+dcase2020/__pycache__/
+notebooks/.ipynb_checkpoints/
+tensorboard/
+.ipynb_checkpoints/
