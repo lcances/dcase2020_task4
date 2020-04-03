@@ -1,13 +1,5 @@
 # dcase2020
 
-To clone the project, be aware that there is some submodules used:
-```bash
-git clone https://github.com/leocances/dcase2020.git
-cd dcase2020
-git submodule init
-git submodule update
-``` 
-
 ## Requirement
 ##### 1. Environement
 ```Bash
@@ -20,13 +12,21 @@ conda install pandas
 
 pip install librosa
 pip install tqdm
+```
 
-# Install the repo as a local pip package 
+##### 2. Clone repo & installation
+Install the repo as a local pip package 
+```Bash
+git clone https://github.com/leocances/dcase2020.git
 cd dcase2020
+git submodule init
+git submodule update
+
 pip install -e .
 ```
 
-##### 2. Download the dataset
+
+##### 3. Download the dataset
 visit: https://github.com/turpaultn/DESED/tree/master/real
 
 ## 1 - Minimun change on the DESED dataset architecture. (for easier manipulation)
