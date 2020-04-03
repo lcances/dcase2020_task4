@@ -7,13 +7,16 @@ os.environ["OMP_NUM_THREADS"] = "2"
 import numpy as np
 import pandas as pd
 
-from datasetManager import DatasetManager, DESEDManager
+from .datasetManager import DatasetManager, DESEDManager
 import torch.utils.data
 
-from augmentation_utils.signal_augmentations import SignalAugmentation
-from augmentation_utils.spec_augmentations import SpecAugmentation
+from .augmentation_utils.signal_augmentations import SignalAugmentation
+from .augmentation_utils.spec_augmentations import SpecAugmentation
 
+#log system
 import logging
+from dcase2020.util.log import log_flat
+log = logging.getLogger(__name__)
 
 class DESEDDataset(torch.utils.data.Dataset):
     def __init__(self, manager: DatasetManager, train: bool, val: bool, augments=(), cached=False):
@@ -32,6 +35,7 @@ class DESEDDataset(torch.utils.data.Dataset):
         if self.train:
             self.X = self.manager.X
             self.y = self.manager.y
+            
         elif self.val:
             self.X = self.manager.X_val
             self.y = self.manager.y_val
@@ -44,6 +48,10 @@ class DESEDDataset(torch.utils.data.Dataset):
     def _check_arguments(self):
         if sum([self.train, self.val]) != 1:
             raise AssertionError("Train and val and mutually exclusive")
+        
+        if self.val:
+            if not self.manager.validation_exist:
+                raise RuntimeError("Can't create a validation set if the split is not done. Call \"split_train_validation\" from the manager")
         
     def __len__(self):
         nb_file = len(self.filenames)
@@ -72,7 +80,7 @@ class DESEDDataset(torch.utils.data.Dataset):
 
     def _pad_and_crop(self, raw_audio):
         LENGTH = DESEDManager.LENGTH
-        SR = self.manager.sr
+        SR = self.manager.sampling_rate
 
         if len(raw_audio) < LENGTH * SR:
             missing = (LENGTH * SR) - len(raw_audio)
