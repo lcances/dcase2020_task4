@@ -1,13 +1,5 @@
 # dcase2020
 
-To clone the project, be aware that there is some submodules used:
-```bash
-git clone https://github.com/leocances/dcase2020.git
-cd dcase2020
-git submodule init
-git submodule update
-``` 
-
 ## Requirement
 ##### 1. Environement
 ```Bash
@@ -20,13 +12,21 @@ conda install pandas
 
 pip install librosa
 pip install tqdm
+```
 
-# Install the repo as a local pip package 
+##### 2. Clone repo & installation
+Install the repo as a local pip package 
+```Bash
+git clone https://github.com/leocances/dcase2020.git
 cd dcase2020
+git submodule init
+git submodule update
+
 pip install -e .
 ```
 
-##### 2. Download the dataset
+
+##### 3. Download the dataset
 visit: https://github.com/turpaultn/DESED/tree/master/real
 
 ## 1 - Minimun change on the DESED dataset architecture. (for easier manipulation)
@@ -66,6 +66,13 @@ With compression. All h5py conpression are supported.
 | LZF       | ~20 min   | 57 Go      | `--compression lzf`   |
 | GZIP      | ~60 min   | 49 Go      | `--compression gzip`  |
 
+# 3 - Reproduction results_bool
+
+| :warning: Please be sure that you have follow step 1 and 2  |
+| --- |
+
+
+# Fast documentation
 ## Using the datasetManager and create a pytorch dataset
 - So far, only the DESED manager is supported. The manager allow to load
 the different subset independantly and create a train / validation split.
@@ -122,10 +129,6 @@ val_dataset = DESEDDatasets(manager, train=False, val=True, augments=[], cached=
  val_dataset = DESEDDatasets(manager, train=False, val=True, augments=[], cached=True)
  ```
 
-# 3 - Reproduction results_bool
-
-| :warning: Please be sure that you have follow step 1 and 2  |
-| --- |
 
 ## dataset organisation
 - DESED
