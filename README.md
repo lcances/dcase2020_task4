@@ -10,8 +10,13 @@ conda install pytorch
 conda install h5py
 conda install pandas
 
+# for the augmentation function
+conda install pillow
+conda install scikit-image
+
 pip install librosa
 pip install tqdm
+
 ```
 
 ##### 2. Clone repo & installation
