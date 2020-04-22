@@ -51,7 +51,7 @@ to_remove = [".DS_Store"]
 
 DESED_directories = [
     os.path.join("DESED", "dataset", "audio", "train", "weak"),
-    os.path.join("DESED", "dataset", "audio", "train", "unlabel_in_domain"), # TODO this directory contain 14 Go of file. So far it can lead to memory error with computer equiped with less than 16 Go
+    os.path.join("DESED", "dataset", "audio", "train", "unlabel_in_domain"),
     os.path.join("DESED", "dataset", "audio", "train", "synthetic20"),
     os.path.join("DESED", "dataset", "audio", "validation"),
 ]
