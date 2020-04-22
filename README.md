@@ -89,7 +89,7 @@ the different subset independantly and create a train / validation split.
 ```python
 import ...
 
-from datasetManager import DESEDManager
+from dcase2020.datasetManager import DESEDManager
 
 metadata_root = "../path/to/metadata"
 audio_root = "../path/to/audio"
@@ -111,27 +111,31 @@ manager.split_train_validation()
 ### Creating the pytorch dataset for train and val
 - Without augmentations
 ```python
-from datasets import DESEDDataset
+from dcase2020.datasets import DESEDDataset
 
-train_dataset = DESEDDatasets(manager, train=True, val=False, augments=[], cached=True)
-val_dataset = DESEDDatasets(manager, train=False, val=True, augments=[], cached=True)
+train_dataset = DESEDDataset(manager, 
+    train=True, val=False, augments=[],
+    weak=True, strong=True, # <-- we want both weak and strong ground truth to be outputed
+    cached=True)
+val_dataset = DESEDDataset(manager, train=False, val=True, augments=[], cached=True)
 ```
  - With augmentation:
    - noise on signal with a target SNR of 15db and 
    - random time dropout of 30% on the mel-spectrogram
  ```python
- from datasets import DESEDDataset
+ from dcase2020.datasets import DESEDDataset
 
- import augmentation_utils.signal_augmentations as signal_augmentations
- import augmentation_utils.spec_augmentations as spec_augmentations
+ import dcase2020.augmentation_utils.signal_augmentations as signal_augmentations
+ import dcase2020.augmentation_utils.spec_augmentations as spec_augmentations
 
  augments = [
      signal_augmentations.Noise(0.5, target_snr=15),
      spec_augmentations.RandomTimeDropout(0.5, dropout=0.3)
  ]
 
- train_dataset = DESEDDatasets(manager, train=True, val=False, augments=augments, cached=True) # <-- cache automatically deactivate
- val_dataset = DESEDDatasets(manager, train=False, val=True, augments=[], cached=True)
+ train_dataset = DESEDDataset(manager, train=True, val=False, augments=augments, cached=True) # <-- cache
+ automatically deactivate
+ val_dataset = DESEDDataset(manager, train=False, val=True, augments=[], cached=True)
  ```
 
 
