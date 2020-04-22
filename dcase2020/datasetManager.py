@@ -17,7 +17,7 @@ from dcase2020.util.log import log_flat
 log = logging.getLogger(__name__)
 
 
-class DatasetManager:
+class DatasetManager(object):
     LENGTH = 10
     
     cls_dict = {"Alarm_bell_ringing": 0, "Speech": 1, "Dog": 2,
@@ -34,17 +34,14 @@ class DatasetManager:
         self.verbose = verbose
         self.sampling_rate = sampling_rate
 
+        # use to check which subset are loaded
+        self.loaded = {"weak": False, "unlabel_in_domain": False, "synthetic20": False}
+
         # recover dataset hdf file
         log.debug(os.path.join("..", "dataset", "dcase2020_dataset_%s.hdf5" % self.sampling_rate))
         self.hdf_dataset = os.path.join("..", "dataset", "dcase2020_dataset_%s.hdf5" % self.sampling_rate)
 
-        # verbose mode
-        self.verbose = verbose
-        if self.verbose == 1:
-            self.tqdm_func = tqdm.tqdm
-        elif self.verbose == 2:
-            self.tqdm_func = tqdm.tqdm_notebook
-
+        # Prepare metadata container
         self.meta = {
             "train": {
                 "weak": {},
@@ -59,6 +56,13 @@ class DatasetManager:
         self._load_metadata()
         self._prepare_metadata()
 
+        # verbose mode
+        self.verbose = verbose
+        if self.verbose == 1:
+            self.tqdm_func = tqdm.tqdm
+        elif self.verbose == 2:
+            self.tqdm_func = tqdm.tqdm_notebook
+
     def _load_metadata(self):
         # load metadata for all training dataset
         for key in self.meta["train"]:
@@ -71,6 +75,9 @@ class DatasetManager:
             self.meta["train"][key] = df
             
     def _prepare_metadata(self):
+        """Change label string into binary vector, create weak truth using strong truth,
+        rename column event_labels into strongID / weakID
+        """
         def binarise(classes: str):
             """transform a list of string into a boolean vector"""
             output = [0] * DatasetManager.NB_CLASS
@@ -81,18 +88,37 @@ class DatasetManager:
 
             return output
         
-        def labelList_to_classID(df):
+        def labelList_to_classID(df, column_label_name):
             # initialise a zero array
             zeros = [[0 for _ in range(len(DatasetManager.cls_dict))]] * len(df)
             df["classID"] = zeros
             
-            # for each row, convert the list of event into one hot vectors
+            # for each row, convert the list of event into weak binary vectors
             for name in df.index:
-                df.at[name, "classID"] = binarise(df.at[name, "event_labels"])
-                
+                df.at[name, "classID"] = binarise(df.at[name, column_label_name])
+
+        def range_to_binaryarray(df, time_size):
+            """Transform onset and offset into a binary vector of size <time_size>"""
+            # intialise zero array
+            zeros = [[0 for _ in range(time_size)]] * len(df)
+            df["strongID"] = zeros
+
+            # for each row, unroll the onset and offset into a binary vector
+            for name in df.index:
+                onset = df.at[name, "onset"]
+                offset = df.at[name, "offset"]
+
+                start = int(np.floor(onset * time_size / DatasetManager.LENGTH))
+                end = int(np.ceil(offset * time_size / DatasetManager.LENGTH))
+
+                df.at[name, "strongID"][start:end] = 1
+
         
-        labelList_to_classID(self.meta["train"]["weak"])
-        
+        labelList_to_classID(self.meta["train"]["weak"], "event_labels")        # <-- "s" is not my doing :(
+
+        labelList_to_classID(self.meta["train"]["synthetic20"], "event_label")
+        range_to_binaryarray(self.meta["train"]["synthetic20"], self._feature_size())
+
     def get_subset(self, dataset: str, subset: str = None) -> dict:
         hdf_file = h5py.File(self.hdf_dataset, "r")
 
@@ -139,6 +165,12 @@ class DatasetManager:
         feat = librosa.power_to_db(feat, ref=np.max)
         return feat
 
+    def _feature_size(self) -> int:
+        """Automatically compute the length of the mel-spectrogram using the sampling rate and default hop_length"""
+        # TODO find a way to recover automatically the hop_length
+        # Resolution scaling will change this value, leading to error while converting onset / offset into binary array
+        return int(np.ceil(self.sampling_rate * DatasetManager.LENGTH / 512)) # <-- 512 = hop_length
+
 
 class DESEDManager(DatasetManager):
     def __init__(self, metadata_root, audio_root, sampling_rate: int = 22050, verbose: int = 1,
@@ -158,14 +190,14 @@ class DESEDManager(DatasetManager):
         self.filenames = None
 
     def add_subset(self, key: str):
+        """ Add a subset to the DESEDManager."""
         train_subsets = ["weak", "unlabel_in_domain", "synthetic20"]
 
         if key in train_subsets:
             dataset = "train"
             subset = key
         else:
-            dataset = key
-            subset = None
+            raise NotImplementedError("the subset %s is not suppoerted yet" % key)
 
         logging.info("Loading dataset: %s, subset: %s" % (dataset, subset))
 
@@ -175,6 +207,9 @@ class DESEDManager(DatasetManager):
         # concat the metadata into self._y
         target_meta = self.meta[dataset][subset] if key in train_subsets else self.meta[dataset]
         self._y = pd.concat([self._y, target_meta]) # TODO check if need to specify an axis
+
+        # mark the subset as loaded
+        self.loaded[key] = True
 
     def split_train_validation(self):
         if self.validation_exist:
@@ -191,8 +226,7 @@ class DESEDManager(DatasetManager):
         nb_file = len(filenames)
         nb_validation = int(nb_file * self.validation_ratio)
 
-        # Random selection of the validation fold
-        # TODO add a balance split function
+        # Random selection of the validation fold --- TODO add a balance split function
         validation_filenames = np.random.choice(filenames, size=nb_validation)
 
         # split the audio dictionary into a training and validation one (X, X_val)
