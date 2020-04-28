@@ -28,11 +28,20 @@ class DatasetManager(object):
     cls_dict_reverse = dict(zip(cls_dict.values(),cls_dict.keys()))
     NB_CLASS = 10
     
-    def __init__(self, metadata_root, audio_root, sampling_rate: int = 22050, verbose: int = 1):
+    def __init__(self, metadata_root, audio_root, sampling_rate: int = 22050, verbose: int = 1, from_disk: bool = False):
+        """
+
+        :param metadata_root:
+        :param audio_root:
+        :param sampling_rate:
+        :param verbose:
+        :param from_disk:
+        """
         self.metadata_root = metadata_root
         self.audio_root = audio_root
         self.verbose = verbose
         self.sampling_rate = sampling_rate
+        self.from_disk = from_disk
 
         # use to check which subset are loaded
         self.loaded = {"weak": False, "unlabel_in_domain": False, "synthetic20": False}
@@ -40,6 +49,7 @@ class DatasetManager(object):
         # recover dataset hdf file
         log.debug(os.path.join("..", "dataset", "dcase2020_dataset_%s.hdf5" % self.sampling_rate))
         self.hdf_dataset = os.path.join("..", "dataset", "dcase2020_dataset_%s.hdf5" % self.sampling_rate)
+        self.hdf_file = None if not from_disk else h5py.File(self.hdf_dataset, "r")
 
         # Prepare metadata container
         self.meta = {
@@ -62,6 +72,17 @@ class DatasetManager(object):
             self.tqdm_func = tqdm.tqdm
         elif self.verbose == 2:
             self.tqdm_func = tqdm.tqdm_notebook
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.from_disk:
+            self.hdf_file.close()
+
+    def __del__(self):
+        if self.from_disk:
+            self.hdf_file.close()
 
     def _load_metadata(self):
         # load metadata for all training dataset
@@ -119,21 +140,35 @@ class DatasetManager(object):
         labelList_to_classID(self.meta["train"]["synthetic20"], "event_label")
         range_to_binaryarray(self.meta["train"]["synthetic20"], self._feature_size())
 
-    def get_subset(self, dataset: str, subset: str = None) -> dict:
-        hdf_file = h5py.File(self.hdf_dataset, "r")
-
+    def get_subset(self, dataset: str, subset: str = None):
+        """
+        The function will load the content of the hdf file for this dataset and subset into ram if the
+        attribute from_disk is False, otherwise will only return a link to the hdf group
+        :param dataset: The dataset to load
+        :param subset: The subset from this dataset. subset can be left to None
+        """
         if subset is not None:
             path = os.path.join(self.audio_root, dataset, subset)
         else:
             path = os.path.join(self.audio_root, dataset)
 
+        if not self.from_disk:
+            return self._load_subset_to_ram(path)
+
+    def _load_subset_to_ram(self, path) -> dict:
+        hdf_file = h5py.File(self.hdf_dataset, "r")
+
         output = self._hdf_to_dict(hdf_file, path)
-        log.debug("output size: %s" % len(output))
+
         hdf_file.close()
 
         return output
 
+    def _link_to_hdf(self, path) -> dict:
+        return self.hdf_file[path]
+
     def _hdf_to_dict(self, hdf_file, path: str) -> dict:
+        """ Loadthe content of the hdf group corresponding to the dataset and subset specified into the memory."""
         log.debug("hdf_file: %s" % hdf_file)
         log.debug("path: %s" % path)
         filenames = list(hdf_file[path]["filenames"])
