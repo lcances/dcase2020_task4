@@ -1,7 +1,18 @@
 # dcase2020
 
 ## Requirement
-##### 1. Environement
+
+##### 1. Clone repo & installation
+Install the repo as a local pip package 
+```Bash
+git clone https://github.com/leocances/dcase2020.git
+cd dcase2020
+git submodule init
+git submodule update
+
+```
+
+##### 2. Environement
 ```Bash
 conda create -n dcase2020 python=3 pip
 conda activate dcase2020
@@ -10,24 +21,15 @@ conda install pytorch
 conda install h5py
 conda install pandas
 
-# for the augmentation function
-conda install pillow
-conda install scikit-image
+conda install pillow    # for the augmentation_utils package
+conda install scikit-image # ...
 
 pip install librosa
 pip install tqdm
 
-```
-
-##### 2. Clone repo & installation
-Install the repo as a local pip package 
-```Bash
-git clone https://github.com/leocances/dcase2020.git
-cd dcase2020
-git submodule init
-git submodule update
-
+# Install dcase2020 local package
 pip install -e .
+
 ```
 
 
