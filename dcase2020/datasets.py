@@ -43,6 +43,8 @@ class DESEDDataset(torch.utils.data.Dataset):
         self.manager = manager
         self.train = train
         self.val = val
+        self.weak = weak
+        self.strong = strong
         self.augments = augments
         self.cached = cached
 
@@ -95,7 +97,6 @@ class DESEDDataset(torch.utils.data.Dataset):
             strong_y = self.y.at[filename, "strongID"]
             strong_y = np.asarray(strong_y)
             y.append(strong_y)
-
 
         raw_audio = self._apply_augmentation(raw_audio, SignalAugmentation)
         raw_audio = self._pad_and_crop(raw_audio)
