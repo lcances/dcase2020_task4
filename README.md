@@ -25,6 +25,7 @@ conda activate dcase2020
 conda install pytorch
 conda install h5py
 conda install pandas
+conda install tensorboard
 
 conda install pillow    # for the augmentation_utils package
 conda install scikit-image # ...
