@@ -2,7 +2,7 @@
 Not proper testing, but actual functional test
 """
 
-from dcase2020.datasetManager import DESEDManager
+from dcase2020_task4 import DESEDManager
 
 metadata_root="../dataset/DESED/dataset/metadata"
 audio_root="../dataset/DESED/dataset/audio"

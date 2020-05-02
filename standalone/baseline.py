@@ -10,20 +10,19 @@ from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
 # utility function & metrics & augmentation
-import dcase2020.augmentation_utils.signal_augmentations as signal_augmentations
-import dcase2020.augmentation_utils.spec_augmentations as spec_augmentations
-import dcase2020.augmentation_utils.signal_augmentations as signal_augmentations
-from dcase2020.pytorch_metrics.metrics import FScore, BinaryAccuracy
-from dcase2020.util.utils import get_datetime, reset_seed
+import dcase2020_task4.augmentation_utils.signal_augmentations as signal_augmentations
+import dcase2020_task4.augmentation_utils.spec_augmentations as spec_augmentations
+import dcase2020_task4.augmentation_utils.img_augmentations as img_augmentations
+from dcase2020_task4.pytorch_metrics.metrics import FScore, BinaryAccuracy
+from dcase2020_task4.util.utils import get_datetime, reset_seed
 
 # models
-from dcase2020.models import WeakBaseline
+from dcase2020_task4.baseline.models import WeakBaseline
 
 
 # ==== set the log ====
-import logging
 import logging.config
-from dcase2020.util.log import DEFAULT_LOGGING
+from dcase2020_task4.util.log import DEFAULT_LOGGING
 logging.config.dictConfig(DEFAULT_LOGGING)
 log = logging.getLogger(__name__)
 

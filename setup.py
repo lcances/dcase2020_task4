@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='dcase2020',
+    name='dcase2020_task4',
     version='1.0.0',
     url='https://github.com/leocances/dcase2020.git',
     author='Leo Cances',

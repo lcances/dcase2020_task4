@@ -5,11 +5,16 @@
 ##### 1. Clone repo & installation
 Install the repo as a local pip package 
 ```Bash
-git clone https://github.com/leocances/dcase2020.git
+git clone https://github.com/leocances/dcase2020_task4.git
+git clone https://github.com/leocances/dcase2020.git # <-- dcase2020 dataset management
+
 cd dcase2020
 git submodule init
 git submodule update
 
+cd ../dcase2020_task4
+git submodule init
+git submodule update
 ```
 
 ##### 2. Environement
@@ -27,7 +32,12 @@ conda install scikit-image # ...
 pip install librosa
 pip install tqdm
 
-# Install dcase2020 local package
+# Install dcase2020 as local package (dataset management)
+cd dcase2020
+pip install -e .
+
+# Install dcase2020_task4 local package
+cd ../dcase2020_task4
 pip install -e .
 
 ```
@@ -91,7 +101,7 @@ the different subset independantly and create a train / validation split.
 ```python
 import ...
 
-from dcase2020.datasetManager import DESEDManager
+from dcase2020_task4 import DESEDManager
 
 metadata_root = "../path/to/metadata"
 audio_root = "../path/to/audio"
@@ -113,7 +123,7 @@ manager.split_train_validation()
 ### Creating the pytorch dataset for train and val
 - Without augmentations
 ```python
-from dcase2020.datasets import DESEDDataset
+from dcase2020_task4 import DESEDDataset
 
 train_dataset = DESEDDataset(manager, 
     train=True, val=False, augments=[],
@@ -125,10 +135,10 @@ val_dataset = DESEDDataset(manager, train=False, val=True, augments=[], cached=T
    - noise on signal with a target SNR of 15db and 
    - random time dropout of 30% on the mel-spectrogram
  ```python
- from dcase2020.datasets import DESEDDataset
+ from dcase2020_task4 import DESEDDataset
 
- import dcase2020.augmentation_utils.signal_augmentations as signal_augmentations
- import dcase2020.augmentation_utils.spec_augmentations as spec_augmentations
+ import dcase2020_task4 as signal_augmentations
+ import dcase2020_task4.augmentation_utils.spec_augmentations as spec_augmentations
 
  augments = [
      signal_augmentations.Noise(0.5, target_snr=15),
