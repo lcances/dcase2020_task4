@@ -26,12 +26,12 @@ from dcase2020_task4.util.log import DEFAULT_LOGGING
 logging.config.dictConfig(DEFAULT_LOGGING)
 log = logging.getLogger(__name__)
 
-# ==== reset the seed for reproductability ====
+# ==== reset the seed for reproducibility ====
 reset_seed(1234)
 
 # ==== load the dataset ====
-dese_metadata_root = "../dataset/DESED/dataset/metadata"
-desed_audio_root = "../dataset/DESED/dataset/audio"
+dese_metadata_root = "../../dataset/DESED/dataset/metadata"
+desed_audio_root = "../../dataset/DESED/dataset/audio"
 
 manager = DESEDManager(
     dese_metadata_root, desed_audio_root,
