@@ -2,9 +2,14 @@
 .vs/
 .vscode/
 dataset/
-dataset/
 dcase2020_task4/.ipynb_checkpoints/
 dcase2020_task4/__pycache__/
 notebooks/.ipynb_checkpoints/
 tensorboard/
 .ipynb_checkpoints/
+
+*.pyc
+__pycache__
+*.egg-info
+results
+notes.txt
