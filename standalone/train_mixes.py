@@ -30,9 +30,10 @@ def get_nb_trainable_parameters(model: Module) -> int:
 
 def create_args() -> Namespace:
 	parser = ArgumentParser()
-	parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "full", "part"])
+	# TODO : help for acronyms
+	parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "sf", "sp"])
 	parser.add_argument("--dataset", type=str, default="dataset/CIFAR10")
-	parser.add_argument("--logdir", type=str, default="../tensorboard")
+	parser.add_argument("--logdir", type=str, default="tensorboard")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--model_name", type=str, default="VGG11")
 	parser.add_argument("--nb_epochs", type=int, default=100)
@@ -47,7 +48,7 @@ def main():
 	args = create_args()
 
 	hparams = edict()
-	hparams.update(args.__dict__)
+	hparams.update({k: (" ".join(v) if isinstance(v, list) else v) for k, v in args.__dict__.items()})
 
 	# Note : some hyperparameters are overwritten when calling the training function
 	hparams.begin_date = get_datetime()
@@ -107,9 +108,9 @@ def main():
 	if "rmm" in args.run:
 		test_remixmatch(model_factory(), loader_train_ss, loader_val, edict(hparams))
 
-	if "full" in args.run:
+	if "sf" in args.run:
 		test_supervised(model_factory(), loader_train_full, loader_val, edict(hparams), suffix="full_100")
-	if "part" in args.run:
+	if "sp" in args.run:
 		test_supervised(model_factory(), loader_train_s, loader_val, edict(hparams), suffix="part_%d" % int(100 * hparams.supervised_ratio))
 
 	exec_time = time() - prog_start

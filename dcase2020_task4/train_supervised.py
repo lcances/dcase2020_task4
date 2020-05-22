@@ -73,8 +73,8 @@ def train_supervised(
 	losses, accuracies = [], []
 	iter_train = iter(loader)
 	for i, (x, y) in enumerate(iter_train):
-		x, y = x.cuda().float(), y.cuda().long()
-		y = one_hot(y, nb_classes)
+		x, y_num = x.cuda().float(), y.cuda().long()
+		y = one_hot(y_num, nb_classes)
 
 		# Compute logits
 		logits = model(x)
@@ -84,7 +84,7 @@ def train_supervised(
 		accuracy = metrics(pred, y)
 
 		# Update model
-		loss = criterion(logits, y)
+		loss = criterion(logits, y_num)  # note softmax is applied inside CrossEntropy
 		optimizer.zero_grad()
 		loss.backward()
 		optimizer.step()
