@@ -38,13 +38,13 @@ def test_remixmatch(
 	hparams.lr = 0.002
 	hparams.weight_decay = 0.02
 
-	weak_augm_fn = RandomChoice([
-		HorizontalFlip(1.0),
-		VerticalFlip(1.0),
-		Transform(1.0, scale=(0.5, 1.5)),
-		Transform(1.0, rotation=(-np.pi, np.pi)),
+	weak_augm_fn_x = RandomChoice([
+		HorizontalFlip(0.5),
+		VerticalFlip(0.5),
+		Transform(0.5, scale=(0.75, 1.25)),
+		Transform(0.5, rotation=(-np.pi, np.pi)),
 	])
-	strong_augm_fn = Compose([
+	strong_augm_fn_x = Compose([
 		RandomChoice([
 			Transform(1.0, scale=(0.5, 1.5)),
 			Transform(1.0, rotation=(-np.pi, np.pi)),
@@ -69,7 +69,7 @@ def test_remixmatch(
 	metrics_u1 = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_rot = CategoricalConfidenceAccuracy(hparams.confidence)
 	remixmatch = ReMixMatch(
-		model, optim, weak_augm_fn, strong_augm_fn, hparams.nb_classes, hparams.nb_augms_strong, hparams.sharpen_val, hparams.mixup_alpha
+		model, optim, weak_augm_fn_x, strong_augm_fn_x, hparams.nb_classes, hparams.nb_augms_strong, hparams.sharpen_val, hparams.mixup_alpha
 	)
 
 	start = time()

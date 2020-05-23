@@ -14,8 +14,8 @@ def remixmatch_fn(
 	batch_labeled: Tensor,
 	labels: Tensor,
 	batch_unlabeled: Tensor,
-	strong_augm_fn: Callable,
-	weak_augm_fn: Callable,
+	strong_augm_fn_x: Callable,
+	weak_augm_fn_x: Callable,
 	distributions_coefs: Tensor,
 	nb_augms_strong: int,
 	sharpen_val: float,
@@ -29,9 +29,9 @@ def remixmatch_fn(
 			batch_labeled: Batch from supervised dataset.
 			labels: Labels of batch_labeled.
 			batch_unlabeled: Unlabeled batch.
-			strong_augm_fn: Strong augmentation function. Take a batch as input and return an strongly augmented version.
+			strong_augm_fn_x: Strong augmentation function. Take a sample as input and return an strongly augmented version.
 				This function should be a stochastic transformation.
-			weak_augm_fn: Strong augmentation function. Take a batch as input and return an strongly augmented version.
+			weak_augm_fn_x: Weak augmentation function. Take a sample as input and return an weakly augmented version.
 				This function should be a stochastic transformation.
 			nb_augms: Hyperparameter "K" used for compute guessed labels.
 			sharpen_val: Hyperparameter "T" used for temperature sharpening on guessed labels.
@@ -53,10 +53,10 @@ def remixmatch_fn(
 		u_augm_w = torch.zeros(batch_unlabeled.size()).cuda()
 
 		for b, (x_sample, u_sample) in enumerate(zip(batch_labeled, batch_unlabeled)):
-			x_augm[b] = strong_augm_fn(x_sample)
+			x_augm[b] = strong_augm_fn_x(x_sample)
 			for k in range(nb_augms_strong):
-				u_augm_s[k, b] = strong_augm_fn(u_sample)
-			u_augm_w[b] = weak_augm_fn(u_sample)
+				u_augm_s[k, b] = strong_augm_fn_x(u_sample)
+			u_augm_w[b] = weak_augm_fn_x(u_sample)
 
 		# Guess labels
 		logits = model(u_augm_w)
@@ -145,8 +145,8 @@ class ReMixMatch:
 		self,
 		model: Module,
 		optim: Optimizer,
-		weak_augm_fn: Callable,
-		strong_augm_fn: Callable,
+		weak_augm_fn_x: Callable,
+		strong_augm_fn_x: Callable,
 		nb_classes: int,
 		nb_augms_strong: int,
 		sharpen_val: float,
@@ -154,8 +154,8 @@ class ReMixMatch:
 	):
 		self.model = model
 		self.optim = optim
-		self.weak_augm_fn = weak_augm_fn
-		self.strong_augm_fn = strong_augm_fn
+		self.weak_augm_fn_x = weak_augm_fn_x
+		self.strong_augm_fn_x = strong_augm_fn_x
 		self.nb_augms_strong = nb_augms_strong
 		self.sharpen_val = sharpen_val
 		self.mixup_alpha = mixup_alpha
@@ -171,8 +171,8 @@ class ReMixMatch:
 			batch_labeled,
 			labels,
 			batch_unlabeled,
-			self.strong_augm_fn,
-			self.weak_augm_fn,
+			self.strong_augm_fn_x,
+			self.weak_augm_fn_x,
 			distributions_coefficients,
 			self.nb_augms_strong,
 			self.sharpen_val,

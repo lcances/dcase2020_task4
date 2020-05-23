@@ -32,21 +32,20 @@ def test_mixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 	hparams.sharpen_val = 0.5
 	hparams.mixup_alpha = 0.75
 	hparams.lambda_u_max = 75.0
-	hparams.lr = 0.001
+	hparams.lr = 1e-2
 	hparams.weight_decay = 0.0008
 
 	nb_rampup_steps = hparams.nb_epochs * len(loader_train_split)
-	augment_fn = RandomChoice([
-		HorizontalFlip(1.0),
-		VerticalFlip(1.0),
-		Transform(1.0, scale=(0.5, 1.5)),
-		Transform(1.0, rotation=(-np.pi, np.pi)),
-		Gray(1.0),
-		RandCrop(1.0),
-		Unicolor(1.0),
-		Inversion(1.0),
+	augment_fn_x = RandomChoice([
+		HorizontalFlip(0.5),
+		VerticalFlip(0.5),
+		Transform(0.5, scale=(0.75, 1.25)),
+		Transform(0.5, rotation=(-np.pi, np.pi)),
+		Gray(0.5),
+		RandCrop(0.5),
+		Unicolor(0.5),
+		Inversion(0.5),
 	])
-	nb_epochs = hparams.nb_epochs
 	nb_classes = hparams.nb_classes
 	confidence = hparams.confidence
 
@@ -59,7 +58,7 @@ def test_mixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 	metrics_s = CategoricalConfidenceAccuracy(confidence)
 	metrics_u = CategoricalConfidenceAccuracy(confidence)
 	metrics_val = CategoricalConfidenceAccuracy(confidence)
-	mixmatch = MixMatch(model, augment_fn, hparams.nb_augms, hparams.sharpen_val, hparams.mixup_alpha)
+	mixmatch = MixMatch(model, augment_fn_x, hparams.nb_augms, hparams.sharpen_val, hparams.mixup_alpha)
 	lambda_u_rampup = RampUp(max_value=hparams.lambda_u_max, nb_steps=nb_rampup_steps)
 
 	start = time()
@@ -71,7 +70,7 @@ def test_mixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 			  len(loader_val) * loader_val.batch_size
 		  ))
 
-	for e in range(nb_epochs):
+	for e in range(hparams.nb_epochs):
 		losses, acc_train_s, acc_train_u = train_mixmatch(
 			model, optim, loader_train_split, nb_classes, metrics_s, metrics_u, mixmatch, lambda_u_rampup, e
 		)

@@ -36,10 +36,10 @@ def test_fixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 	hparams.weight_decay = 1e-4
 
 	weak_augm_fn_x = RandomChoice([
-		HorizontalFlip(1.0),
-		VerticalFlip(1.0),
-		Transform(1.0, scale=(0.5, 1.5)),
-		Transform(1.0, rotation=(-np.pi, np.pi)),
+		HorizontalFlip(0.5),
+		VerticalFlip(0.5),
+		Transform(0.5, scale=(0.75, 1.25)),
+		Transform(0.5, rotation=(-np.pi, np.pi)),
 	])
 	strong_augm_fn_x = Compose([
 		RandomChoice([

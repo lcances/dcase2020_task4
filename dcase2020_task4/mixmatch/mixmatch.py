@@ -13,7 +13,7 @@ def mixmatch_fn(
 	batch_labeled: Tensor,
 	labels: Tensor,
 	batch_unlabeled: Tensor,
-	augment_fn: Callable,
+	augment_fn_x: Callable,
 	nb_augms: int,
 	sharpen_val: float,
 	mixup_alpha: float
@@ -26,7 +26,7 @@ def mixmatch_fn(
 			batch_labeled: Batch from supervised dataset.
 			labels: Labels of batch_labeled.
 			batch_unlabeled: Unlabeled batch.
-			augment_fn: Augmentation function. Take a batch as input and return an augmented version.
+			augment_fn: Augmentation function. Take a sample as input and return an augmented version.
 				This function should be a stochastic transformation.
 			nb_augms: Hyperparameter "K" used for compute guessed labels.
 			sharpen_val: Hyperparameter "T" used for temperature sharpening on guessed labels.
@@ -48,11 +48,11 @@ def mixmatch_fn(
 		guessed_labels = torch.zeros(labels.size()).cuda()
 
 		for b, (x_sample, u_sample) in enumerate(zip(batch_labeled, batch_unlabeled)):
-			x_augm[b] = augment_fn(x_sample)
+			x_augm[b] = augment_fn_x(x_sample)
 
 			# TODO : replace by torch.stack for perf ?
 			for k in range(nb_augms):
-				u_augm[k, b] = augment_fn(u_sample)
+				u_augm[k, b] = augment_fn_x(u_sample)
 
 			logits = model(u_augm[:, b])
 			predictions = torch.softmax(logits, dim=1)
