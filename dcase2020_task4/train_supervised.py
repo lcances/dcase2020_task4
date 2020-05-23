@@ -20,7 +20,7 @@ from .validate import val
 def test_supervised(
 	model: Module, loader_train: DataLoader, loader_val: DataLoader, hparams: edict, suffix: str = ""
 ):
-	hparams.lr = 0.001
+	hparams.lr = 1e-3
 
 	hparams.train_name = "Supervised"
 	dirname = "%s_%s_%s_%s" % (hparams.train_name, hparams.model_name, suffix, hparams.begin_date)

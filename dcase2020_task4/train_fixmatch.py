@@ -53,8 +53,8 @@ def test_fixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 			Inversion(1.0),
 		]),
 	])
-	weak_augm_fn = lambda batch: torch.stack([weak_augm_fn_x(x) for x in batch]).cuda()
-	strong_augm_fn = lambda batch: torch.stack([strong_augm_fn_x(x) for x in batch]).cuda()
+	weak_augm_fn = lambda batch: torch.stack([weak_augm_fn_x(x).cuda() for x in batch])
+	strong_augm_fn = lambda batch: torch.stack([strong_augm_fn_x(x).cuda() for x in batch])
 
 	hparams.train_name = "FixMatch"
 	dirname = "%s_%s_%s_%s" % (hparams.train_name, hparams.model_name, suffix, hparams.begin_date)

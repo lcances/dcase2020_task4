@@ -31,7 +31,7 @@ def test_mixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 	hparams.nb_augms = 2
 	hparams.sharpen_val = 0.5
 	hparams.mixup_alpha = 0.75
-	hparams.lambda_u_max = 75.0
+	hparams.lambda_u_max = 10.0  # In paper : 75
 	hparams.lr = 1e-2
 	hparams.weight_decay = 0.0008
 
