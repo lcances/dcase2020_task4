@@ -42,7 +42,7 @@ def test_mixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 		Transform(0.5, scale=(0.75, 1.25)),
 		Transform(0.5, rotation=(-np.pi, np.pi)),
 		Gray(0.5),
-		RandCrop(0.5),
+		RandCrop(0.5, rect_max_scale=(0.2, 0.2)),
 		Unicolor(0.5),
 		Inversion(0.5),
 	])
