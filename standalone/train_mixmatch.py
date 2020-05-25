@@ -12,12 +12,13 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms import RandomChoice
+from typing import Callable
 
 from dcase2020.augmentation_utils.img_augmentations import Transform
 from dcase2020.augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip
 from dcase2020.pytorch_metrics.metrics import Metrics
 
-from dcase2020_task4.mixmatch.mixmatch import mixmatch_loss, MixMatch
+from dcase2020_task4.mixmatch.mixmatch import MixMatchMixer, MixMatchLoss
 from dcase2020_task4.mixmatch.RampUp import RampUp
 from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
 from dcase2020_task4.util.rgb_augmentations import Gray, Inversion, RandCrop, Unicolor
@@ -26,7 +27,10 @@ from dcase2020_task4.util.confidence_acc import CategoricalConfidenceAccuracy
 from .validate import val
 
 
-def test_mixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val: DataLoader, hparams: edict, suffix: str = ""):
+def test_mixmatch(
+	model: Module, acti_fn: Callable, loader_train_split: MergeDataLoader, loader_val: DataLoader, hparams: edict,
+	suffix: str = ""
+):
 	# MixMatch hyperparameters
 	hparams.nb_augms = 2
 	hparams.sharpen_val = 0.5
@@ -46,8 +50,6 @@ def test_mixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 		Unicolor(0.5),
 		Inversion(0.5),
 	])
-	nb_classes = hparams.nb_classes
-	confidence = hparams.confidence
 
 	hparams.train_name = "MixMatch"
 	dirname = "%s_%s_%s_%s" % (hparams.train_name, hparams.model_name, suffix, hparams.begin_date)
@@ -55,11 +57,16 @@ def test_mixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 	writer = SummaryWriter(log_dir=dirpath, comment=hparams.train_name)
 
 	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
-	metrics_s = CategoricalConfidenceAccuracy(confidence)
-	metrics_u = CategoricalConfidenceAccuracy(confidence)
-	metrics_val = CategoricalConfidenceAccuracy(confidence)
-	mixmatch = MixMatch(model, augment_fn_x, hparams.nb_augms, hparams.sharpen_val, hparams.mixup_alpha)
+	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
+	metrics_u = CategoricalConfidenceAccuracy(hparams.confidence)
+	metrics_val = CategoricalConfidenceAccuracy(hparams.confidence)
+	mixmatch = MixMatchMixer(model, augment_fn_x, hparams.nb_augms, hparams.sharpen_val, hparams.mixup_alpha)
 	lambda_u_rampup = RampUp(max_value=hparams.lambda_u_max, nb_steps=nb_rampup_steps)
+	criterion = MixMatchLoss(
+		lambda_u = hparams.lambda_u_max,
+		mode = "onehot",
+		criterion_unsupervised="l2norm",
+	)
 
 	start = time()
 	print("\nStart MixMatch training ("
@@ -72,9 +79,9 @@ def test_mixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 
 	for e in range(hparams.nb_epochs):
 		losses, acc_train_s, acc_train_u = train_mixmatch(
-			model, optim, loader_train_split, nb_classes, metrics_s, metrics_u, mixmatch, lambda_u_rampup, e
+			model, acti_fn, optim, loader_train_split, hparams.nb_classes, criterion, metrics_s, metrics_u, mixmatch, lambda_u_rampup, e
 		)
-		acc_val = val(model, loader_val, nb_classes, metrics_val, e)
+		acc_val = val(model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e)
 
 		writer.add_scalar("train/loss", float(np.mean(losses)), e)
 		writer.add_scalar("train/acc_s", float(np.mean(acc_train_s)), e)
@@ -89,12 +96,14 @@ def test_mixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 
 def train_mixmatch(
 	model: Module,
+	acti_fn: Callable,
 	optimizer: Optimizer,
 	loader: MergeDataLoader,
 	nb_classes: int,
+	criterion: Callable,
 	metrics_s: Metrics,
 	metrics_u: Metrics,
-	mixmatch: MixMatch,
+	mixmatch: MixMatchMixer,
 	lambda_u_rampup: RampUp,
 	epoch: int
 ) -> (list, list, list):
@@ -118,14 +127,15 @@ def train_mixmatch(
 		logits_u = model(batch_u_mixed)
 
 		# Compute accuracies
-		pred_x = torch.softmax(logits_x, dim=1)
-		pred_u = torch.softmax(logits_u, dim=1)
+		pred_x = acti_fn(logits_x)
+		pred_u = acti_fn(logits_u)
 
 		accuracy_s = metrics_s(pred_x, labels_x_mixed)
 		accuracy_u = metrics_u(pred_u, labels_u_mixed)
 
 		# Update model
-		loss = mixmatch_loss(logits_x, labels_x_mixed, logits_u, labels_u_mixed, lambda_u_rampup.value)
+		criterion.lambda_u = lambda_u_rampup.value
+		loss = criterion(logits_x, labels_x_mixed, logits_u, labels_u_mixed)
 		optimizer.zero_grad()
 		loss.backward()
 		clip_grad_norm_(model.parameters(), 100)

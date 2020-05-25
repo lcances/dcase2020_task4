@@ -2,10 +2,11 @@ import torch
 
 from torch import Tensor
 from torch.nn import Module
+from torch.nn.functional import binary_cross_entropy_with_logits
 from typing import Callable
 
 from ..mixup.mixup import mixup_fn
-from ..util.match_utils import same_shuffle, sharpen, merge_first_dimension, cross_entropy_with_one_hot
+from ..util.utils_match import same_shuffle, sharpen, merge_first_dimension, cross_entropy_with_logits
 
 
 def mixmatch_fn(
@@ -92,7 +93,7 @@ def mixmatch_loss(logits_x: Tensor, targets_x: Tensor, logits_u: Tensor, targets
 		@returns
 			The MixMatch loss computed, a scalar Tensor.
 	"""
-	loss_x = cross_entropy_with_one_hot(logits_x, targets_x)
+	loss_x = cross_entropy_with_logits(logits_x, targets_x)
 
 	pred_u = torch.softmax(logits_u, dim=1)
 	loss_u = torch.mean((pred_u - targets_u) ** 2)
@@ -100,12 +101,13 @@ def mixmatch_loss(logits_x: Tensor, targets_x: Tensor, logits_u: Tensor, targets
 	return loss_x + lambda_u * loss_u
 
 
-class MixMatch:
+class MixMatchMixer:
 	"""
-		MixMatch class created for convenience. Store hyperparameters and apply mixmatch_fn with call() or mix().
+		MixMatch class.
+		Store hyperparameters and apply mixmatch_fn with call() or mix().
 	"""
 	def __init__(
-		self, model: Module, augment_fn, nb_augms: int = 2, sharpen_val: float = 0.5, mixup_alpha: float = 0.75
+		self, model: Module, augment_fn: Callable, nb_augms: int = 2, sharpen_val: float = 0.5, mixup_alpha: float = 0.75
 	):
 		self.model = model
 		self.augment_fn = augment_fn
@@ -127,3 +129,38 @@ class MixMatch:
 			self.sharpen_val,
 			self.mixup_alpha
 		)
+
+
+class MixMatchLoss(Callable):
+	def __init__(self, lambda_u: float = 1.0, mode: str = "onehot", criterion_unsupervised: str = "l2norm"):
+		self.lambda_u = lambda_u
+		self.mode = mode
+		self.unsupervised_loss_mode = criterion_unsupervised
+
+		if self.mode == "onehot":
+			self.acti_fn = lambda x: torch.softmax(x, dim=1)
+			self.criterion_s = cross_entropy_with_logits
+			if criterion_unsupervised == "l2norm":
+				self.criterion_u = lambda logits_u, targets_u: torch.mean((self.acti_fn(logits_u) - targets_u) ** 2)
+			elif criterion_unsupervised == "crossentropy":
+				self.criterion_u = cross_entropy_with_logits
+			else:
+				raise RuntimeError(
+					"Invalid argument \"mode = %s\". Use \"%s\" or \"%s\"." % (criterion_unsupervised, "l2norm", "crossentropy"))
+
+		elif self.mode == "multihot":
+			self.acti_fn = torch.sigmoid
+			self.criterion_s = binary_cross_entropy_with_logits
+			self.criterion_u = binary_cross_entropy_with_logits
+
+		else:
+			raise RuntimeError("Invalid argument \"mode = %s\". Use \"%s\" or \"%s\"." % (mode, "onehot", "multihot"))
+
+	def __call__(self, logits_x: Tensor, targets_x: Tensor, logits_u: Tensor, targets_u: Tensor) -> Tensor:
+		loss_x = self.criterion_s(logits_x, targets_x)
+		loss_x = loss_x.mean()
+
+		loss_u = self.criterion_u(logits_u, targets_u)
+		loss_u = loss_u.mean()
+
+		return loss_x + self.lambda_u * loss_u

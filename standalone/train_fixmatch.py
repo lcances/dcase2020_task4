@@ -11,28 +11,32 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms import RandomChoice, Compose
+from typing import Callable
 
 from dcase2020.augmentation_utils.img_augmentations import Transform
 from dcase2020.augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip
 from dcase2020.pytorch_metrics.metrics import Metrics
 
-from dcase2020_task4.fixmatch.fixmatch import fixmatch_loss
+from dcase2020_task4.fixmatch.fixmatch import FixMatchLoss
+from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
+from dcase2020_task4.util.confidence_acc import CategoricalConfidenceAccuracy
+from dcase2020_task4.util.utils_match import binarize_labels, get_lr
 from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
 from dcase2020_task4.util.rgb_augmentations import Gray, Inversion, RandCrop, Unicolor
-from dcase2020_task4.util.match_utils import binarize_labels
-from dcase2020_task4.util.confidence_acc import CategoricalConfidenceAccuracy
 
 from .validate import val
 
 
-def test_fixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val: DataLoader, hparams: edict,
-				  suffix: str = ""):
+def test_fixmatch(
+	model: Module, acti_fn: Callable, loader_train_split: MergeDataLoader, loader_val: DataLoader, hparams: edict,
+	suffix: str = ""
+):
 	# FixMatch hyperparameters
 	hparams.lambda_u = 1.0
-	hparams.lr0 = 0.03  # learning rate, eta
 	hparams.beta = 0.9  # used only for SGD
 	hparams.threshold = 0.95  # tau
 	hparams.batch_size = 16  # in paper: 64
+	hparams.lr0 = 0.03  # learning rate, eta
 	hparams.weight_decay = 1e-4
 
 	weak_augm_fn_x = RandomChoice([
@@ -65,6 +69,12 @@ def test_fixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_u = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_val = CategoricalConfidenceAccuracy(hparams.confidence)
+	criterion = FixMatchLoss(
+		lambda_u = hparams.lambda_u,
+		threshold_mask = hparams.threshold,
+		mode = "onehot"
+	)
+	scheduler = CosineLRScheduler(optim, nb_epochs = hparams.nb_epochs, lr0 = hparams.lr0)
 
 	start = time()
 	print("\nStart FixMatch training ("
@@ -77,17 +87,17 @@ def test_fixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 
 	for e in range(hparams.nb_epochs):
 		losses, acc_train_s, acc_train_u = train_fixmatch(
-			model, optim, loader_train_split, hparams.nb_classes, strong_augm_fn, weak_augm_fn, metrics_s, metrics_u,
-			hparams.threshold, hparams.lambda_u, e
+			model, acti_fn, optim, loader_train_split, hparams.nb_classes, strong_augm_fn, weak_augm_fn, criterion,
+			metrics_s, metrics_u, hparams.threshold, hparams.lambda_u, e
 		)
-		acc_val = val(model, loader_val, hparams.nb_classes, metrics_val, e)
+		acc_val = val(model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e)
 
-		optim.lr = hparams.lr0 * np.cos(7.0 * np.pi * e / (16.0 * hparams.nb_epochs))
+		scheduler.step()
 
 		writer.add_scalar("train/loss", float(np.mean(losses)), e)
 		writer.add_scalar("train/acc_s", float(np.mean(acc_train_s)), e)
 		writer.add_scalar("train/acc_u", float(np.mean(acc_train_u)), e)
-		writer.add_scalar("train/lr", optim.lr, e)
+		writer.add_scalar("train/lr", get_lr(optim), e)
 		writer.add_scalar("val/acc", float(np.mean(acc_val)), e)
 
 	print("End FixMatch training. (duration = %.2f)" % (time() - start))
@@ -98,11 +108,13 @@ def test_fixmatch(model: Module, loader_train_split: MergeDataLoader, loader_val
 
 def train_fixmatch(
 	model: Module,
+	acti_fn: Callable,
 	optimizer: Optimizer,
 	loader: MergeDataLoader,
 	nb_classes: int,
-	strong_augm_fn,
-	weak_augm_fn,
+	strong_augm_fn: Callable,
+	weak_augm_fn: Callable,
+	criterion: Callable,
 	metrics_s: Metrics,
 	metrics_u: Metrics,
 	threshold: float,
@@ -132,15 +144,15 @@ def train_fixmatch(
 		logits_u_strong = model(batch_u_strong)
 
 		# Compute accuracies
-		pred_s_weak = torch.softmax(logits_s_weak, dim=1)
-		pred_u_strong = torch.softmax(logits_u_strong, dim=1)
+		pred_s_weak = acti_fn(logits_s_weak)
+		pred_u_strong = acti_fn(logits_u_strong)
 		label_u_guessed = binarize_labels(logits_u_weak)
 
 		accuracy_s = metrics_s(pred_s_weak, labels_s)
 		accuracy_u = metrics_u(pred_u_strong, label_u_guessed)
 
 		# Update model
-		loss = fixmatch_loss(logits_s_weak, labels_s, logits_u_weak, logits_u_strong, threshold, lambda_u)
+		loss = criterion(logits_s_weak, labels_s, logits_u_weak, logits_u_strong)
 		optimizer.zero_grad()
 		loss.backward()
 		optimizer.step()

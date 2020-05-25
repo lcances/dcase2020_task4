@@ -1,13 +1,14 @@
-import torch
+
 from time import time
 from torch.nn import Module
 from torch.nn.functional import one_hot
 from torch.utils.data import DataLoader
+from typing import Callable
 
 from dcase2020.pytorch_metrics.metrics import Metrics
 
 
-def val(model: Module, loader: DataLoader, nb_classes: int, metrics: Metrics, epoch: int) -> list:
+def val(model: Module, acti_fn: Callable, loader: DataLoader, nb_classes: int, metrics: Metrics, epoch: int) -> list:
 	metrics.reset()
 	val_start = time()
 	model.eval()
@@ -19,7 +20,7 @@ def val(model: Module, loader: DataLoader, nb_classes: int, metrics: Metrics, ep
 		y = one_hot(y, nb_classes)
 
 		logits_x = model(x)
-		pred_x = torch.softmax(logits_x, dim=1)
+		pred_x = acti_fn(logits_x)
 		accuracy_val = metrics(pred_x, y)
 
 		accuracies.append(metrics.value.item())

@@ -7,12 +7,12 @@ class ModelDistributions:
 		Compute mean distributions of a model.
 	"""
 
-	def __init__(self, nb_classes: int, max_batches: int = 256, names: list = None):
+	def __init__(self, nb_classes: int, max_samples: int = 256, names: list = None):
 		if names is None:
 			names = ["labeled", "unlabeled"]
 
 		self.nb_classes = nb_classes
-		self.max_batches = max_batches
+		self.max_batches = max_samples
 		self.names = names
 		self.data = {}
 

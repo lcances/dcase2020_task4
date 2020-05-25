@@ -1,6 +1,7 @@
 import torch
 
 from torch import Tensor
+from torch.optim.optimizer import Optimizer
 from torch.nn.functional import one_hot
 from typing import List
 
@@ -67,10 +68,18 @@ def merge_first_dimension(t: Tensor) -> Tensor:
 	return t.reshape(shape)
 
 
-def cross_entropy_with_one_hot(logits: Tensor, targets: Tensor) -> Tensor:
+def cross_entropy_with_logits(logits: Tensor, targets: Tensor) -> Tensor:
 	"""
 		Apply softmax on logits and compute cross-entropy with targets.
 		Target must be a (batch_size, nb_classes) tensor.
 	"""
 	pred_x = torch.softmax(logits, dim=1)
 	return -torch.mean(torch.sum(torch.log(pred_x) * targets, dim=1))
+
+
+def get_lr(optim: Optimizer) -> float:
+	return optim.param_groups[0]["lr"]
+
+
+def set_lr(optim: Optimizer, new_lr: float):
+	optim.param_groups[0]["lr"] = new_lr

@@ -18,7 +18,7 @@ from .validate import val
 
 
 def test_supervised(
-	model: Module, loader_train: DataLoader, loader_val: DataLoader, hparams: edict, suffix: str = ""
+	model: Module, acti_fn: Callable, loader_train: DataLoader, loader_val: DataLoader, hparams: edict, suffix: str = ""
 ):
 	hparams.lr = 1e-3
 
@@ -30,7 +30,7 @@ def test_supervised(
 	optim = Adam(model.parameters(), lr=hparams.lr)
 	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_val = CategoricalConfidenceAccuracy(hparams.confidence)
-	cross_entropy = CrossEntropyLoss()
+	criterion = CrossEntropyLoss()
 
 	start = time()
 	print("\nStart Supervised training (%d epochs, %d train examples, %d valid examples)..." % (
@@ -41,10 +41,10 @@ def test_supervised(
 
 	for e in range(hparams.nb_epochs):
 		losses, acc_train = train_supervised(
-			model, optim, loader_train, hparams.nb_classes, cross_entropy, metrics_s, e
+			model, acti_fn, optim, loader_train, hparams.nb_classes, criterion, metrics_s, e
 		)
 		acc_val = val(
-			model, loader_val, hparams.nb_classes, metrics_val, e
+			model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e
 		)
 
 		writer.add_scalar("train/loss", float(np.mean(losses)), e)
@@ -59,6 +59,7 @@ def test_supervised(
 
 def train_supervised(
 	model: Module,
+	acti_fn: Callable,
 	optimizer: Optimizer,
 	loader: DataLoader,
 	nb_classes: int,
@@ -80,7 +81,7 @@ def train_supervised(
 		logits = model(x)
 
 		# Compute accuracy
-		pred = torch.softmax(logits, dim=1)
+		pred = acti_fn(logits)
 		accuracy = metrics(pred, y)
 
 		# Update model

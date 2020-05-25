@@ -7,17 +7,18 @@ from time import time
 from torch import Tensor
 from torch.nn import Module
 from torch.nn.functional import one_hot
-from torch.optim import Adam
+from torch.optim import SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from torchvision.transforms import RandomChoice, Compose
+from typing import Callable
 
 from dcase2020.augmentation_utils.img_augmentations import Transform
 from dcase2020.augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip
 from dcase2020.pytorch_metrics.metrics import Metrics
 
-from dcase2020_task4.remixmatch.remixmatch import remixmatch_loss, ReMixMatch
+from dcase2020_task4.remixmatch.remixmatch import ReMixMatchMixer, ReMixMatchLoss
 from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
 from dcase2020_task4.util.rgb_augmentations import Gray, Inversion, RandCrop, Unicolor
 from dcase2020_task4.util.confidence_acc import CategoricalConfidenceAccuracy
@@ -26,16 +27,17 @@ from .validate import val
 
 
 def test_remixmatch(
-	model: Module, loader_train_split: MergeDataLoader, loader_val: DataLoader, hparams: edict, suffix: str = ""
+	model: Module, acti_fn: Callable, loader_train_split: MergeDataLoader, loader_val: DataLoader, hparams: edict,
+	suffix: str = ""
 ):
 	# ReMixMatch hyperparameters
 	hparams.nb_augms_strong = 2  # In paper : 8
 	hparams.sharpen_val = 0.5
 	hparams.mixup_alpha = 0.75
-	hparams.lambda_u = 1.0  # In paper : 1.5
+	hparams.lambda_u = 1.5  # In paper : 1.5
 	hparams.lambda_u1 = 0.5
 	hparams.lambda_r = 0.5
-	hparams.lr = 0.002
+	hparams.lr = 1e-2  # In paper 2e-3
 	hparams.weight_decay = 0.02
 
 	weak_augm_fn_x = RandomChoice([
@@ -62,14 +64,20 @@ def test_remixmatch(
 	dirpath = osp.join(hparams.logdir, dirname)
 	writer = SummaryWriter(log_dir=dirpath, comment=hparams.train_name)
 
-	optim = Adam(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
+	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_u = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_val = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_u1 = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_rot = CategoricalConfidenceAccuracy(hparams.confidence)
-	remixmatch = ReMixMatch(
-		model, optim, weak_augm_fn_x, strong_augm_fn_x, hparams.nb_classes, hparams.nb_augms_strong, hparams.sharpen_val, hparams.mixup_alpha
+	remixmatch = ReMixMatchMixer(
+		model, weak_augm_fn_x, strong_augm_fn_x, hparams.nb_classes, hparams.nb_augms_strong, hparams.sharpen_val, hparams.mixup_alpha
+	)
+	criterion = ReMixMatchLoss(
+		lambda_u = hparams.lambda_u,
+		lambda_u1 = hparams.lambda_u1,
+		lambda_r = hparams.lambda_r,
+		mode = "onehot",
 	)
 
 	start = time()
@@ -83,10 +91,10 @@ def test_remixmatch(
 
 	for e in range(hparams.nb_epochs):
 		losses, acc_train_s, acc_train_u, acc_train_u1, acc_train_rot = train_remixmatch(
-			model, optim, loader_train_split, hparams.nb_classes, metrics_s, metrics_u, metrics_u1, metrics_rot,
-			remixmatch, hparams.lambda_u, hparams.lambda_u1, hparams.lambda_r, e
+			model, acti_fn, optim, loader_train_split, hparams.nb_classes, criterion, metrics_s, metrics_u, metrics_u1,
+			metrics_rot, remixmatch, hparams.lambda_u, hparams.lambda_u1, hparams.lambda_r, e
 		)
-		acc_val = val(model, loader_val, hparams.nb_classes, metrics_val, e)
+		acc_val = val(model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e)
 
 		writer.add_scalar("train/loss", float(np.mean(losses)), e)
 		writer.add_scalar("train/acc_s", float(np.mean(acc_train_s)), e)
@@ -103,14 +111,16 @@ def test_remixmatch(
 
 def train_remixmatch(
 	model: Module,
+	acti_fn: Callable,
 	optimizer: Optimizer,
 	loader: MergeDataLoader,
 	nb_classes: int,
+	criterion: Callable,
 	metrics_s: Metrics,
 	metrics_u: Metrics,
 	metrics_u1: Metrics,
 	metrics_rot: Metrics,
-	remixmatch: ReMixMatch,
+	remixmatch: ReMixMatchMixer,
 	lambda_u: float,
 	lambda_u1: float,
 	lambda_r: float,
@@ -145,30 +155,27 @@ def train_remixmatch(
 		logits_u1 = model(batch_u1)
 
 		# Rotate images and predict rotation for strong augment u1
-		batch_u1_rotated, labels_rot = apply_random_rot(batch_u1, angles_allowed)
-		labels_rot = one_hot(labels_rot, len(angles_allowed)).float().cuda()
-		logits_rot = model.forward_rot(batch_u1_rotated)
+		batch_u1_rotated, labels_r = apply_random_rot(batch_u1, angles_allowed)
+		labels_r = one_hot(labels_r, len(angles_allowed)).float().cuda()
+		logits_r = model.forward_rot(batch_u1_rotated)
 
 		# Compute accuracies
-		pred_x = torch.softmax(logits_x, dim=1)
-		pred_u = torch.softmax(logits_u, dim=1)
-		pred_u1 = torch.softmax(logits_u1, dim=1)
-		pred_rot = torch.softmax(logits_rot, dim=1)
+		pred_x = acti_fn(logits_x)
+		pred_u = acti_fn(logits_u)
+		pred_u1 = acti_fn(logits_u1)
+		pred_rot = acti_fn(logits_r)
 
 		accuracy_s = metrics_s(pred_x, labels_x_mixed)
 		accuracy_u = metrics_u(pred_u, labels_u_mixed)
 		accuracy_u1 = metrics_u1(pred_u1, labels_u1)
-		accuracy_rot = metrics_rot(pred_rot, labels_rot)
+		accuracy_rot = metrics_rot(pred_rot, labels_r)
 
 		# Update model
-		loss = remixmatch_loss(
+		loss = criterion(
 			logits_x, labels_x_mixed,
 			logits_u, labels_u_mixed,
 			logits_u1, labels_u1,
-			logits_rot, labels_rot,
-			lambda_u,
-			lambda_u1,
-			lambda_r,
+			logits_r, labels_r,
 		)
 
 		optimizer.zero_grad()

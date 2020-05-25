@@ -1,12 +1,12 @@
 import torch
 from torch import Tensor
 from torch.nn import Module
-from torch.optim.optimizer import Optimizer
+from torch.nn.functional import binary_cross_entropy_with_logits
 from typing import Callable
 
 from .ModelDistributions import ModelDistributions
 from ..mixup.mixup import mixup_fn
-from ..util.match_utils import normalize, same_shuffle, sharpen, merge_first_dimension, cross_entropy_with_one_hot
+from ..util.utils_match import normalize, same_shuffle, sharpen, merge_first_dimension, cross_entropy_with_logits
 
 
 def remixmatch_fn(
@@ -130,21 +130,51 @@ def remixmatch_loss(
 		@returns
 			The ReMixMatch loss computed, a scalar Tensor.
 	"""
-	loss_x = cross_entropy_with_one_hot(logits_x, targets_x)
-	loss_u = cross_entropy_with_one_hot(logits_u, targets_u)
-	loss_u1 = cross_entropy_with_one_hot(logits_u1, targets_u1)
-	loss_r = cross_entropy_with_one_hot(logits_rot, targets_rot)
+	loss_x = cross_entropy_with_logits(logits_x, targets_x)
+	loss_u = cross_entropy_with_logits(logits_u, targets_u)
+	loss_u1 = cross_entropy_with_logits(logits_u1, targets_u1)
+	loss_r = cross_entropy_with_logits(logits_rot, targets_rot)
 
 	loss = loss_x + lambda_u * loss_u + lambda_u1 * loss_u1 + lambda_r * loss_r
 
 	return loss
 
 
-class ReMixMatch:
+class ReMixMatchLoss(Callable):
+	def __init__(self, lambda_u: float = 1.5, lambda_u1: float = 0.5, lambda_r: float = 0.5, mode: str = "onehot"):
+		self.lambda_u = lambda_u
+		self.lambda_u1 = lambda_u1
+		self.lambda_r = lambda_r
+		self.mode = mode
+
+		if self.mode == "onehot":
+			self.criterion = cross_entropy_with_logits
+		elif self.mode == "multihot":
+			self.criterion = binary_cross_entropy_with_logits
+		else:
+			raise RuntimeError("Invalid argument \"mode = %s\". Use \"%s\" or \"%s\"." % (self.mode, "onehot", "multihot"))
+
+	def __call__(
+		self,
+		logits_x: Tensor, targets_x: Tensor,
+		logits_u: Tensor, targets_u: Tensor,
+		logits_u1: Tensor, targets_u1: Tensor,
+		logits_r: Tensor, targets_r: Tensor,
+	) -> Tensor:
+		loss_x = self.criterion(logits_x, targets_x)
+		loss_u = self.criterion(logits_u, targets_u)
+		loss_u1 = self.criterion(logits_u1, targets_u1)
+		loss_r = self.criterion(logits_r, targets_r)
+
+		loss = loss_x + self.lambda_u * loss_u + self.lambda_u1 * loss_u1 + self.lambda_r * loss_r
+
+		return loss
+
+
+class ReMixMatchMixer:
 	def __init__(
 		self,
 		model: Module,
-		optim: Optimizer,
 		weak_augm_fn_x: Callable,
 		strong_augm_fn_x: Callable,
 		nb_classes: int,
@@ -153,7 +183,6 @@ class ReMixMatch:
 		mixup_alpha: float
 	):
 		self.model = model
-		self.optim = optim
 		self.weak_augm_fn_x = weak_augm_fn_x
 		self.strong_augm_fn_x = strong_augm_fn_x
 		self.nb_augms_strong = nb_augms_strong
