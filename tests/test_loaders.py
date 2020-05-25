@@ -1,8 +1,8 @@
 from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
 
-from dcase2020.loaders.MergeDataLoader import MergeDataLoader
-from dcase2020.loaders.NoLabelDataLoader import NoLabelDataLoader
-from dcase2020.loaders.utils import get_classes_idx, shuffle_classes_idx, split_classes_idx
+from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, split_classes_idx
+from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
+from dcase2020_task4.util.NoLabelDataLoader import NoLabelDataLoader
 
 
 class DummyDataset(Dataset):
