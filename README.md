@@ -10,11 +10,11 @@ git clone https://github.com/leocances/dcase2020.git # <-- dcase2020 dataset man
 
 cd dcase2020
 git submodule init
-git submodule update
+git submodule update --recursive --remote
 
 cd ../dcase2020_task4
 git submodule init
-git submodule update
+git submodule update --recursive --remote
 ```
 
 ##### 2. Environement
