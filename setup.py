@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 setup(
     name='dcase2020_task4',
     version='1.0.0',
-    url='https://github.com/leocances/dcase2020.git',
+    url='https://github.com/leocances/dcase2020_task4.git',
     author='Leo Cances',
     author_email='leocances@gmail.com',
     description='For the dcase 2020 task 4 challenge',
