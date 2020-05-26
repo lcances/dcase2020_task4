@@ -43,13 +43,14 @@ def test_supervised(
 		losses, acc_train = train_supervised(
 			model, acti_fn, optim, loader_train, hparams.nb_classes, criterion, metrics_s, e
 		)
-		acc_val = val(
+		acc_val, acc_maxs = val(
 			model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e
 		)
 
 		writer.add_scalar("train/loss", float(np.mean(losses)), e)
 		writer.add_scalar("train/acc", float(np.mean(acc_train)), e)
 		writer.add_scalar("val/acc", float(np.mean(acc_val)), e)
+		writer.add_scalar("val/maxs", float(np.mean(acc_maxs)), e)
 
 	print("End Supervised training. (duration = %.2f)" % (time() - start))
 

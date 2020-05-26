@@ -33,7 +33,7 @@ def test_mixmatch(
 ):
 	# MixMatch hyperparameters
 	hparams.nb_augms = 2
-	hparams.sharpen_val = 0.5
+	hparams.sharpen_temp = 0.5
 	hparams.mixup_alpha = 0.75
 	hparams.lambda_u_max = 10.0  # In paper : 75
 	hparams.lr = 1e-2
@@ -50,6 +50,7 @@ def test_mixmatch(
 		Unicolor(0.5),
 		Inversion(0.5),
 	])
+	augment_fn = lambda batch: torch.stack([augment_fn_x(x).cuda() for x in batch]).cuda()
 
 	hparams.train_name = "MixMatch"
 	dirname = "%s_%s_%s_%s" % (hparams.train_name, hparams.model_name, suffix, hparams.begin_date)
@@ -60,7 +61,7 @@ def test_mixmatch(
 	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_u = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_val = CategoricalConfidenceAccuracy(hparams.confidence)
-	mixmatch = MixMatchMixer(model, augment_fn_x, hparams.nb_augms, hparams.sharpen_val, hparams.mixup_alpha)
+	mixmatch = MixMatchMixer(model, augment_fn, hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha)
 	lambda_u_rampup = RampUp(max_value=hparams.lambda_u_max, nb_steps=nb_rampup_steps)
 	criterion = MixMatchLoss(
 		lambda_u = hparams.lambda_u_max,
@@ -81,12 +82,13 @@ def test_mixmatch(
 		losses, acc_train_s, acc_train_u = train_mixmatch(
 			model, acti_fn, optim, loader_train_split, hparams.nb_classes, criterion, metrics_s, metrics_u, mixmatch, lambda_u_rampup, e
 		)
-		acc_val = val(model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e)
+		acc_val, acc_maxs = val(model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e)
 
 		writer.add_scalar("train/loss", float(np.mean(losses)), e)
 		writer.add_scalar("train/acc_s", float(np.mean(acc_train_s)), e)
 		writer.add_scalar("train/acc_u", float(np.mean(acc_train_u)), e)
 		writer.add_scalar("val/acc", float(np.mean(acc_val)), e)
+		writer.add_scalar("val/maxs", float(np.mean(acc_maxs)), e)
 
 	print("End MixMatch training. (duration = %.2f)" % (time() - start))
 

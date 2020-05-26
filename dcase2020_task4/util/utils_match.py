@@ -6,10 +6,10 @@ from torch.nn.functional import one_hot
 from typing import List
 
 
-def sharpen(distribution: Tensor, temperature: float) -> Tensor:
+def sharpen(batch: Tensor, temperature: float, dim: int) -> Tensor:
 	""" Sharpen function. Make a distribution more "one-hot" if temperature -> 0. """
-	distribution = distribution ** (1.0 / temperature)
-	return normalize(distribution)
+	batch = batch ** (1.0 / temperature)
+	return normalize(batch, dim=dim)
 
 
 def sharpen_multi(distribution: Tensor, temperature: float, k: int) -> Tensor:
@@ -42,9 +42,9 @@ def same_shuffle(values: List[Tensor]) -> List[Tensor]:
 	return values
 
 
-def normalize(vec: Tensor) -> Tensor:
+def normalize(vec: Tensor, dim: int) -> Tensor:
 	""" Return the vector normalized. """
-	return vec / torch.norm(vec, p=1)
+	return vec / torch.norm(vec, p=1, dim=dim)
 
 
 def binarize_labels(distributions: Tensor) -> Tensor:

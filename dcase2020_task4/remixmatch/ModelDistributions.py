@@ -1,5 +1,6 @@
 import torch
 from torch import Tensor
+from typing import Optional
 
 
 class ModelDistributions:
@@ -7,21 +8,23 @@ class ModelDistributions:
 		Compute mean distributions of a model.
 	"""
 
-	def __init__(self, nb_classes: int, max_samples: int = 256, names: list = None):
+	def __init__(
+		self, history_size: int, nb_classes: int, names: list = None, distributions_priori: Optional[Tensor] = None
+	):
 		if names is None:
 			names = ["labeled", "unlabeled"]
+		if distributions_priori is None:
+			distributions_priori = ModelDistributions.uniform_distribution_onehot(history_size, nb_classes)
 
-		self.nb_classes = nb_classes
-		self.max_batches = max_samples
 		self.names = names
+		self.distributions_priori = distributions_priori
 		self.data = {}
 
 		self.reset()
 
 	def reset(self):
-		uniform_distribution = torch.ones(self.max_batches, self.nb_classes).cuda() / self.nb_classes
 		self.data = {
-			name: [uniform_distribution.clone(), 0] for name in self.names
+			name: [self.distributions_priori.clone(), 0] for name in self.names
 		}
 
 	def add_batch_pred(self, batch: Tensor, name: str):
@@ -37,3 +40,11 @@ class ModelDistributions:
 	def get_mean_pred(self, name: str) -> Tensor:
 		distributions, _ = self.data[name]
 		return torch.mean(distributions, dim=0)
+
+	@staticmethod
+	def uniform_distribution_onehot(history_size: int, nb_classes: int) -> Tensor:
+		return torch.ones(history_size, nb_classes).cuda() / nb_classes
+
+	@staticmethod
+	def uniform_distribution_multihot(history_size: int, nb_classes: int) -> Tensor:
+		return torch.ones(history_size, nb_classes).cuda() * 0.5

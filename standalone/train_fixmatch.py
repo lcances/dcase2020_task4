@@ -57,8 +57,8 @@ def test_fixmatch(
 			Inversion(1.0),
 		]),
 	])
-	weak_augm_fn = lambda batch: torch.stack([weak_augm_fn_x(x).cuda() for x in batch])
-	strong_augm_fn = lambda batch: torch.stack([strong_augm_fn_x(x).cuda() for x in batch])
+	weak_augm_fn = lambda batch: torch.stack([weak_augm_fn_x(x).cuda() for x in batch]).cuda()
+	strong_augm_fn = lambda batch: torch.stack([strong_augm_fn_x(x).cuda() for x in batch]).cuda()
 
 	hparams.train_name = "FixMatch"
 	dirname = "%s_%s_%s_%s" % (hparams.train_name, hparams.model_name, suffix, hparams.begin_date)
@@ -90,7 +90,7 @@ def test_fixmatch(
 			model, acti_fn, optim, loader_train_split, hparams.nb_classes, strong_augm_fn, weak_augm_fn, criterion,
 			metrics_s, metrics_u, hparams.threshold, hparams.lambda_u, e
 		)
-		acc_val = val(model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e)
+		acc_val, acc_maxs = val(model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e)
 
 		scheduler.step()
 
@@ -99,6 +99,7 @@ def test_fixmatch(
 		writer.add_scalar("train/acc_u", float(np.mean(acc_train_u)), e)
 		writer.add_scalar("train/lr", get_lr(optim), e)
 		writer.add_scalar("val/acc", float(np.mean(acc_val)), e)
+		writer.add_scalar("val/maxs", float(np.mean(acc_maxs)), e)
 
 	print("End FixMatch training. (duration = %.2f)" % (time() - start))
 

@@ -32,7 +32,7 @@ def test_remixmatch(
 ):
 	# ReMixMatch hyperparameters
 	hparams.nb_augms_strong = 2  # In paper : 8
-	hparams.sharpen_val = 0.5
+	hparams.sharpen_temp = 0.5
 	hparams.mixup_alpha = 0.75
 	hparams.lambda_u = 1.5  # In paper : 1.5
 	hparams.lambda_u1 = 0.5
@@ -58,6 +58,8 @@ def test_remixmatch(
 			Inversion(1.0),
 		]),
 	])
+	weak_augm_fn = lambda batch: torch.stack([weak_augm_fn_x(x).cuda() for x in batch]).cuda()
+	strong_augm_fn = lambda batch: torch.stack([strong_augm_fn_x(x).cuda() for x in batch]).cuda()
 
 	hparams.train_name = "ReMixMatch"
 	dirname = "%s_%s_%s_%s" % (hparams.train_name, hparams.model_name, suffix, hparams.begin_date)
@@ -71,7 +73,7 @@ def test_remixmatch(
 	metrics_u1 = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_rot = CategoricalConfidenceAccuracy(hparams.confidence)
 	remixmatch = ReMixMatchMixer(
-		model, weak_augm_fn_x, strong_augm_fn_x, hparams.nb_classes, hparams.nb_augms_strong, hparams.sharpen_val, hparams.mixup_alpha
+		model, weak_augm_fn, strong_augm_fn, hparams.nb_classes, hparams.nb_augms_strong, hparams.sharpen_temp, hparams.mixup_alpha
 	)
 	criterion = ReMixMatchLoss(
 		lambda_u = hparams.lambda_u,
@@ -94,7 +96,7 @@ def test_remixmatch(
 			model, acti_fn, optim, loader_train_split, hparams.nb_classes, criterion, metrics_s, metrics_u, metrics_u1,
 			metrics_rot, remixmatch, hparams.lambda_u, hparams.lambda_u1, hparams.lambda_r, e
 		)
-		acc_val = val(model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e)
+		acc_val, acc_maxs = val(model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e)
 
 		writer.add_scalar("train/loss", float(np.mean(losses)), e)
 		writer.add_scalar("train/acc_s", float(np.mean(acc_train_s)), e)
@@ -102,6 +104,7 @@ def test_remixmatch(
 		writer.add_scalar("train/acc_u1", float(np.mean(acc_train_u1)), e)
 		writer.add_scalar("train/acc_rot", float(np.mean(acc_train_rot)), e)
 		writer.add_scalar("val/acc", float(np.mean(acc_val)), e)
+		writer.add_scalar("val/maxs", float(np.mean(acc_maxs)), e)
 
 	print("End ReMixMatch training. (duration = %.2f)" % (time() - start))
 

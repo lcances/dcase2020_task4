@@ -70,7 +70,7 @@ class FixMatchLoss(Callable):
 			self.acti_fn = torch.sigmoid
 			self.criterion = binary_cross_entropy_with_logits
 		else:
-			raise RuntimeError("Invalid argument \"mode = %s\". Use \"%s\" or \"%s\"." % (mode, "onehot", "multihot"))
+			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
 
 	def __call__(
 		self,

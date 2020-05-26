@@ -5,7 +5,7 @@ from torch.nn import Module
 from torch.nn.functional import binary_cross_entropy_with_logits
 from typing import Callable
 
-from ..mixup.mixup import mixup_fn
+from ..mixup.mixup import mixup_fn, MixUpMixer
 from ..util.utils_match import same_shuffle, sharpen, merge_first_dimension, cross_entropy_with_logits
 
 
@@ -16,7 +16,7 @@ def mixmatch_fn(
 	batch_unlabeled: Tensor,
 	augment_fn_x: Callable,
 	nb_augms: int,
-	sharpen_val: float,
+	sharpen_temp: float,
 	mixup_alpha: float
 ) -> (Tensor, Tensor, Tensor, Tensor):
 	"""
@@ -27,10 +27,10 @@ def mixmatch_fn(
 			batch_labeled: Batch from supervised dataset.
 			labels: Labels of batch_labeled.
 			batch_unlabeled: Unlabeled batch.
-			augment_fn: Augmentation function. Take a sample as input and return an augmented version.
+			augment_fn: Augmentation function. Take a batch as input and return an augmented version.
 				This function should be a stochastic transformation.
 			nb_augms: Hyperparameter "K" used for compute guessed labels.
-			sharpen_val: Hyperparameter "T" used for temperature sharpening on guessed labels.
+			sharpen_temp: Hyperparameter "T" used for temperature sharpening on guessed labels.
 			mixup_alpha: Hyperparameter "alpha" used for MixUp.
 
 		@returns
@@ -58,7 +58,7 @@ def mixmatch_fn(
 			logits = model(u_augm[:, b])
 			predictions = torch.softmax(logits, dim=1)
 			guessed_labels[b] = torch.mean(predictions, dim=0)
-			guessed_labels[b] = sharpen(guessed_labels[b], sharpen_val)
+			guessed_labels[b] = sharpen(guessed_labels[b], sharpen_temp)
 
 		# Reshape u_augm of size (nb_augms, batch_size, sample_size, ...) to (nb_augms * batch_size, sample_size, ...)
 		u_augm = merge_first_dimension(u_augm)
@@ -101,34 +101,71 @@ def mixmatch_loss(logits_x: Tensor, targets_x: Tensor, logits_u: Tensor, targets
 	return loss_x + lambda_u * loss_u
 
 
-class MixMatchMixer:
+class MixMatchMixer(Callable):
 	"""
 		MixMatch class.
 		Store hyperparameters and apply mixmatch_fn with call() or mix().
 	"""
 	def __init__(
-		self, model: Module, augment_fn: Callable, nb_augms: int = 2, sharpen_val: float = 0.5, mixup_alpha: float = 0.75
+		self,
+		model: Module,
+		augm_fn: Callable,
+		nb_augms: int = 2,
+		sharpen_temp: float = 0.5,
+		mixup_alpha: float = 0.75,
+		mode: str = "onehot",
 	):
 		self.model = model
-		self.augment_fn = augment_fn
+		self.augm_fn = augm_fn
 		self.nb_augms = nb_augms
-		self.sharpen_val = sharpen_val
-		self.mixup_alpha = mixup_alpha
+		self.sharpen_temp = sharpen_temp
+		self.mixup_mixer = MixUpMixer(alpha=mixup_alpha, apply_max=True)
+		self.mode = mode
+
+		# NOTE: acti_fn must have the dim parameter !
+		if self.mode == "onehot":
+			self.acti_fn = torch.softmax
+		elif self.mode == "multihot":
+			self.acti_fn = lambda x, dim: x.sigmoid()
+		else:
+			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
 
 	def __call__(self, batch_labeled: Tensor, labels: Tensor, batch_unlabeled: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
 		return self.mix(batch_labeled, labels, batch_unlabeled)
 
-	def mix(self, batch_labeled: Tensor, labels: Tensor, batch_unlabeled: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
-		return mixmatch_fn(
-			self.model,
-			batch_labeled,
-			labels,
-			batch_unlabeled,
-			self.augment_fn,
-			self.nb_augms,
-			self.sharpen_val,
-			self.mixup_alpha
-		)
+	def mix(self, batch_s: Tensor, labels: Tensor, batch_u: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
+		with torch.no_grad():
+			if batch_s.size() != batch_u.size():
+				raise RuntimeError("Labeled and unlabeled batch must have the same size. (sizes: %s != %s)" % (
+					str(batch_s.size()), str(batch_u.size())
+				))
+
+			# Apply augmentations
+			x_augm = self.augm_fn(batch_s)
+			u_augm = torch.stack([self.augm_fn(batch_u) for _ in range(self.nb_augms)]).cuda()
+
+			# Compute guessed label
+			logits = self.model(u_augm)
+			predictions = self.acti_fn(logits, dim=2)
+			guessed_labels = predictions.mean(dim=0)
+			if self.mode == "onehot":
+				guessed_labels = sharpen(guessed_labels, self.sharpen_temp, dim=1)
+			guessed_labels_repeated = guessed_labels.repeat_interleave(self.nb_augms, dim=0)
+
+			# Reshape "u_augm" of size (nb_augms, batch_size, sample_size, ...) to (nb_augms * batch_size, sample_size, ...)
+			u_augm = merge_first_dimension(u_augm)
+
+			w = torch.cat((x_augm, u_augm))
+			w_labels = torch.cat((labels, guessed_labels_repeated))
+
+			# Shuffle batch and labels
+			w, w_labels = same_shuffle([w, w_labels])
+
+			x_len = len(x_augm)
+			x_mixed, x_mixed_labels = self.mixup_mixer(x_augm, labels, w[:x_len], w_labels[:x_len])
+			u_mixed, u_mixed_labels = self.mixup_mixer(u_augm, guessed_labels_repeated, w[x_len:], w_labels[x_len:])
+
+			return x_mixed, x_mixed_labels, u_mixed, u_mixed_labels
 
 
 class MixMatchLoss(Callable):
@@ -145,8 +182,7 @@ class MixMatchLoss(Callable):
 			elif criterion_unsupervised == "crossentropy":
 				self.criterion_u = cross_entropy_with_logits
 			else:
-				raise RuntimeError(
-					"Invalid argument \"mode = %s\". Use \"%s\" or \"%s\"." % (criterion_unsupervised, "l2norm", "crossentropy"))
+				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
 
 		elif self.mode == "multihot":
 			self.acti_fn = torch.sigmoid
@@ -154,7 +190,7 @@ class MixMatchLoss(Callable):
 			self.criterion_u = binary_cross_entropy_with_logits
 
 		else:
-			raise RuntimeError("Invalid argument \"mode = %s\". Use \"%s\" or \"%s\"." % (mode, "onehot", "multihot"))
+			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
 
 	def __call__(self, logits_x: Tensor, targets_x: Tensor, logits_u: Tensor, targets_u: Tensor) -> Tensor:
 		loss_x = self.criterion_s(logits_x, targets_x)

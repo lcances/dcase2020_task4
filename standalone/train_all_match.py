@@ -33,13 +33,15 @@ def create_args() -> Namespace:
 	parser = ArgumentParser()
 	# TODO : help for acronyms
 	parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "sf", "sp"])
-	parser.add_argument("--dataset", type=str, default="dataset/CIFAR10")
 	parser.add_argument("--logdir", type=str, default="tensorboard")
+	parser.add_argument("--dataset", type=str, default="dataset/CIFAR10")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--model_name", type=str, default="VGG11")
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--dataset_ratio", type=float, default=1.0)
 	parser.add_argument("--supervised_ratio", type=float, default=0.1)
+	parser.add_argument("--batch_size", type=int, default=16)
+	parser.add_argument("--nb_classes", type=int, default=10)
 	return parser.parse_args()
 
 
@@ -54,8 +56,6 @@ def main():
 
 	# Note : some hyperparameters are overwritten when calling the training function
 	hparams.begin_date = get_datetime()
-	hparams.batch_size = 16
-	hparams.nb_classes = 10
 	hparams.confidence = 0.3
 
 	reset_seed(hparams.seed)
@@ -99,7 +99,7 @@ def main():
 		model_factory = lambda: ResNet18().cuda()
 	else:
 		raise RuntimeError("Unknown model %s" % hparams.model_name)
-	acti_fn = lambda x: x.softmax(dim=1)
+	acti_fn = lambda x, dim=1: x.softmax(dim=dim)
 
 	print("Model selected : %s (%d parameters, %d trainable parameters)." % (
 		hparams.model_name, get_nb_parameters(model_factory()), get_nb_trainable_parameters(model_factory())))

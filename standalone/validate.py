@@ -8,12 +8,12 @@ from typing import Callable
 from dcase2020.pytorch_metrics.metrics import Metrics
 
 
-def val(model: Module, acti_fn: Callable, loader: DataLoader, nb_classes: int, metrics: Metrics, epoch: int) -> list:
+def val(model: Module, acti_fn: Callable, loader: DataLoader, nb_classes: int, metrics: Metrics, epoch: int) -> (list, list):
 	metrics.reset()
 	val_start = time()
 	model.eval()
 
-	accuracies = []
+	accuracies, maxs = [], []
 	iter_val = iter(loader)
 	for i, (x, y) in enumerate(iter_val):
 		x, y = x.cuda().float(), y.cuda().long()
@@ -24,6 +24,7 @@ def val(model: Module, acti_fn: Callable, loader: DataLoader, nb_classes: int, m
 		accuracy_val = metrics(pred_x, y)
 
 		accuracies.append(metrics.value.item())
+		maxs.append(pred_x.max(dim=1)[0].mean())
 		print("Epoch {}, {:d}% \t val_acc: {:.4e} - took {:.2f}s".format(
 			epoch + 1,
 			int(100 * (i + 1) / len(loader)),
@@ -32,4 +33,4 @@ def val(model: Module, acti_fn: Callable, loader: DataLoader, nb_classes: int, m
 		), end="\r")
 
 	print("")
-	return accuracies
+	return accuracies, maxs
