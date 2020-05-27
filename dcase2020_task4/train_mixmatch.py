@@ -6,79 +6,74 @@ from easydict import EasyDict as edict
 from time import time
 from torch.nn import Module
 from torch.nn.functional import one_hot
+from torch.nn.utils import clip_grad_norm_
 from torch.optim import SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.transforms import RandomChoice, Compose
+from torchvision.transforms import RandomChoice
 from typing import Callable
 
 from dcase2020.augmentation_utils.img_augmentations import Transform
 from dcase2020.augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip
 from dcase2020.pytorch_metrics.metrics import Metrics
 
-from dcase2020_task4.fixmatch.fixmatch import FixMatchLoss
-from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
+from dcase2020_task4.mixmatch.mixmatch import MixMatchMixer, MixMatchLoss
+from dcase2020_task4.mixmatch.RampUp import RampUp
 from dcase2020_task4.util.confidence_acc import CategoricalConfidenceAccuracy
-from dcase2020_task4.util.utils_match import binarize_labels, get_lr
 from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
 from dcase2020_task4.util.rgb_augmentations import Gray, Inversion, RandCrop, Unicolor
+from dcase2020_task4.util.utils_match import get_lr
 
-from .validate import val
+from dcase2020_task4.validate import val
 
 
-def test_fixmatch(
-	model: Module, acti_fn: Callable, loader_train_split: MergeDataLoader, loader_val: DataLoader, hparams: edict,
-	suffix: str = ""
+def test_mixmatch(
+		model: Module, acti_fn: Callable, loader_train_split: MergeDataLoader, loader_val: DataLoader, hparams: edict,
+		suffix: str = ""
 ):
-	# FixMatch hyperparameters
-	hparams.lambda_u = 1.0
-	hparams.beta = 0.9  # used only for SGD
-	hparams.threshold = 0.95  # tau
-	hparams.batch_size = 16  # in paper: 64
-	hparams.lr0 = 0.03  # learning rate, eta
-	hparams.weight_decay = 1e-4
+	# MixMatch hyperparameters
+	hparams.nb_augms = 2
+	hparams.sharpen_temp = 0.5
+	hparams.mixup_alpha = 0.75
+	hparams.lambda_u_max = 10.0  # In paper : 75
+	hparams.lr = 1e-2
+	hparams.weight_decay = 0.0008
 
-	weak_augm_fn_x = RandomChoice([
+	nb_rampup_steps = hparams.nb_epochs * len(loader_train_split)
+	augment_fn_x = RandomChoice([
 		HorizontalFlip(0.5),
 		VerticalFlip(0.5),
 		Transform(0.5, scale=(0.75, 1.25)),
 		Transform(0.5, rotation=(-np.pi, np.pi)),
+		Gray(0.5),
+		RandCrop(0.5, rect_max_scale=(0.2, 0.2)),
+		Unicolor(0.5),
+		Inversion(0.5),
 	])
-	strong_augm_fn_x = Compose([
-		RandomChoice([
-			Transform(1.0, scale=(0.5, 1.5)),
-			Transform(1.0, rotation=(-np.pi, np.pi)),
-		]),
-		RandomChoice([
-			Gray(1.0),
-			RandCrop(1.0),
-			Unicolor(1.0),
-			Inversion(1.0),
-		]),
-	])
-	weak_augm_fn = lambda batch: torch.stack([weak_augm_fn_x(x).cuda() for x in batch]).cuda()
-	strong_augm_fn = lambda batch: torch.stack([strong_augm_fn_x(x).cuda() for x in batch]).cuda()
+	augment_fn = lambda batch: torch.stack([augment_fn_x(x).cuda() for x in batch]).cuda()
 
-	hparams.train_name = "FixMatch"
+	hparams.train_name = "MixMatch"
 	dirname = "%s_%s_%s_%s" % (hparams.train_name, hparams.model_name, suffix, hparams.begin_date)
 	dirpath = osp.join(hparams.logdir, dirname)
 	writer = SummaryWriter(log_dir=dirpath, comment=hparams.train_name)
 
-	optim = SGD(model.parameters(), lr=hparams.lr0, weight_decay=hparams.weight_decay)
+	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_u = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_val = CategoricalConfidenceAccuracy(hparams.confidence)
-	criterion = FixMatchLoss(
-		lambda_u = hparams.lambda_u,
-		threshold_mask = hparams.threshold,
-		mode = "onehot"
+	mixmatch = MixMatchMixer(model, augment_fn, hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha)
+	lambda_u_rampup = RampUp(max_value=hparams.lambda_u_max, nb_steps=nb_rampup_steps)
+	criterion = MixMatchLoss(
+		lambda_u=hparams.lambda_u_max,
+		mode="onehot",
+		criterion_unsupervised="l2norm",
 	)
-	scheduler = CosineLRScheduler(optim, nb_epochs = hparams.nb_epochs, lr0 = hparams.lr0)
 
 	start = time()
-	print("\nStart FixMatch training ("
-		  "%d epochs, %d train examples supervised, %d train examples unsupervised, %d valid examples)..." % (
+	print("\nStart %s training (%d epochs, %d train examples supervised, %d train examples unsupervised, "
+		  "%d valid examples)..." % (
+			  hparams.train_name,
 			  hparams.nb_epochs,
 			  len(loader_train_split.loader_supervised) * loader_train_split.loader_supervised.batch_size,
 			  len(loader_train_split.loader_unsupervised) * loader_train_split.loader_unsupervised.batch_size,
@@ -86,13 +81,11 @@ def test_fixmatch(
 		  ))
 
 	for e in range(hparams.nb_epochs):
-		losses, acc_train_s, acc_train_u = train_fixmatch(
-			model, acti_fn, optim, loader_train_split, hparams.nb_classes, strong_augm_fn, weak_augm_fn, criterion,
-			metrics_s, metrics_u, hparams.threshold, hparams.lambda_u, e
+		losses, acc_train_s, acc_train_u = train_mixmatch(
+			model, acti_fn, optim, loader_train_split, hparams.nb_classes, criterion, metrics_s, metrics_u, mixmatch,
+			lambda_u_rampup, e
 		)
 		acc_val, acc_maxs = val(model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e)
-
-		scheduler.step()
 
 		writer.add_scalar("train/loss", float(np.mean(losses)), e)
 		writer.add_scalar("train/acc_s", float(np.mean(acc_train_s)), e)
@@ -101,26 +94,24 @@ def test_fixmatch(
 		writer.add_scalar("val/acc", float(np.mean(acc_val)), e)
 		writer.add_scalar("val/maxs", float(np.mean(acc_maxs)), e)
 
-	print("End FixMatch training. (duration = %.2f)" % (time() - start))
+	print("End MixMatch training. (duration = %.2f)" % (time() - start))
 
 	writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 	writer.close()
 
 
-def train_fixmatch(
-	model: Module,
-	acti_fn: Callable,
-	optimizer: Optimizer,
-	loader: MergeDataLoader,
-	nb_classes: int,
-	strong_augm_fn: Callable,
-	weak_augm_fn: Callable,
-	criterion: Callable,
-	metrics_s: Metrics,
-	metrics_u: Metrics,
-	threshold: float,
-	lambda_u: float,
-	epoch: int,
+def train_mixmatch(
+		model: Module,
+		acti_fn: Callable,
+		optimizer: Optimizer,
+		loader: MergeDataLoader,
+		nb_classes: int,
+		criterion: Callable,
+		metrics_s: Metrics,
+		metrics_u: Metrics,
+		mixmatch: MixMatchMixer,
+		lambda_u_rampup: RampUp,
+		epoch: int
 ) -> (list, list, list):
 	metrics_s.reset()
 	metrics_u.reset()
@@ -129,34 +120,34 @@ def train_fixmatch(
 
 	losses, accuracies_s, accuracies_u = [], [], []
 	iter_train = iter(loader)
-	for i, (batch_s, labels_s, batch_u, _labels_u) in enumerate(iter_train):
+	for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
 		batch_s, batch_u = batch_s.cuda().float(), batch_u.cuda().float()
 		labels_s = labels_s.cuda().long()
 		labels_s = one_hot(labels_s, nb_classes).float()
 
-		# Apply augmentations
-		batch_s_weak = weak_augm_fn(batch_s).cuda()
-		batch_u_weak = weak_augm_fn(batch_u).cuda()
-		batch_u_strong = strong_augm_fn(batch_u).cuda()
+		# Apply mix
+		batch_x_mixed, labels_x_mixed, batch_u_mixed, labels_u_mixed = mixmatch(batch_s, labels_s, batch_u)
 
 		# Compute logits
-		logits_s_weak = model(batch_s_weak)
-		logits_u_weak = model(batch_u_weak)
-		logits_u_strong = model(batch_u_strong)
+		logits_x = model(batch_x_mixed)
+		logits_u = model(batch_u_mixed)
 
 		# Compute accuracies
-		pred_s_weak = acti_fn(logits_s_weak)
-		pred_u_strong = acti_fn(logits_u_strong)
-		label_u_guessed = binarize_labels(logits_u_weak)
+		pred_x = acti_fn(logits_x)
+		pred_u = acti_fn(logits_u)
 
-		accuracy_s = metrics_s(pred_s_weak, labels_s)
-		accuracy_u = metrics_u(pred_u_strong, label_u_guessed)
+		accuracy_s = metrics_s(pred_x, labels_x_mixed)
+		accuracy_u = metrics_u(pred_u, labels_u_mixed)
 
 		# Update model
-		loss = criterion(logits_s_weak, labels_s, logits_u_weak, logits_u_strong)
+		criterion.lambda_u = lambda_u_rampup.value
+		loss = criterion(logits_x, labels_x_mixed, logits_u, labels_u_mixed)
 		optimizer.zero_grad()
 		loss.backward()
+		clip_grad_norm_(model.parameters(), 100)
 		optimizer.step()
+
+		lambda_u_rampup.step()
 
 		# Store data
 		losses.append(loss.item())

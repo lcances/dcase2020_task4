@@ -145,7 +145,7 @@ class MixMatchMixer(Callable):
 			u_augm = torch.stack([self.augm_fn(batch_u) for _ in range(self.nb_augms)]).cuda()
 
 			# Compute guessed label
-			logits = self.model(u_augm)
+			logits = torch.stack([self.model(u_augm[k]) for k in range(self.nb_augms)]).cuda()
 			predictions = self.acti_fn(logits, dim=2)
 			guessed_labels = predictions.mean(dim=0)
 			if self.mode == "onehot":

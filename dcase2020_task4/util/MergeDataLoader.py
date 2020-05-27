@@ -28,7 +28,7 @@ class MergeDataLoader:
 				except StopIteration:
 					iters[i] = iter(self._loaders[i])
 					item = next(iters[i])
-				items += item
+				items += list(item)
 
 			yield items
 

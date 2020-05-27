@@ -65,12 +65,14 @@ class FixMatchLoss(Callable):
 
 		if self.mode == "onehot":
 			self.acti_fn = lambda x: torch.softmax(x, dim=1)
-			self.criterion = cross_entropy_with_logits
+			self.criterion_s = cross_entropy_with_logits
+			self.criterion_u = cross_entropy_with_logits
 		elif self.mode == "multihot":
 			self.acti_fn = torch.sigmoid
-			self.criterion = binary_cross_entropy_with_logits
+			self.criterion_s = binary_cross_entropy_with_logits
+			self.criterion_u = binary_cross_entropy_with_logits
 		else:
-			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
+			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
 
 	def __call__(
 		self,
@@ -85,22 +87,24 @@ class FixMatchLoss(Callable):
 			raise RuntimeError("Weak predictions and strong predictions must have the same size.")
 
 		# Supervised loss
-		loss_s = self.criterion(logits_s_weak, labels)
+		loss_s = self.criterion_s(logits_s_weak, labels)
 		loss_s = loss_s.mean()
 
 		# Unsupervised loss
 		pred_u_weak = self.acti_fn(logits_u_weak)
 		max_values, guessed_labels_nums = pred_u_weak.max(dim=1)
-		mask = (max_values > self.threshold_mask).float()
 
 		if self.mode == "onehot":
-			guessed_labels = one_hot(guessed_labels_nums)
+			nb_classes = labels.size()[1]
+			guessed_labels = one_hot(guessed_labels_nums, nb_classes)
 		elif self.mode == "multihot":
 			guessed_labels = (pred_u_weak > self.threshold_multihot).float()
 		else:
-			raise RuntimeError("Invalid argument \"mode = %s\". Use \"%s\" or \"%s\"." % (self.mode, "onehot", "multihot"))
+			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
 
-		loss_u = self.criterion(logits_u_strong, guessed_labels) * mask
+		mask = (max_values > self.threshold_mask).float()
+		loss_u = self.criterion_u(logits_u_strong, guessed_labels)
+		loss_u *= mask
 		loss_u = loss_u.mean()
 
 		loss = loss_s + self.lambda_u * loss_u

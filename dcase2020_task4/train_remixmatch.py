@@ -19,11 +19,12 @@ from dcase2020.augmentation_utils.spec_augmentations import HorizontalFlip, Vert
 from dcase2020.pytorch_metrics.metrics import Metrics
 
 from dcase2020_task4.remixmatch.remixmatch import ReMixMatchMixer, ReMixMatchLoss
+from dcase2020_task4.util.confidence_acc import CategoricalConfidenceAccuracy
 from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
 from dcase2020_task4.util.rgb_augmentations import Gray, Inversion, RandCrop, Unicolor
-from dcase2020_task4.util.confidence_acc import CategoricalConfidenceAccuracy
+from dcase2020_task4.util.utils_match import get_lr
 
-from .validate import val
+from dcase2020_task4.validate import val
 
 
 def test_remixmatch(
@@ -83,18 +84,19 @@ def test_remixmatch(
 	)
 
 	start = time()
-	print("\nStart ReMixMatch training ("
-		  "%d epochs, %d train examples supervised, %d train examples unsupervised, %d valid examples)..." % (
-			  hparams.nb_epochs,
-			  len(loader_train_split.loader_supervised) * loader_train_split.loader_supervised.batch_size,
-			  len(loader_train_split.loader_unsupervised) * loader_train_split.loader_unsupervised.batch_size,
-			  len(loader_val) * loader_val.batch_size
+	print("\nStart %s training (%d epochs, %d train examples supervised, %d train examples unsupervised, "
+		  "%d valid examples)..." % (
+				hparams.train_name,
+				hparams.nb_epochs,
+				len(loader_train_split.loader_supervised) * loader_train_split.loader_supervised.batch_size,
+				len(loader_train_split.loader_unsupervised) * loader_train_split.loader_unsupervised.batch_size,
+				len(loader_val) * loader_val.batch_size
 		  ))
 
 	for e in range(hparams.nb_epochs):
 		losses, acc_train_s, acc_train_u, acc_train_u1, acc_train_rot = train_remixmatch(
 			model, acti_fn, optim, loader_train_split, hparams.nb_classes, criterion, metrics_s, metrics_u, metrics_u1,
-			metrics_rot, remixmatch, hparams.lambda_u, hparams.lambda_u1, hparams.lambda_r, e
+			metrics_rot, remixmatch, e
 		)
 		acc_val, acc_maxs = val(model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e)
 
@@ -103,6 +105,7 @@ def test_remixmatch(
 		writer.add_scalar("train/acc_u", float(np.mean(acc_train_u)), e)
 		writer.add_scalar("train/acc_u1", float(np.mean(acc_train_u1)), e)
 		writer.add_scalar("train/acc_rot", float(np.mean(acc_train_rot)), e)
+		writer.add_scalar("train/lr", get_lr(optim), e)
 		writer.add_scalar("val/acc", float(np.mean(acc_val)), e)
 		writer.add_scalar("val/maxs", float(np.mean(acc_maxs)), e)
 
@@ -124,9 +127,6 @@ def train_remixmatch(
 	metrics_u1: Metrics,
 	metrics_rot: Metrics,
 	remixmatch: ReMixMatchMixer,
-	lambda_u: float,
-	lambda_u1: float,
-	lambda_r: float,
 	epoch: int,
 ) -> (list, list, list, list):
 	angles_allowed = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
@@ -139,7 +139,7 @@ def train_remixmatch(
 
 	losses, accuracies_s, accuracies_u, accuracies_u1, accuracies_rot = [], [], [], [], []
 	iter_train = iter(loader)
-	for i, (batch_s, labels_s, batch_u, _labels_u) in enumerate(iter_train):
+	for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
 		batch_s, batch_u = batch_s.cuda().float(), batch_u.cuda().float()
 		labels_s = labels_s.cuda().long()
 		labels_s = one_hot(labels_s, nb_classes).float()

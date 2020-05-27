@@ -1,12 +1,11 @@
 import numpy as np
 import os.path as osp
-import torch
 
 from easydict import EasyDict as edict
 from time import time
 from torch.nn import Module, CrossEntropyLoss
 from torch.nn.functional import one_hot
-from torch.optim import Adam
+from torch.optim import SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -14,26 +13,29 @@ from typing import Callable
 
 from dcase2020.pytorch_metrics.metrics import Metrics
 from dcase2020_task4.util.confidence_acc import CategoricalConfidenceAccuracy
-from .validate import val
+from dcase2020_task4.util.utils_match import get_lr
+from dcase2020_task4.validate import val
 
 
 def test_supervised(
 	model: Module, acti_fn: Callable, loader_train: DataLoader, loader_val: DataLoader, hparams: edict, suffix: str = ""
 ):
-	hparams.lr = 1e-3
+	hparams.lr = 1e-2
+	hparams.weight_decay = 1e-4
 
 	hparams.train_name = "Supervised"
 	dirname = "%s_%s_%s_%s" % (hparams.train_name, hparams.model_name, suffix, hparams.begin_date)
 	dirpath = osp.join(hparams.logdir, dirname)
 	writer = SummaryWriter(log_dir=dirpath, comment=hparams.train_name)
 
-	optim = Adam(model.parameters(), lr=hparams.lr)
+	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_val = CategoricalConfidenceAccuracy(hparams.confidence)
 	criterion = CrossEntropyLoss()
 
 	start = time()
-	print("\nStart Supervised training (%d epochs, %d train examples, %d valid examples)..." % (
+	print("\nStart %s training (%d epochs, %d train examples, %d valid examples)..." % (
+		hparams.train_name,
 		hparams.nb_epochs,
 		len(loader_train) * loader_train.batch_size,
 		len(loader_val) * loader_val.batch_size
@@ -46,9 +48,12 @@ def test_supervised(
 		acc_val, acc_maxs = val(
 			model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e
 		)
+		maxes = 0
+		maxes += 1
 
 		writer.add_scalar("train/loss", float(np.mean(losses)), e)
 		writer.add_scalar("train/acc", float(np.mean(acc_train)), e)
+		writer.add_scalar("train/lr", get_lr(optim), e)
 		writer.add_scalar("val/acc", float(np.mean(acc_val)), e)
 		writer.add_scalar("val/maxs", float(np.mean(acc_maxs)), e)
 

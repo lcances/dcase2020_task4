@@ -24,7 +24,7 @@ def sharpen_multi(distribution: Tensor, temperature: float, k: int) -> Tensor:
 	tmp = torch.zeros((len(preds), 1 + len(others)))
 	for i, v in enumerate(preds):
 		sub_distribution = torch.cat((v.unsqueeze(dim=0), others))
-		sub_distribution = sharpen(sub_distribution, temperature)
+		sub_distribution = sharpen(sub_distribution, temperature, dim=0)
 		tmp[i] = sub_distribution
 
 	new_dis = torch.zeros(distribution.size())
@@ -33,18 +33,20 @@ def sharpen_multi(distribution: Tensor, temperature: float, k: int) -> Tensor:
 	return new_dis
 
 
+def normalize(batch: Tensor, dim: int) -> Tensor:
+	""" Return the vector normalized. """
+	norms = batch.norm(p=1, dim=dim)
+	for i, norm in enumerate(norms):
+		batch[i] /= norm
+	return batch
+
+
 def same_shuffle(values: List[Tensor]) -> List[Tensor]:
 	""" Shuffle each value of values with the same indexes. """
 	indices = torch.randperm(len(values[0]))
-
 	for i in range(len(values)):
 		values[i] = values[i][indices]
 	return values
-
-
-def normalize(vec: Tensor, dim: int) -> Tensor:
-	""" Return the vector normalized. """
-	return vec / torch.norm(vec, p=1, dim=dim)
 
 
 def binarize_labels(distributions: Tensor) -> Tensor:
@@ -74,7 +76,7 @@ def cross_entropy_with_logits(logits: Tensor, targets: Tensor) -> Tensor:
 		Target must be a (batch_size, nb_classes) tensor.
 	"""
 	pred_x = torch.softmax(logits, dim=1)
-	return -torch.mean(torch.sum(torch.log(pred_x) * targets, dim=1))
+	return -torch.sum(torch.log(pred_x) * targets, dim=1)
 
 
 def get_lr(optim: Optimizer) -> float:

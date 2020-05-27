@@ -140,37 +140,6 @@ def remixmatch_loss(
 	return loss
 
 
-class ReMixMatchLoss(Callable):
-	def __init__(self, lambda_u: float = 1.5, lambda_u1: float = 0.5, lambda_r: float = 0.5, mode: str = "onehot"):
-		self.lambda_u = lambda_u
-		self.lambda_u1 = lambda_u1
-		self.lambda_r = lambda_r
-		self.mode = mode
-
-		if self.mode == "onehot":
-			self.criterion = cross_entropy_with_logits
-		elif self.mode == "multihot":
-			self.criterion = binary_cross_entropy_with_logits
-		else:
-			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
-
-	def __call__(
-		self,
-		logits_x: Tensor, targets_x: Tensor,
-		logits_u: Tensor, targets_u: Tensor,
-		logits_u1: Tensor, targets_u1: Tensor,
-		logits_r: Tensor, targets_r: Tensor,
-	) -> Tensor:
-		loss_x = self.criterion(logits_x, targets_x)
-		loss_u = self.criterion(logits_u, targets_u)
-		loss_u1 = self.criterion(logits_u1, targets_u1)
-		loss_r = self.criterion(logits_r, targets_r)
-
-		loss = loss_x + self.lambda_u * loss_u + self.lambda_u1 * loss_u1 + self.lambda_r * loss_r
-
-		return loss
-
-
 class ReMixMatchMixer:
 	def __init__(
 		self,
@@ -247,3 +216,36 @@ class ReMixMatchMixer:
 			u_mixed, u_mixed_labels = self.mixup_mixer(u_augm, guessed_labels_repeated, w[x_len:], w_labels[x_len:])
 
 			return x_mixed, x_mixed_labels, u_mixed, u_mixed_labels, u1, u1_labels
+
+
+class ReMixMatchLoss(Callable):
+	def __init__(self, lambda_u: float = 1.5, lambda_u1: float = 0.5, lambda_r: float = 0.5, mode: str = "onehot"):
+		self.lambda_u = lambda_u
+		self.lambda_u1 = lambda_u1
+		self.lambda_r = lambda_r
+		self.mode = mode
+
+		if self.mode == "onehot":
+			self.criterion = cross_entropy_with_logits
+		elif self.mode == "multihot":
+			self.criterion = binary_cross_entropy_with_logits
+		else:
+			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
+
+	def __call__(
+		self,
+		logits_x: Tensor, targets_x: Tensor,
+		logits_u: Tensor, targets_u: Tensor,
+		logits_u1: Tensor, targets_u1: Tensor,
+		logits_r: Tensor, targets_r: Tensor,
+	) -> Tensor:
+		loss_x = self.criterion(logits_x, targets_x).mean()
+		loss_u = self.criterion(logits_u, targets_u).mean()
+		loss_u1 = self.criterion(logits_u1, targets_u1).mean()
+		loss_r = self.criterion(logits_r, targets_r).mean()
+
+		loss = loss_x + self.lambda_u * loss_u + self.lambda_u1 * loss_u1 + self.lambda_r * loss_r
+
+		if torch.isnan(loss):  # TODO : rem
+			breakpoint()
+		return loss
