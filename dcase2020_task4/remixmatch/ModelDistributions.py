@@ -1,6 +1,6 @@
 import torch
 from torch import Tensor
-from typing import Optional
+from typing import Optional, List
 
 
 class ModelDistributions:
@@ -9,10 +9,8 @@ class ModelDistributions:
 	"""
 
 	def __init__(
-		self, history_size: int, nb_classes: int, names: list = None, distributions_priori: Optional[Tensor] = None
+		self, history_size: int, nb_classes: int, names: List[str], distributions_priori: Optional[Tensor] = None
 	):
-		if names is None:
-			names = ["labeled", "unlabeled"]
 		if distributions_priori is None:
 			distributions_priori = ModelDistributions.uniform_distribution_onehot(history_size, nb_classes)
 

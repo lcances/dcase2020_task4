@@ -1,36 +1,31 @@
-import numpy as np
-import os.path as osp
-import torch
-
 from easydict import EasyDict as edict
 from time import time
-from torch.nn import Module
-from torch.nn.functional import one_hot
-from torch.nn.utils import clip_grad_norm_
+from torch.nn import Module, CrossEntropyLoss
 from torch.optim import SGD
-from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
-from torchvision.transforms import RandomChoice
-from typing import Callable
+from typing import Callable, List
 
-from dcase2020.augmentation_utils.img_augmentations import Transform
-from dcase2020.augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip
 from dcase2020.pytorch_metrics.metrics import Metrics
 
-from dcase2020_task4.mixmatch.mixmatch import MixMatchMixer, MixMatchLoss
-from dcase2020_task4.mixmatch.RampUp import RampUp
-from dcase2020_task4.util.confidence_acc import CategoricalConfidenceAccuracy
-from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
-from dcase2020_task4.util.rgb_augmentations import Gray, Inversion, RandCrop, Unicolor
-from dcase2020_task4.util.utils_match import get_lr
+from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
+from dcase2020_task4.util.utils_match import build_writer
 
-from dcase2020_task4.validate import val
+from dcase2020_task4.learner import DefaultLearner
+from dcase2020_task4.validate import DefaultValidator
 
 
-def test_mixmatch(
-		model: Module, acti_fn: Callable, loader_train_split: MergeDataLoader, loader_val: DataLoader, hparams: edict,
-		suffix: str = ""
+def train_mixmatch(
+	model: Module,
+	acti_fn: Callable,
+	loader_train_s: DataLoader,
+	loader_train_u: DataLoader,
+	loader_val: DataLoader,
+	augm_fn: Callable,
+	metrics_s: Metrics,
+	metrics_u: Metrics,
+	metrics_val_lst: List[Metrics],
+	metrics_names: List[str],
+	hparams: edict,
 ):
 	# MixMatch hyperparameters
 	hparams.nb_augms = 2
@@ -38,130 +33,33 @@ def test_mixmatch(
 	hparams.mixup_alpha = 0.75
 	hparams.lambda_u_max = 10.0  # In paper : 75
 	hparams.lr = 1e-2
-	hparams.weight_decay = 0.0008
+	hparams.weight_decay = 8e-4
+	hparams.criterion_unsupervised = "l2norm"
 
-	nb_rampup_steps = hparams.nb_epochs * len(loader_train_split)
-	augment_fn_x = RandomChoice([
-		HorizontalFlip(0.5),
-		VerticalFlip(0.5),
-		Transform(0.5, scale=(0.75, 1.25)),
-		Transform(0.5, rotation=(-np.pi, np.pi)),
-		Gray(0.5),
-		RandCrop(0.5, rect_max_scale=(0.2, 0.2)),
-		Unicolor(0.5),
-		Inversion(0.5),
-	])
-	augment_fn = lambda batch: torch.stack([augment_fn_x(x).cuda() for x in batch]).cuda()
+	optim = SGD(model.parameters(), lr=hparams.lr0, weight_decay=hparams.weight_decay)
 
 	hparams.train_name = "MixMatch"
-	dirname = "%s_%s_%s_%s" % (hparams.train_name, hparams.model_name, suffix, hparams.begin_date)
-	dirpath = osp.join(hparams.logdir, dirname)
-	writer = SummaryWriter(log_dir=dirpath, comment=hparams.train_name)
+	writer = build_writer(hparams)
 
-	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
-	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
-	metrics_u = CategoricalConfidenceAccuracy(hparams.confidence)
-	metrics_val = CategoricalConfidenceAccuracy(hparams.confidence)
-	mixmatch = MixMatchMixer(model, augment_fn, hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha)
-	lambda_u_rampup = RampUp(max_value=hparams.lambda_u_max, nb_steps=nb_rampup_steps)
-	criterion = MixMatchLoss(
-		lambda_u=hparams.lambda_u_max,
-		mode="onehot",
-		criterion_unsupervised="l2norm",
+	trainer = MixMatchTrainer(
+		model, acti_fn, optim, loader_train_s, loader_train_u, augm_fn, metrics_s, metrics_u, writer, hparams
 	)
+	validator = DefaultValidator(
+		model, acti_fn, loader_val, CrossEntropyLoss(), metrics_val_lst, metrics_names, writer, hparams.nb_classes
+	)
+	learner = DefaultLearner(trainer, validator, hparams.nb_epochs)
 
-	start = time()
 	print("\nStart %s training (%d epochs, %d train examples supervised, %d train examples unsupervised, "
 		  "%d valid examples)..." % (
 			  hparams.train_name,
 			  hparams.nb_epochs,
-			  len(loader_train_split.loader_supervised) * loader_train_split.loader_supervised.batch_size,
-			  len(loader_train_split.loader_unsupervised) * loader_train_split.loader_unsupervised.batch_size,
-			  len(loader_val) * loader_val.batch_size
+			  trainer.nb_examples_supervised(),
+			  trainer.nb_examples_unsupervised(),
+			  validator.nb_examples()
 		  ))
-
-	for e in range(hparams.nb_epochs):
-		losses, acc_train_s, acc_train_u = train_mixmatch(
-			model, acti_fn, optim, loader_train_split, hparams.nb_classes, criterion, metrics_s, metrics_u, mixmatch,
-			lambda_u_rampup, e
-		)
-		acc_val, acc_maxs = val(model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e)
-
-		writer.add_scalar("train/loss", float(np.mean(losses)), e)
-		writer.add_scalar("train/acc_s", float(np.mean(acc_train_s)), e)
-		writer.add_scalar("train/acc_u", float(np.mean(acc_train_u)), e)
-		writer.add_scalar("train/lr", get_lr(optim), e)
-		writer.add_scalar("val/acc", float(np.mean(acc_val)), e)
-		writer.add_scalar("val/maxs", float(np.mean(acc_maxs)), e)
-
-	print("End MixMatch training. (duration = %.2f)" % (time() - start))
+	start = time()
+	learner.start()
+	print("End %s training. (duration = %.2f)" % (hparams.train_name, time() - start))
 
 	writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 	writer.close()
-
-
-def train_mixmatch(
-		model: Module,
-		acti_fn: Callable,
-		optimizer: Optimizer,
-		loader: MergeDataLoader,
-		nb_classes: int,
-		criterion: Callable,
-		metrics_s: Metrics,
-		metrics_u: Metrics,
-		mixmatch: MixMatchMixer,
-		lambda_u_rampup: RampUp,
-		epoch: int
-) -> (list, list, list):
-	metrics_s.reset()
-	metrics_u.reset()
-	train_start = time()
-	model.train()
-
-	losses, accuracies_s, accuracies_u = [], [], []
-	iter_train = iter(loader)
-	for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
-		batch_s, batch_u = batch_s.cuda().float(), batch_u.cuda().float()
-		labels_s = labels_s.cuda().long()
-		labels_s = one_hot(labels_s, nb_classes).float()
-
-		# Apply mix
-		batch_x_mixed, labels_x_mixed, batch_u_mixed, labels_u_mixed = mixmatch(batch_s, labels_s, batch_u)
-
-		# Compute logits
-		logits_x = model(batch_x_mixed)
-		logits_u = model(batch_u_mixed)
-
-		# Compute accuracies
-		pred_x = acti_fn(logits_x)
-		pred_u = acti_fn(logits_u)
-
-		accuracy_s = metrics_s(pred_x, labels_x_mixed)
-		accuracy_u = metrics_u(pred_u, labels_u_mixed)
-
-		# Update model
-		criterion.lambda_u = lambda_u_rampup.value
-		loss = criterion(logits_x, labels_x_mixed, logits_u, labels_u_mixed)
-		optimizer.zero_grad()
-		loss.backward()
-		clip_grad_norm_(model.parameters(), 100)
-		optimizer.step()
-
-		lambda_u_rampup.step()
-
-		# Store data
-		losses.append(loss.item())
-		accuracies_s.append(metrics_s.value.item())
-		accuracies_u.append(metrics_u.value.item())
-
-		print("Epoch {}, {:d}% \t loss: {:.4e} - sacc: {:.4e} - uacc: {:.4e} - took {:.2f}s".format(
-			epoch + 1,
-			int(100 * (i + 1) / len(loader)),
-			loss.item(),
-			accuracy_s,
-			accuracy_u,
-			time() - train_start
-		), end="\r")
-
-	print("")
-	return losses, accuracies_s, accuracies_u

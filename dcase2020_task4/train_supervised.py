@@ -1,5 +1,4 @@
 import numpy as np
-import os.path as osp
 
 from easydict import EasyDict as edict
 from time import time
@@ -9,105 +8,111 @@ from torch.optim import SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable
+from typing import Callable, List
 
 from dcase2020.pytorch_metrics.metrics import Metrics
-from dcase2020_task4.util.confidence_acc import CategoricalConfidenceAccuracy
-from dcase2020_task4.util.utils_match import get_lr
-from dcase2020_task4.validate import val
+from dcase2020_task4.learner import DefaultLearner
+from dcase2020_task4.util.utils_match import get_lr, build_writer
+from dcase2020_task4.trainer import Trainer
+from dcase2020_task4.validate import DefaultValidator
 
 
-def test_supervised(
-	model: Module, acti_fn: Callable, loader_train: DataLoader, loader_val: DataLoader, hparams: edict, suffix: str = ""
-):
-	hparams.lr = 1e-2
-	hparams.weight_decay = 1e-4
+class SupervisedTrainer(Trainer):
+	def __init__(self, model: Module, acti_fn: Callable, optim: Optimizer, loader: DataLoader, criterion: Callable,
+				 metrics: Metrics, writer: SummaryWriter, hparams: edict):
+		self.model = model
+		self.acti_fn = acti_fn
+		self.optim = optim
+		self.loader = loader
+		self.criterion = criterion
+		self.metrics = metrics
+		self.writer = writer
+		self.nb_classes = hparams.nb_classes
 
-	hparams.train_name = "Supervised"
-	dirname = "%s_%s_%s_%s" % (hparams.train_name, hparams.model_name, suffix, hparams.begin_date)
-	dirpath = osp.join(hparams.logdir, dirname)
-	writer = SummaryWriter(log_dir=dirpath, comment=hparams.train_name)
+	def train(self, epoch: int):
+		train_start = time()
+		self.metrics.reset()
+		self.model.train()
 
-	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
-	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
-	metrics_val = CategoricalConfidenceAccuracy(hparams.confidence)
-	criterion = CrossEntropyLoss()
+		losses, acc_train = [], []
+		iter_train = iter(self.loader)
 
-	start = time()
-	print("\nStart %s training (%d epochs, %d train examples, %d valid examples)..." % (
-		hparams.train_name,
-		hparams.nb_epochs,
-		len(loader_train) * loader_train.batch_size,
-		len(loader_val) * loader_val.batch_size
-	))
+		for i, (x, y) in enumerate(iter_train):
+			x, y_num = x.cuda().float(), y.cuda().long()
+			y = one_hot(y_num, self.nb_classes)
 
-	for e in range(hparams.nb_epochs):
-		losses, acc_train = train_supervised(
-			model, acti_fn, optim, loader_train, hparams.nb_classes, criterion, metrics_s, e
-		)
-		acc_val, acc_maxs = val(
-			model, acti_fn, loader_val, hparams.nb_classes, metrics_val, e
-		)
-		maxes = 0
-		maxes += 1
+			# Compute logits
+			logits = self.model(x)
 
-		writer.add_scalar("train/loss", float(np.mean(losses)), e)
-		writer.add_scalar("train/acc", float(np.mean(acc_train)), e)
-		writer.add_scalar("train/lr", get_lr(optim), e)
-		writer.add_scalar("val/acc", float(np.mean(acc_val)), e)
-		writer.add_scalar("val/maxs", float(np.mean(acc_maxs)), e)
+			# Compute accuracy
+			pred = self.acti_fn(logits)
+			accuracy = self.metrics(pred, y)
 
-	print("End Supervised training. (duration = %.2f)" % (time() - start))
+			# Update model
+			loss = self.criterion(logits, y_num)  # note softmax is applied inside CrossEntropy
+			self.optim.zero_grad()
+			loss.backward()
+			self.optim.step()
 
-	writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
-	writer.close()
+			# Store data
+			losses.append(loss.item())
+			acc_train.append(self.metrics.value.item())
+
+			# logs
+			print("Epoch {}, {:d}% \t loss: {:.4e} - acc: {:.4e} - took {:.2f}s".format(
+				epoch + 1,
+				int(100 * (i + 1) / len(self.loader)),
+				loss.item(),
+				accuracy,
+				time() - train_start
+			), end="\r")
+
+		print("")
+
+		self.writer.add_scalar("train/loss", float(np.mean(losses)), epoch)
+		self.writer.add_scalar("train/acc", float(np.mean(acc_train)), epoch)
+		self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
+
+	def nb_examples(self) -> int:
+		return len(self.loader) * self.loader.batch_size
 
 
 def train_supervised(
 	model: Module,
 	acti_fn: Callable,
-	optimizer: Optimizer,
-	loader: DataLoader,
-	nb_classes: int,
-	criterion: Callable,
-	metrics: Metrics,
-	epoch: int
-) -> (list, list):
-	train_start = time()
-	metrics.reset()
-	model.train()
+	loader_train_full: DataLoader,
+	loader_val: DataLoader,
+	metrics_s: Metrics,
+	metrics_val_lst: List[Metrics],
+	metrics_names: List[str],
+	hparams: edict,
+	suffix: str
+):
+	hparams.lr = 1e-2
+	hparams.weight_decay = 1e-4
 
-	losses, accuracies = [], []
-	iter_train = iter(loader)
-	for i, (x, y) in enumerate(iter_train):
-		x, y_num = x.cuda().float(), y.cuda().long()
-		y = one_hot(y_num, nb_classes)
+	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 
-		# Compute logits
-		logits = model(x)
+	hparams.train_name = "ReMixMatch"
+	writer = build_writer(hparams, suffix=suffix)
 
-		# Compute accuracy
-		pred = acti_fn(logits)
-		accuracy = metrics(pred, y)
+	trainer = SupervisedTrainer(
+		model, acti_fn, optim, loader_train_full, CrossEntropyLoss(), metrics_s, writer, hparams
+	)
+	validator = DefaultValidator(
+		model, acti_fn, loader_val, CrossEntropyLoss(), metrics_val_lst, metrics_names, writer, hparams.nb_classes
+	)
+	learner = DefaultLearner(trainer, validator, hparams.nb_epochs)
 
-		# Update model
-		loss = criterion(logits, y_num)  # note softmax is applied inside CrossEntropy
-		optimizer.zero_grad()
-		loss.backward()
-		optimizer.step()
+	print("\nStart %s training (%d epochs, %d train examples supervised, %d valid examples)..." % (
+		hparams.train_name,
+		hparams.nb_epochs,
+		trainer.nb_examples(),
+		validator.nb_examples()
+	))
+	start = time()
+	learner.start()
+	print("End %s training. (duration = %.2f)" % (hparams.train_name, time() - start))
 
-		# Store data
-		losses.append(loss.item())
-		accuracies.append(metrics.value.item())
-
-		# logs
-		print("Epoch {}, {:d}% \t loss: {:.4e} - acc: {:.4e} - took {:.2f}s".format(
-			epoch + 1,
-			int(100 * (i + 1) / len(loader)),
-			loss.item(),
-			accuracy,
-			time() - train_start
-		), end="\r")
-
-	print("")
-	return losses, accuracies
+	writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+	writer.close()

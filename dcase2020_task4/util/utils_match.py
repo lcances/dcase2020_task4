@@ -1,8 +1,11 @@
+import os.path as osp
 import torch
 
+from easydict import EasyDict as edict
 from torch import Tensor
-from torch.optim.optimizer import Optimizer
 from torch.nn.functional import one_hot
+from torch.optim.optimizer import Optimizer
+from torch.utils.tensorboard import SummaryWriter
 from typing import List
 
 
@@ -85,3 +88,10 @@ def get_lr(optim: Optimizer) -> float:
 
 def set_lr(optim: Optimizer, new_lr: float):
 	optim.param_groups[0]["lr"] = new_lr
+
+
+def build_writer(hparams: edict, suffix: str = "") -> SummaryWriter:
+	dirname = "%s_%s_%s_%s" % (hparams.train_name, hparams.model_name, suffix, hparams.begin_date)
+	dirpath = osp.join(hparams.logdir, dirname)
+	writer = SummaryWriter(log_dir=dirpath, comment=hparams.train_name)
+	return writer

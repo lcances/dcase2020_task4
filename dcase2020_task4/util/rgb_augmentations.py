@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from dcase2020.augmentation_utils.augmentations import ImgAugmentation
 
@@ -27,10 +28,9 @@ class Gray(ImgRGBAugmentation):
 		super().__init__(ratio)
 
 	def apply_helper(self, data):
-		gray_img = np.mean(data, 0)
+		gray_img = torch.mean(data, dim=0)
 		for i in range(data.shape[0]):
-			data[i] = gray_img.copy()
-
+			data[i] = gray_img.clone()
 		return data
 
 
@@ -50,13 +50,14 @@ class RandCrop(ImgRGBAugmentation):
 		r_right = r_left + r_width
 		r_down = r_top + r_height
 
+		rect_value = (self.value_range[1] - self.value_range[0]) / 2.0
 		for i in range(data.shape[0]):
-			data[i, r_left:r_right, r_top:r_down] = (self.value_range[1] - self.value_range[0]) / 2.0
+			data[i, r_left:r_right, r_top:r_down] = rect_value
 
 		return data
 
 
-class Unicolor(ImgRGBAugmentation):
+class UniColor(ImgRGBAugmentation):
 	def __init__(self, ratio: float = 1.0):
 		super().__init__(ratio)
 
@@ -68,7 +69,7 @@ class Unicolor(ImgRGBAugmentation):
 			if i != color_chosen:
 				data[i] = self.value_range[0]
 			else:
-				data[i] = max_img
+				data[i] = max_img.copy()
 
 		return data
 

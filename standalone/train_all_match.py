@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from argparse import ArgumentParser, Namespace
 from easydict import EasyDict as edict
@@ -6,19 +7,25 @@ from time import time
 from torch.nn import Module
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from torchvision.datasets import CIFAR10
+from torchvision.transforms import RandomChoice, Compose
 
+from dcase2020.augmentation_utils.img_augmentations import Transform
+from dcase2020.augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip
 from dcase2020.util.utils import get_datetime, reset_seed
 
+from dcase2020_task4.util.rgb_augmentations import Gray, Inversion, RandCrop, UniColor
 from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
 from dcase2020_task4.util.NoLabelDataLoader import NoLabelDataLoader
 from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
+from dcase2020_task4.util.confidence_acc import CategoricalConfidenceAccuracy
+from dcase2020_task4.util.max_metrics import MaxMetrics
 from dcase2020_task4.resnet import ResNet18
 from dcase2020_task4.vgg import VGG
 
-from dcase2020_task4.train_fixmatch import test_fixmatch
-from dcase2020_task4.train_mixmatch import test_mixmatch
-from dcase2020_task4.train_remixmatch import test_remixmatch
-from dcase2020_task4.train_supervised import test_supervised
+from dcase2020_task4.train_fixmatch import train_fixmatch
+from dcase2020_task4.train_mixmatch import train_mixmatch
+from dcase2020_task4.train_remixmatch import train_remixmatch
+from dcase2020_task4.train_supervised import train_supervised
 
 
 def get_nb_parameters(model: Module) -> int:
@@ -88,6 +95,7 @@ def main():
 	hparams = edict()
 	args_filtered = {k: (" ".join(v) if isinstance(v, list) else v) for k, v in args.__dict__.items()}
 	hparams.update(args_filtered)
+	hparams.mode = "onehot"
 
 	# Note : some hyperparameters are overwritten when calling the training function
 	hparams.begin_date = get_datetime()
@@ -96,7 +104,6 @@ def main():
 	reset_seed(hparams.seed)
 
 	loader_train_full, loader_train_s, loader_train_u, loader_val = get_cifar_loaders(hparams)
-	loader_train_ss = MergeDataLoader([loader_train_s, loader_train_u])
 
 	# Create model
 	if hparams.model_name == "VGG11":
@@ -110,19 +117,81 @@ def main():
 	print("Model selected : %s (%d parameters, %d trainable parameters)." % (
 		hparams.model_name, get_nb_parameters(model_factory()), get_nb_trainable_parameters(model_factory())))
 
+	# Weak and strong augmentations used by FixMatch and ReMixMatch
+	weak_augm_fn_x = RandomChoice([
+		HorizontalFlip(0.5),
+		VerticalFlip(0.5),
+		Transform(0.5, scale=(0.75, 1.25)),
+		Transform(0.5, rotation=(-np.pi, np.pi)),
+	])
+	strong_augm_fn_x = Compose([
+		RandomChoice([
+			Transform(1.0, scale=(0.5, 1.5)),
+			Transform(1.0, rotation=(-np.pi, np.pi)),
+		]),
+		RandomChoice([
+			Gray(1.0),
+			RandCrop(1.0),
+			UniColor(1.0),
+			Inversion(1.0),
+		]),
+	])
+	# Augmentation used by MixMatch
+	augment_fn_x = RandomChoice([
+		HorizontalFlip(0.5),
+		VerticalFlip(0.5),
+		Transform(0.5, scale=(0.75, 1.25)),
+		Transform(0.5, rotation=(-np.pi, np.pi)),
+		Gray(0.5),
+		RandCrop(0.5, rect_max_scale=(0.2, 0.2)),
+		UniColor(0.5),
+		Inversion(0.5),
+	])
+
+	# Make augmentation work with a batch
+	weak_augm_fn = lambda batch: torch.stack([weak_augm_fn_x(x).cuda() for x in batch]).cuda()
+	strong_augm_fn = lambda batch: torch.stack([strong_augm_fn_x(x).cuda() for x in batch]).cuda()
+	augment_fn = lambda batch: torch.stack([augment_fn_x(x).cuda() for x in batch]).cuda()
+
+	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
+	metrics_u = CategoricalConfidenceAccuracy(hparams.confidence)
+	metrics_u1 = CategoricalConfidenceAccuracy(hparams.confidence)
+	metrics_r = CategoricalConfidenceAccuracy(hparams.confidence)
+	metrics_val_lst = [
+		CategoricalConfidenceAccuracy(hparams.confidence),
+		MaxMetrics()
+	]
+	metrics_names = ["acc", "max"]
+
 	if "fm" in args.run:
-		test_fixmatch(model_factory(), acti_fn, loader_train_ss, loader_val, edict(hparams))
+		train_fixmatch(
+			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, weak_augm_fn, strong_augm_fn,
+			metrics_s, metrics_u, metrics_val_lst, metrics_names, edict(hparams)
+		)
 	if "mm" in args.run:
-		test_mixmatch(model_factory(), acti_fn, loader_train_ss, loader_val, edict(hparams))
+		train_mixmatch(
+			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, augment_fn,
+			metrics_s, metrics_u, metrics_val_lst, metrics_names, edict(hparams)
+		)
 	if "rmm" in args.run:
-		test_remixmatch(model_factory(), acti_fn, loader_train_ss, loader_val, edict(hparams))
+		train_remixmatch(
+			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, weak_augm_fn, strong_augm_fn,
+			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val_lst, metrics_names, edict(hparams)
+		)
 
 	if "sf" in args.run:
-		test_supervised(model_factory(), acti_fn, loader_train_full, loader_val, edict(hparams), suffix="full_100")
+		train_supervised(
+			model_factory(), acti_fn, loader_train_full, loader_val, metrics_s, metrics_val_lst, metrics_names,
+			edict(hparams), suffix="full_100"
+		)
 	if "sp" in args.run:
-		test_supervised(model_factory(), acti_fn, loader_train_s, loader_val, edict(hparams), suffix="part_%d" % int(100 * hparams.supervised_ratio))
+		train_supervised(
+			model_factory(), acti_fn, loader_train_s, loader_val, metrics_s, metrics_val_lst, metrics_names,
+			edict(hparams), suffix="part_%d" % int(100 * hparams.supervised_ratio)
+		)
 
 	exec_time = time() - prog_start
+	print("")
 	print("Program started at \"%s\" and terminated at \"%s\"." % (hparams.begin_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)
 
