@@ -15,3 +15,6 @@ class SSTrainer(Trainer, ABC):
 
 	def nb_examples_unsupervised(self) -> int:
 		raise NotImplementedError("Abstract method")
+
+	def nb_examples(self) -> int:
+		return self.nb_examples_supervised() + self.nb_examples_unsupervised()

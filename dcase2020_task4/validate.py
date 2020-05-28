@@ -59,7 +59,7 @@ class DefaultValidator(Validator, ABC):
 
 				buffer = []
 
-				loss = self.criterion(pred_x, y)
+				loss = self.criterion(pred_x, y).mean()
 				buffer.append("loss: %.4e" % loss.item())
 
 				# Compute metrics and store them in buffer for print and in metrics_values for writer
@@ -72,16 +72,16 @@ class DefaultValidator(Validator, ABC):
 				buffer.append("took %.2fs" % (time() - val_start))
 
 				# Print buffer
-				print("Epoch {}, {:d}% \t %s".format(
+				print("Epoch {}, {:d}% \t {:s}".format(
 					epoch + 1,
 					int(100 * (i + 1) / len(self.loader)),
 					" - ".join(buffer)
-				))
+				), end="\r")
 
 			print("")
 
 			if self.writer is not None:
-				for values, name in (metrics_values, self.metrics_names):
+				for values, name in zip(metrics_values, self.metrics_names):
 					self.writer.add_scalar("val/%s" % name, float(np.mean(values)), epoch)
 
 	def nb_examples(self) -> int:

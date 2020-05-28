@@ -1,7 +1,7 @@
 
 from easydict import EasyDict as edict
 from time import time
-from torch.nn import Module, CrossEntropyLoss
+from torch.nn import Module
 from torch.optim import SGD
 from torch.utils.data import DataLoader
 from typing import Callable, List
@@ -10,7 +10,7 @@ from dcase2020.pytorch_metrics.metrics import Metrics
 
 from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
-from dcase2020_task4.util.utils_match import build_writer
+from dcase2020_task4.util.utils_match import build_writer, cross_entropy
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.validate import DefaultValidator
 
@@ -46,7 +46,7 @@ def train_fixmatch(
 		model, acti_fn, optim, loader_train_s, loader_train_u, weak_augm_fn, strong_augm_fn, metrics_s, metrics_u, writer, hparams
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, CrossEntropyLoss(), metrics_val_lst, metrics_names, writer, hparams.nb_classes
+		model, acti_fn, loader_val, cross_entropy, metrics_val_lst, metrics_names, writer, hparams.nb_classes
 	)
 	learner = DefaultLearner(trainer, validator, hparams.nb_epochs, scheduler)
 

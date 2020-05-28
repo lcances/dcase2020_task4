@@ -79,6 +79,14 @@ def cross_entropy_with_logits(logits: Tensor, targets: Tensor) -> Tensor:
 		Target must be a (batch_size, nb_classes) tensor.
 	"""
 	pred_x = torch.softmax(logits, dim=1)
+	return cross_entropy(pred_x, targets)
+
+
+def cross_entropy(pred_x: Tensor, targets: Tensor) -> Tensor:
+	"""
+		Compute cross-entropy with targets.
+		Target must be a (batch_size, nb_classes) tensor.
+	"""
 	return -torch.sum(torch.log(pred_x) * targets, dim=1)
 
 

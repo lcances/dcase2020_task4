@@ -11,10 +11,10 @@ class Learner(ABC):
 
 
 class DefaultLearner(Learner):
-	def __init__(self, trainer: Trainer, validator: Validator, hparams: edict, scheduler=None):
+	def __init__(self, trainer: Trainer, validator: Validator, nb_epochs: int, scheduler=None):
 		self.trainer = trainer
 		self.validator = validator
-		self.nb_epochs = hparams.nb_epochs
+		self.nb_epochs = nb_epochs
 		self.scheduler = scheduler
 
 	def start(self):

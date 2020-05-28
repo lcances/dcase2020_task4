@@ -50,7 +50,7 @@ class MixMatchTrainer(SSTrainer):
 		self.lambda_u_rampup = RampUp(max_value=hparams.lambda_u_max, nb_steps=nb_rampup_steps)
 		self.mixer = MixMatchMixer(model, augm_fn, hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha)
 		self.criterion = MixMatchLoss(
-			acti_fn, lambda_u=hparams.lambda_u, mode=hparams.mode, criterion_unsupervised=hparams.criterion_supervised
+			acti_fn, lambda_u=hparams.lambda_u_max, mode=hparams.mode, criterion_unsupervised=hparams.criterion_unsupervised
 		)
 
 	def train(self, epoch: int):
@@ -118,6 +118,3 @@ class MixMatchTrainer(SSTrainer):
 
 	def nb_examples_unsupervised(self) -> int:
 		return len(self.loader_train_u) * self.loader_train_u.batch_size
-
-	def nb_examples(self) -> int:
-		return self.nb_examples_supervised() + self.nb_examples_unsupervised()

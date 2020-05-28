@@ -2,7 +2,7 @@ import numpy as np
 
 from easydict import EasyDict as edict
 from time import time
-from torch.nn import Module, CrossEntropyLoss
+from torch.nn import Module
 from torch.nn.functional import one_hot
 from torch.optim import SGD
 from torch.optim.optimizer import Optimizer
@@ -12,7 +12,7 @@ from typing import Callable, List
 
 from dcase2020.pytorch_metrics.metrics import Metrics
 from dcase2020_task4.learner import DefaultLearner
-from dcase2020_task4.util.utils_match import get_lr, build_writer
+from dcase2020_task4.util.utils_match import get_lr, build_writer, cross_entropy, cross_entropy_with_logits
 from dcase2020_task4.trainer import Trainer
 from dcase2020_task4.validate import DefaultValidator
 
@@ -49,7 +49,7 @@ class SupervisedTrainer(Trainer):
 			accuracy = self.metrics(pred, y)
 
 			# Update model
-			loss = self.criterion(logits, y_num)  # note softmax is applied inside CrossEntropy
+			loss = self.criterion(logits, y).mean()
 			self.optim.zero_grad()
 			loss.backward()
 			self.optim.step()
@@ -93,14 +93,14 @@ def train_supervised(
 
 	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 
-	hparams.train_name = "ReMixMatch"
+	hparams.train_name = "Supervised"
 	writer = build_writer(hparams, suffix=suffix)
 
 	trainer = SupervisedTrainer(
-		model, acti_fn, optim, loader_train_full, CrossEntropyLoss(), metrics_s, writer, hparams
+		model, acti_fn, optim, loader_train_full, cross_entropy_with_logits, metrics_s, writer, hparams
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, CrossEntropyLoss(), metrics_val_lst, metrics_names, writer, hparams.nb_classes
+		model, acti_fn, loader_val, cross_entropy, metrics_val_lst, metrics_names, writer, hparams.nb_classes
 	)
 	learner = DefaultLearner(trainer, validator, hparams.nb_epochs)
 

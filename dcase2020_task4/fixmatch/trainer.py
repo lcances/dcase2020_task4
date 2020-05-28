@@ -111,6 +111,3 @@ class FixMatchTrainer(SSTrainer):
 
 	def nb_examples_unsupervised(self) -> int:
 		return len(self.loader_train_u) * self.loader_train_u.batch_size
-
-	def nb_examples(self) -> int:
-		return self.nb_examples_supervised() + self.nb_examples_unsupervised()

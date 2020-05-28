@@ -138,7 +138,7 @@ class ReMixMatchTrainer(SSTrainer):
 			acc_train_r.append(self.metrics_r.value.item())
 
 			print(
-				"Epoch {}, {:d}% \t loss: {:.4e} - sacc: {:.4e} - uacc: {:.4e} - u1acc: {:.4e} - rotacc: {:.4e} - took {:.2f}s".format(
+				"Epoch {}, {:d}% \t loss: {:.4e} - acc_s: {:.4e} - acc_u: {:.4e} - acc_u1: {:.4e} - acc_r: {:.4e} - took {:.2f}s".format(
 					epoch + 1,
 					int(100 * (i + 1) / len(loader_merged)),
 					loss.item(),
@@ -163,9 +163,6 @@ class ReMixMatchTrainer(SSTrainer):
 
 	def nb_examples_unsupervised(self) -> int:
 		return len(self.loader_train_u) * self.loader_train_u.batch_size
-
-	def nb_examples(self) -> int:
-		return self.nb_examples_supervised() + self.nb_examples_unsupervised()
 
 
 def apply_random_rot(batch: Tensor, angles_allowed) -> (Tensor, Tensor):

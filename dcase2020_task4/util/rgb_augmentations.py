@@ -28,9 +28,9 @@ class Gray(ImgRGBAugmentation):
 		super().__init__(ratio)
 
 	def apply_helper(self, data):
-		gray_img = torch.mean(data, dim=0)
+		gray_img = np.mean(data, 0)
 		for i in range(data.shape[0]):
-			data[i] = gray_img.clone()
+			data[i] = gray_img.copy()
 		return data
 
 
