@@ -53,6 +53,14 @@ class MixMatchTrainer(SSTrainer):
 			lambda_u=hparams.lambda_u_max, mode=hparams.mode, criterion_unsupervised=hparams.criterion_unsupervised
 		)
 
+		self.pre_batch_fn = lambda batch: batch.cuda().float()
+		if hparams.mode == "onehot":
+			self.pre_label_fn = lambda label: one_hot(label.cuda().long(), self.nb_classes).float()
+		elif hparams.mode == "multihot":
+			self.pre_label_fn = lambda label: label.cuda().float()
+		else:
+			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (hparams.mode, " or ".join(("onehot", "multihot"))))
+
 	def train(self, epoch: int):
 		train_start = time()
 		self.metrics_s.reset()
@@ -64,9 +72,9 @@ class MixMatchTrainer(SSTrainer):
 		iter_train = iter(loader_merged)
 
 		for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
-			batch_s, batch_u = batch_s.cuda().float(), batch_u.cuda().float()
-			labels_s = labels_s.cuda().long()
-			labels_s = one_hot(labels_s, self.nb_classes).float()
+			batch_s = self.pre_batch_fn(batch_s)
+			batch_u = self.pre_batch_fn(batch_u)
+			labels_s = self.pre_label_fn(labels_s)
 
 			# Apply mix
 			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed = self.mixer.mix(batch_s, labels_s, batch_u)

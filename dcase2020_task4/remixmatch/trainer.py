@@ -70,6 +70,14 @@ class ReMixMatchTrainer(SSTrainer):
 			mode=hparams.mode,
 		)
 
+		self.pre_batch_fn = lambda batch: batch.cuda().float()
+		if hparams.mode == "onehot":
+			self.pre_label_fn = lambda label: one_hot(label.cuda().long(), self.nb_classes).float()
+		elif hparams.mode == "multihot":
+			self.pre_label_fn = lambda label: label.cuda().float()
+		else:
+			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (hparams.mode, " or ".join(("onehot", "multihot"))))
+
 	def train(self, epoch: int):
 		train_start = time()
 		self.metrics_s.reset()
@@ -84,9 +92,9 @@ class ReMixMatchTrainer(SSTrainer):
 		iter_train = iter(loader_merged)
 
 		for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
-			batch_s, batch_u = batch_s.cuda().float(), batch_u.cuda().float()
-			labels_s = labels_s.cuda().long()
-			labels_s = one_hot(labels_s, self.nb_classes).float()
+			batch_s = self.pre_batch_fn(batch_s)
+			batch_u = self.pre_batch_fn(batch_u)
+			labels_s = self.pre_label_fn(labels_s)
 
 			with torch.no_grad():
 				self.mixer.distributions.add_batch_pred(labels_s, "labeled")
