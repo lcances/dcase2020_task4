@@ -112,7 +112,10 @@ def main():
 		model_factory = lambda: ResNet18().cuda()
 	else:
 		raise RuntimeError("Unknown model %s" % hparams.model_name)
-	acti_fn = lambda x, dim=1: x.softmax(dim=dim)
+	if hparams.mode == "onehot":
+		acti_fn = lambda x, dim=1: x.softmax(dim=dim)
+	elif hparams.mode == "multihot":
+		acti_fn = lambda x, dim: x.sigmoid()
 
 	print("Model selected : %s (%d parameters, %d trainable parameters)." % (
 		hparams.model_name, get_nb_parameters(model_factory()), get_nb_trainable_parameters(model_factory())))
