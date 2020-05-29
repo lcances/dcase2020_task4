@@ -14,14 +14,12 @@ from dcase2020.augmentation_utils.spec_augmentations import HorizontalFlip, Vert
 from dcase2020.util.utils import get_datetime, reset_seed
 
 from dcase2020_task4.util.rgb_augmentations import Gray, Inversion, RandCrop, UniColor
-from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
 from dcase2020_task4.util.NoLabelDataLoader import NoLabelDataLoader
 from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
-from dcase2020_task4.util.confidence_acc import CategoricalConfidenceAccuracy
-from dcase2020_task4.util.max_metrics import MaxMetrics
+from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, MaxMetric, LossMetric
+from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.resnet import ResNet18
 from dcase2020_task4.vgg import VGG
-
 from dcase2020_task4.train_fixmatch import train_fixmatch
 from dcase2020_task4.train_mixmatch import train_mixmatch
 from dcase2020_task4.train_remixmatch import train_remixmatch
@@ -112,10 +110,13 @@ def main():
 		model_factory = lambda: ResNet18().cuda()
 	else:
 		raise RuntimeError("Unknown model %s" % hparams.model_name)
+
 	if hparams.mode == "onehot":
 		acti_fn = lambda x, dim=1: x.softmax(dim=dim)
 	elif hparams.mode == "multihot":
-		acti_fn = lambda x, dim: x.sigmoid()
+		acti_fn = lambda x, dim=1: x.sigmoid()
+	else:
+		raise RuntimeError("Invalid argument")
 
 	print("Model selected : %s (%d parameters, %d trainable parameters)." % (
 		hparams.model_name, get_nb_parameters(model_factory()), get_nb_trainable_parameters(model_factory())))
@@ -162,9 +163,10 @@ def main():
 	metrics_r = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_val_lst = [
 		CategoricalConfidenceAccuracy(hparams.confidence),
-		MaxMetrics()
+		MaxMetric(),
+		LossMetric(cross_entropy),
 	]
-	metrics_names = ["acc", "max"]
+	metrics_names = ["acc", "max", "ce"]
 
 	if "fm" in args.run:
 		train_fixmatch(

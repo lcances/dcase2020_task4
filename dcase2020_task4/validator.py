@@ -26,7 +26,6 @@ class DefaultValidator(Validator, ABC):
 		model: Module,
 		acti_fn: Callable,
 		loader: DataLoader,
-		criterion: Callable,
 		metrics_lst: List[Metrics],
 		metrics_names: List[str],
 		writer: Optional[SummaryWriter],
@@ -35,7 +34,6 @@ class DefaultValidator(Validator, ABC):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.loader = loader
-		self.criterion = criterion
 		self.metrics_lst = metrics_lst
 		self.metrics_names = metrics_names
 		self.writer = writer
@@ -49,6 +47,7 @@ class DefaultValidator(Validator, ABC):
 			self.model.eval()
 
 			metrics_values = [[] for _ in range(len(self.metrics_lst))]
+			losses = []
 			iter_val = iter(self.loader)
 			for i, (x, y) in enumerate(iter_val):
 				x, y = x.cuda().float(), y.cuda().long()
@@ -58,9 +57,6 @@ class DefaultValidator(Validator, ABC):
 				pred_x = self.acti_fn(logits_x)
 
 				buffer = []
-
-				loss = self.criterion(pred_x, y).mean()
-				buffer.append("loss: %.4e" % loss.item())
 
 				# Compute metrics and store them in buffer for print and in metrics_values for writer
 				for values, metrics, name in zip(metrics_values, self.metrics_lst, self.metrics_names):

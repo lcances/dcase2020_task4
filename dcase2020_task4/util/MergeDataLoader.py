@@ -19,15 +19,18 @@ class MergeDataLoader:
 
 	def __iter__(self) -> List[Tensor]:
 		iters = [iter(loader) for loader in self._loaders]
+		count = [0 for _ in self._loaders]
 
 		for _ in range(len(self)):
 			items = []
 			for i, _ in enumerate(iters):
-				try:
+				if count[i] < len(self._loaders[i]):
 					item = next(iters[i])
-				except StopIteration:
+					count[i] += 1
+				else:
 					iters[i] = iter(self._loaders[i])
 					item = next(iters[i])
+					count[i] = 1
 				items += list(item)
 
 			yield items

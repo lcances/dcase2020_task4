@@ -69,25 +69,25 @@ class MixMatchTrainer(SSTrainer):
 			labels_s = one_hot(labels_s, self.nb_classes).float()
 
 			# Apply mix
-			batch_x_mixed, labels_x_mixed, batch_u_mixed, labels_u_mixed = self.mixer.mix(batch_s, labels_s, batch_u)
+			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed = self.mixer.mix(batch_s, labels_s, batch_u)
 
 			# Compute logits
-			logits_x = self.model(batch_x_mixed)
+			logits_x = self.model(batch_s_mixed)
 			logits_u = self.model(batch_u_mixed)
 
 			# Compute accuracies
 			pred_x = self.acti_fn(logits_x)
 			pred_u = self.acti_fn(logits_u)
 
-			accuracy_s = self.metrics_s(pred_x, labels_x_mixed)
+			accuracy_s = self.metrics_s(pred_x, labels_s_mixed)
 			accuracy_u = self.metrics_u(pred_u, labels_u_mixed)
 
 			# Update model
-			self.criterion.lambda_u = self.lambda_u_rampup.value
-			loss = self.criterion(logits_x, labels_x_mixed, logits_u, labels_u_mixed)
+			self.criterion.lambda_u = self.lambda_u_rampup.value()
+			loss = self.criterion(pred_x, labels_s_mixed, pred_u, labels_u_mixed)
 			self.optim.zero_grad()
 			loss.backward()
-			# clip_grad_norm_(self.model.parameters(), 100)  # TODO
+			# clip_grad_norm_(self.model.parameters(), 100)  # TODO : rem
 			self.optim.step()
 
 			self.lambda_u_rampup.step()

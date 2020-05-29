@@ -2,7 +2,7 @@
 from abc import ABC
 from easydict import EasyDict as edict
 from dcase2020_task4.trainer import Trainer
-from dcase2020_task4.validate import Validator
+from dcase2020_task4.validator import Validator
 
 
 class Learner(ABC):

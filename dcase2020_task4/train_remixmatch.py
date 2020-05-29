@@ -11,7 +11,7 @@ from dcase2020.pytorch_metrics.metrics import Metrics
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 from dcase2020_task4.util.utils_match import build_writer, cross_entropy
-from dcase2020_task4.validate import DefaultValidator
+from dcase2020_task4.validator import DefaultValidator
 
 
 def train_remixmatch(
@@ -50,7 +50,7 @@ def train_remixmatch(
 		metrics_u1, metrics_r, writer, hparams
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, cross_entropy, metrics_val_lst, metrics_names, writer, hparams.nb_classes
+		model, acti_fn, loader_val, metrics_val_lst, metrics_names, writer, hparams.nb_classes
 	)
 	learner = DefaultLearner(trainer, validator, hparams.nb_epochs)
 

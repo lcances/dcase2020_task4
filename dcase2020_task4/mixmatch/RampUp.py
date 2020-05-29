@@ -21,6 +21,5 @@ class RampUp:
 			self.current_value += self.max_value / self.nb_steps
 		return self.current_value
 
-	@property
 	def value(self) -> float:
 		return self.current_value

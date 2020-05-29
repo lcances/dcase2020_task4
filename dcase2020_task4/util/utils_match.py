@@ -6,7 +6,7 @@ from torch import Tensor
 from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
-from typing import List
+from typing import Callable, List
 
 
 def sharpen(batch: Tensor, temperature: float, dim: int) -> Tensor:
@@ -52,7 +52,7 @@ def same_shuffle(values: List[Tensor]) -> List[Tensor]:
 	return values
 
 
-def binarize_labels(distributions: Tensor) -> Tensor:
+def binarize_onehot_labels(distributions: Tensor) -> Tensor:
 	""" Convert list of distributions vectors to one-hot. """
 	indexes = distributions.argmax(dim=1)
 	nb_classes = distributions.shape[1]

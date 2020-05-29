@@ -13,7 +13,7 @@ from dcase2020.pytorch_metrics.metrics import Metrics
 
 from dcase2020_task4.fixmatch.loss import FixMatchLoss
 from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
-from dcase2020_task4.util.utils_match import binarize_labels, get_lr
+from dcase2020_task4.util.utils_match import binarize_onehot_labels, get_lr
 from dcase2020_task4.trainer import SSTrainer
 
 
@@ -43,8 +43,15 @@ class FixMatchTrainer(SSTrainer):
 		self.metrics_u = metrics_u
 		self.writer = writer
 		self.nb_classes = hparams.nb_classes
+		self.mode = hparams.mode
 
-		self.criterion = FixMatchLoss(acti_fn, lambda_u=hparams.lambda_u, threshold_mask=hparams.threshold, mode=hparams.mode)
+		self.criterion = FixMatchLoss(
+			acti_fn,
+			lambda_u=hparams.lambda_u,
+			threshold_mask=hparams.threshold_mask,
+			threshold_multihot=hparams.threshold_multihot,
+			mode=hparams.mode
+		)
 
 	def train(self, epoch: int):
 		train_start = time()
@@ -73,14 +80,21 @@ class FixMatchTrainer(SSTrainer):
 
 			# Compute accuracies
 			pred_s_weak = self.acti_fn(logits_s_weak, dim=1)
+			pred_u_weak = self.acti_fn(logits_u_weak, dim=1)
 			pred_u_strong = self.acti_fn(logits_u_strong, dim=1)
-			label_u_guessed = binarize_labels(logits_u_weak)
+
+			if self.mode == "onehot":
+				labels_u_guessed = binarize_onehot_labels(pred_u_weak)
+			elif self.mode == "multihot":
+				labels_u_guessed = (pred_u_weak > self.criterion.threshold_multihot).float()
+			else:
+				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
 
 			accuracy_s = self.metrics_s(pred_s_weak, labels_s)
-			accuracy_u = self.metrics_u(pred_u_strong, label_u_guessed)
+			accuracy_u = self.metrics_u(pred_u_strong, labels_u_guessed)
 
 			# Update model
-			loss = self.criterion(logits_s_weak, labels_s, logits_u_weak, logits_u_strong)
+			loss = self.criterion(pred_s_weak, labels_s, pred_u_weak, pred_u_strong, labels_u_guessed)
 			self.optim.zero_grad()
 			loss.backward()
 			self.optim.step()

@@ -11,7 +11,7 @@ from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 from dcase2020_task4.util.utils_match import build_writer, cross_entropy
 
 from dcase2020_task4.learner import DefaultLearner
-from dcase2020_task4.validate import DefaultValidator
+from dcase2020_task4.validator import DefaultValidator
 
 
 def train_mixmatch(
@@ -45,7 +45,7 @@ def train_mixmatch(
 		model, acti_fn, optim, loader_train_s, loader_train_u, augm_fn, metrics_s, metrics_u, writer, hparams
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, cross_entropy, metrics_val_lst, metrics_names, writer, hparams.nb_classes
+		model, acti_fn, loader_val, metrics_val_lst, metrics_names, writer, hparams.nb_classes
 	)
 	learner = DefaultLearner(trainer, validator, hparams.nb_epochs)
 

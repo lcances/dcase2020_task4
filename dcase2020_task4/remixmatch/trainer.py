@@ -111,19 +111,19 @@ class ReMixMatchTrainer(SSTrainer):
 			pred_x = self.acti_fn(logits_x)
 			pred_u = self.acti_fn(logits_u)
 			pred_u1 = self.acti_fn(logits_u1)
-			pred_rot = self.acti_fn(logits_r)
+			pred_r = self.acti_fn(logits_r)
 
 			accuracy_s = self.metrics_s(pred_x, labels_x_mixed)
 			accuracy_u = self.metrics_u(pred_u, labels_u_mixed)
 			accuracy_u1 = self.metrics_u1(pred_u1, labels_u1)
-			accuracy_rot = self.metrics_r(pred_rot, labels_r)
+			accuracy_r = self.metrics_r(pred_r, labels_r)
 
 			# Update model
 			loss = self.criterion(
-				logits_x, labels_x_mixed,
-				logits_u, labels_u_mixed,
-				logits_u1, labels_u1,
-				logits_r, labels_r,
+				pred_x, labels_x_mixed,
+				pred_u, labels_u_mixed,
+				pred_u1, labels_u1,
+				pred_r, labels_r,
 			)
 
 			self.optim.zero_grad()
@@ -145,7 +145,7 @@ class ReMixMatchTrainer(SSTrainer):
 					accuracy_s,
 					accuracy_u,
 					accuracy_u1,
-					accuracy_rot,
+					accuracy_r,
 					time() - train_start
 				), end="\r")
 
