@@ -1,24 +1,11 @@
-import torch.nn as nn
-import torch.utils.data
-from torch.utils.data import DataLoader
-from torch.utils.tensorboard import SummaryWriter
+import os.path as osp
 
-# dataset manager
+from argparse import ArgumentParser, Namespace
+from torch.utils.data import DataLoader
+
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
-
-# utility function & metrics & augmentation
-from dcase2020_task4.util.utils import get_datetime, reset_seed
-
-# models
-from dcase2020_task4.baseline.models import WeakBaseline
-
-
-# ==== set the log ====
-import logging.config
-from dcase2020_task4.util.log import DEFAULT_LOGGING
-logging.config.dictConfig(DEFAULT_LOGGING)
-log = logging.getLogger(__name__)
+from dcase2020_task4.util.utils import reset_seed
 
 
 def get_desed_loaders(desed_metadata_root: str, desed_audio_root: str) -> (DataLoader, DataLoader):
@@ -26,7 +13,7 @@ def get_desed_loaders(desed_metadata_root: str, desed_audio_root: str) -> (DataL
 		desed_metadata_root, desed_audio_root,
 		sampling_rate=22050,
 		validation_ratio=0.2,
-		verbose=2
+		verbose=1
 	)
 
 	manager.add_subset("weak")
@@ -45,16 +32,27 @@ def get_desed_loaders(desed_metadata_root: str, desed_audio_root: str) -> (DataL
 	return training_loader, val_loader
 
 
-def main():
-	# ==== reset the seed for reproducibility ====
-	reset_seed(1234)
+def create_args() -> Namespace:
+	parser = ArgumentParser()
+	parser.add_argument("--dataset", type=str, default="../dataset/DESED")
+	parser.add_argument("--seed", type=int, default=123)
+	return parser.parse_args()
 
-	# ==== load the dataset ====
-	desed_metadata_root = "../../dataset/DESED/dataset/metadata"
-	desed_audio_root = "../../dataset/DESED/dataset/audio"
+
+def main():
+	args = create_args()
+
+	reset_seed(args.seed)
+
+	desed_metadata_root = osp.join(args.dataset, "dataset/metadata")
+	desed_audio_root = osp.join(args.dataset, "dataset/audio")
 
 	loader_train, loader_val = get_desed_loaders(desed_metadata_root, desed_audio_root)
-	print("TODO")
+
+	for i, data in enumerate(loader_train):
+		print(data)
+		if i > 5:
+			break
 
 
 if __name__ == "__main__":
