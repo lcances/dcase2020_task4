@@ -7,9 +7,8 @@ from ..util.utils_match import cross_entropy
 
 class ReMixMatchLoss(Callable):
 	def __init__(
-		self, acti_fn: Callable, lambda_u: float = 1.5, lambda_u1: float = 0.5, lambda_r: float = 0.5, mode: str = "onehot"
+		self, lambda_u: float = 1.5, lambda_u1: float = 0.5, lambda_r: float = 0.5, mode: str = "onehot"
 	):
-		self.acti_fn = acti_fn
 		self.lambda_u = lambda_u
 		self.lambda_u1 = lambda_u1
 		self.lambda_r = lambda_r

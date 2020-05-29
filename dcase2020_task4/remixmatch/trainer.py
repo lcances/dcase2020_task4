@@ -54,6 +54,7 @@ class ReMixMatchTrainer(SSTrainer):
 
 		self.mixer = ReMixMatchMixer(
 			model,
+			acti_fn,
 			weak_augm_fn,
 			strong_augm_fn,
 			hparams.nb_classes,
@@ -63,7 +64,6 @@ class ReMixMatchTrainer(SSTrainer):
 			hparams.mode
 		)
 		self.criterion = ReMixMatchLoss(
-			acti_fn,
 			lambda_u=hparams.lambda_u,
 			lambda_u1=hparams.lambda_u1,
 			lambda_r=hparams.lambda_r,

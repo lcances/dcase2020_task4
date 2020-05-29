@@ -30,6 +30,10 @@ def train_remixmatch(
 	metrics_names: List[str],
 	hparams: edict,
 ):
+	if loader_train_s.batch_size != loader_train_u.batch_size:
+		raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
+			loader_train_s.batch_size, loader_train_u.batch_size))
+
 	# ReMixMatch hyperparameters
 	hparams.nb_augms_strong = 2  # In paper : 8
 	hparams.sharpen_temp = 0.5

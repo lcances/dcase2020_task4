@@ -46,7 +46,6 @@ class FixMatchTrainer(SSTrainer):
 		self.mode = hparams.mode
 
 		self.criterion = FixMatchLoss(
-			acti_fn,
 			lambda_u=hparams.lambda_u,
 			threshold_mask=hparams.threshold_mask,
 			threshold_multihot=hparams.threshold_multihot,

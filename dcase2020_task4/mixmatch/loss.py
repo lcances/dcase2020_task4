@@ -9,9 +9,8 @@ from ..util.utils_match import cross_entropy
 
 class MixMatchLoss(Callable):
 	def __init__(
-		self, acti_fn: Callable, lambda_u: float = 1.0, mode: str = "onehot", criterion_unsupervised: str = "l2norm"
+		self, lambda_u: float = 1.0, mode: str = "onehot", criterion_unsupervised: str = "l2norm"
 	):
-		self.acti_fn = acti_fn
 		self.lambda_u = lambda_u
 		self.mode = mode
 		self.unsupervised_loss_mode = criterion_unsupervised

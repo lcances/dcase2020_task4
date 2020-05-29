@@ -16,6 +16,7 @@ class MixMatchMixer(Callable):
 	def __init__(
 		self,
 		model: Module,
+		acti_fn: Callable,
 		augm_fn: Callable,
 		nb_augms: int = 2,
 		sharpen_temp: float = 0.5,
@@ -23,19 +24,12 @@ class MixMatchMixer(Callable):
 		mode: str = "onehot",
 	):
 		self.model = model
+		self.acti_fn = acti_fn
 		self.augm_fn = augm_fn
 		self.nb_augms = nb_augms
 		self.sharpen_temp = sharpen_temp
 		self.mixup_mixer = MixUpMixer(alpha=mixup_alpha, apply_max=True)
 		self.mode = mode
-
-		# NOTE: acti_fn must have the dim parameter !
-		if self.mode == "onehot":
-			self.acti_fn = torch.softmax
-		elif self.mode == "multihot":
-			self.acti_fn = lambda x, dim: x.sigmoid()
-		else:
-			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
 
 	def __call__(self, batch_labeled: Tensor, labels: Tensor, batch_unlabeled: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
 		return self.mix(batch_labeled, labels, batch_unlabeled)

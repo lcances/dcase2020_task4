@@ -30,37 +30,13 @@ def get_desed_loaders(desed_metadata_root: str, desed_audio_root: str) -> (DataL
 	)
 
 	manager.add_subset("weak")
+	manager.add_subset("unlabel_in_domain")
 	manager.split_train_validation()
 
-	# setup augmentation and create pytorch dataset
-	augments = [
-		# signal_augmentation.Noise(0.5, target_snr=15),
-		# signal_augmentation.RandomTimeDropout(0.5, dropout=0.2)
-	]
-
-	train_dataset = DESEDDataset(manager, train=True, val=False, augments=augments, cached=True)
+	train_dataset = DESEDDataset(manager, train=True, val=False, augments=[], cached=True)
 	val_dataset = DESEDDataset(manager, train=False, val=True, augments=[], cached=True)
 
-	# ======== Prepare training ========
-	model = WeakBaseline()
-	model.cuda()
-
-	# training parameters
-	nb_epochs = 100
-	batch_size = 32
-	nb_batch = len(train_dataset) // batch_size
-
-	# criterion & optimizers
-	criterion = nn.BCEWithLogitsLoss(reduction="mean")
-
-	optimizers = torch.optim.Adam(model.parameters(), lr=0.003)
-
-	# callbacks
-	callbacks = []
-
-	# tensorboard
-	title = "WeakBaseline_%s" % (get_datetime())
-	tensorboard = SummaryWriter(log_dir="../tensorboard/%s" % title, comment="weak baseline")
+	batch_size = 16
 
 	# loaders
 	training_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)

@@ -12,6 +12,7 @@ class ReMixMatchMixer:
 	def __init__(
 		self,
 		model: Module,
+		acti_fn: Callable,
 		weak_augm_fn: Callable,
 		strong_augm_fn: Callable,
 		nb_classes: int,
@@ -21,6 +22,7 @@ class ReMixMatchMixer:
 		mode: str = "onehot",
 	):
 		self.model = model
+		self.acti_fn = acti_fn
 		self.weak_augm_fn = weak_augm_fn
 		self.strong_augm_fn = strong_augm_fn
 		self.nb_augms_strong = nb_augms_strong
@@ -29,14 +31,6 @@ class ReMixMatchMixer:
 
 		self.distributions = ModelDistributions(history_size=128, nb_classes=nb_classes, names=["labeled", "unlabeled"])
 		self.mixup_mixer = MixUpMixer(alpha=mixup_alpha, apply_max=True)
-
-		# NOTE: acti_fn must have the dim parameter !
-		if self.mode == "onehot":
-			self.acti_fn = torch.softmax
-		elif self.mode == "multihot":
-			self.acti_fn = lambda x, dim: x.sigmoid()
-		else:
-			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
 
 	def __call__(self, batch_labeled: Tensor, labels: Tensor, batch_unlabeled: Tensor) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor):
 		return self.mix(batch_labeled, labels, batch_unlabeled)

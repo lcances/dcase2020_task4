@@ -20,7 +20,7 @@ class Validator(ABC):
 		raise NotImplementedError("Abstract method")
 
 
-class DefaultValidator(Validator, ABC):
+class DefaultValidator(Validator):
 	def __init__(
 		self,
 		model: Module,
@@ -76,9 +76,8 @@ class DefaultValidator(Validator, ABC):
 
 			print("")
 
-			if self.writer is not None:
-				for values, name in zip(metrics_values, self.metrics_names):
-					self.writer.add_scalar("val/%s" % name, float(np.mean(values)), epoch)
+			for values, name in zip(metrics_values, self.metrics_names):
+				self.writer.add_scalar("val/%s" % name, float(np.mean(values)), epoch)
 
 	def nb_examples(self) -> int:
 		return len(self.loader) * self.loader.batch_size
