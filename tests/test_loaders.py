@@ -36,6 +36,7 @@ def test_2():
 	loader = NoLabelDataLoader(ds)
 	for items in loader:
 		print("Items: ", items)
+		break
 
 
 if __name__ == "__main__":

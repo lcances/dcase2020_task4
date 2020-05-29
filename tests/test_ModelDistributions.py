@@ -5,7 +5,7 @@ from dcase2020_task4.remixmatch.ModelDistributions import ModelDistributions
 
 def test():
 	nb_classes = 10
-	distributions = ModelDistributions(nb_classes=nb_classes, max_samples=10)
+	distributions = ModelDistributions(history_size=10, nb_classes=nb_classes, names=["labeled"])
 
 	sample = torch.zeros(nb_classes)
 	sample[1] = 1.0

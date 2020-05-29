@@ -8,7 +8,6 @@ def get_demo_image():
 	img = np.zeros((3, 128, 128))
 	img[0] = np.linspace(start=list(range(128)), stop=list(range(128, 256)), num=128)
 	img[1] = np.linspace(start=list(reversed(range(128))), stop=list(reversed(range(128, 256))), num=128)
-	print(img.shape)
 	return img
 
 
