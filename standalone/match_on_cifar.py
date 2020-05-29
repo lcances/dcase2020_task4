@@ -21,9 +21,13 @@ from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.resnet import ResNet18
 from dcase2020_task4.vgg import VGG
 from dcase2020_task4.train_fixmatch import train_fixmatch
+from dcase2020_task4.train_fixmatch import default_hparams as add_fm_hparams
 from dcase2020_task4.train_mixmatch import train_mixmatch
+from dcase2020_task4.train_mixmatch import default_hparams as add_mm_hparams
 from dcase2020_task4.train_remixmatch import train_remixmatch
+from dcase2020_task4.train_remixmatch import default_hparams as add_rmm_hparams
 from dcase2020_task4.train_supervised import train_supervised
+from dcase2020_task4.train_supervised import default_hparams as add_s_hparams
 
 
 def create_args() -> Namespace:
@@ -157,33 +161,48 @@ def main():
 		MaxMetric(),
 		FnMetric(cross_entropy),
 	]
-	metrics_names = ["acc", "max", "ce"]
+	metrics_names = ["acc", "max", "loss"]
 
 	if "fm" in args.run:
+		hparams_fm = edict(hparams)
+		add_fm_hparams(hparams_fm)
 		train_fixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, weak_augm_fn, strong_augm_fn,
-			metrics_s, metrics_u, metrics_val_lst, metrics_names, edict(hparams)
+			metrics_s, metrics_u, metrics_val_lst, metrics_names, hparams_fm
 		)
 	if "mm" in args.run:
+		hparams_mm = edict(hparams)
+		add_mm_hparams(hparams_mm)
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, augment_fn,
-			metrics_s, metrics_u, metrics_val_lst, metrics_names, edict(hparams)
+			metrics_s, metrics_u, metrics_val_lst, metrics_names, hparams_mm
+		)
+		hparams.criterion_unsupervised = "crossentropy"
+		train_mixmatch(
+			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, augment_fn,
+			metrics_s, metrics_u, metrics_val_lst, metrics_names, hparams_mm
 		)
 	if "rmm" in args.run:
+		hparams_rmm = edict(hparams)
+		add_rmm_hparams(hparams_rmm)
 		train_remixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, weak_augm_fn, strong_augm_fn,
-			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val_lst, metrics_names, edict(hparams)
+			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val_lst, metrics_names, hparams_rmm
 		)
 
 	if "sf" in args.run:
+		hparams_sf = edict(hparams)
+		add_s_hparams(hparams_sf)
 		train_supervised(
 			model_factory(), acti_fn, loader_train_full, loader_val, metrics_s, metrics_val_lst, metrics_names,
-			edict(hparams), suffix="full_100"
+			hparams_sf, suffix="full_100"
 		)
 	if "sp" in args.run:
+		hparams_sp = edict(hparams)
+		add_s_hparams(hparams_sp)
 		train_supervised(
 			model_factory(), acti_fn, loader_train_s, loader_val, metrics_s, metrics_val_lst, metrics_names,
-			edict(hparams), suffix="part_%d" % int(100 * hparams.supervised_ratio)
+			hparams_sp, suffix="part_%d" % int(100 * hparams.supervised_ratio)
 		)
 
 	exec_time = time() - prog_start

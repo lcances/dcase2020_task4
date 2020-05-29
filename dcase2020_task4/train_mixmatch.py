@@ -13,6 +13,17 @@ from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.validator import DefaultValidator
 
 
+def default_hparams(hparams: edict) -> edict:
+	hparams.nb_augms = 2
+	hparams.sharpen_temp = 0.5
+	hparams.mixup_alpha = 0.75
+	hparams.lambda_u_max = 10.0  # In paper : 75
+	hparams.lr = 1e-2
+	hparams.weight_decay = 8e-4
+	hparams.criterion_unsupervised = "sqdiff"  # In paper : sqdiff
+	return hparams
+
+
 def train_mixmatch(
 	model: Module,
 	acti_fn: Callable,
@@ -30,19 +41,10 @@ def train_mixmatch(
 		raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 			loader_train_s.batch_size, loader_train_u.batch_size))
 
-	# MixMatch hyperparameters
-	hparams.nb_augms = 2
-	hparams.sharpen_temp = 0.5
-	hparams.mixup_alpha = 0.75
-	hparams.lambda_u_max = 10.0  # In paper : 75
-	hparams.lr = 1e-2
-	hparams.weight_decay = 8e-4
-	hparams.criterion_unsupervised = "crossentropy"  # In paper : sqdiff
-
 	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 
 	hparams.train_name = "MixMatch"
-	writer = build_writer(hparams)
+	writer = build_writer(hparams, suffix=hparams.criterion_unsupervised)
 
 	trainer = MixMatchTrainer(
 		model, acti_fn, optim, loader_train_s, loader_train_u, augm_fn, metrics_s, metrics_u, writer, hparams

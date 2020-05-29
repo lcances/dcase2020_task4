@@ -14,6 +14,18 @@ from dcase2020_task4.util.utils_match import build_writer
 from dcase2020_task4.validator import DefaultValidator
 
 
+def default_hparams(hparams: edict) -> edict:
+	hparams.nb_augms_strong = 2  # In paper : 8
+	hparams.sharpen_temp = 0.5
+	hparams.mixup_alpha = 0.75
+	hparams.lambda_u = 1.0  # In paper : 1.5
+	hparams.lambda_u1 = 0.5
+	hparams.lambda_r = 0.5
+	hparams.lr = 1e-2  # In paper 2e-3
+	hparams.weight_decay = 1e-3  # In paper 0.02
+	return hparams
+
+
 def train_remixmatch(
 	model: Module,
 	acti_fn: Callable,
@@ -33,16 +45,6 @@ def train_remixmatch(
 	if loader_train_s.batch_size != loader_train_u.batch_size:
 		raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 			loader_train_s.batch_size, loader_train_u.batch_size))
-
-	# ReMixMatch hyperparameters
-	hparams.nb_augms_strong = 2  # In paper : 8
-	hparams.sharpen_temp = 0.5
-	hparams.mixup_alpha = 0.75
-	hparams.lambda_u = 1.0  # In paper : 1.5
-	hparams.lambda_u1 = 0.5
-	hparams.lambda_r = 0.5
-	hparams.lr = 1e-2  # In paper 2e-3
-	hparams.weight_decay = 1e-3  # In paper 0.02
 
 	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 

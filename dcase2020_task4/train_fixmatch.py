@@ -15,6 +15,17 @@ from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.validator import DefaultValidator
 
 
+def default_hparams(hparams: edict) -> edict:
+	hparams.lambda_u = 1.0
+	hparams.beta = 0.9  # used only for SGD
+	hparams.threshold_mask = 0.95  # tau
+	hparams.threshold_multihot = 0.5  # tau
+	hparams.batch_size = 16  # in paper: 64
+	hparams.lr = 0.03  # learning rate, eta
+	hparams.weight_decay = 1e-4
+	return hparams
+
+
 def train_fixmatch(
 	model: Module,
 	acti_fn: Callable,
@@ -29,14 +40,6 @@ def train_fixmatch(
 	metrics_names: List[str],
 	hparams: edict,
 ):
-	hparams.lambda_u = 1.0
-	hparams.beta = 0.9  # used only for SGD
-	hparams.threshold_mask = 0.95  # tau
-	hparams.threshold_multihot = 0.5  # tau
-	hparams.batch_size = 16  # in paper: 64
-	hparams.lr = 0.03  # learning rate, eta
-	hparams.weight_decay = 1e-4
-
 	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 	scheduler = CosineLRScheduler(optim, nb_epochs=hparams.nb_epochs, lr0=hparams.lr)
 

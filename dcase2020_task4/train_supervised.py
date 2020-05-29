@@ -87,6 +87,12 @@ class SupervisedTrainer(Trainer):
 		return len(self.loader) * self.loader.batch_size
 
 
+def default_hparams(hparams: edict):
+	hparams.lr = 1e-2
+	hparams.weight_decay = 1e-4
+	return hparams
+
+
 def train_supervised(
 	model: Module,
 	acti_fn: Callable,
@@ -98,9 +104,6 @@ def train_supervised(
 	hparams: edict,
 	suffix: str
 ):
-	hparams.lr = 1e-2
-	hparams.weight_decay = 1e-4
-
 	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 
 	hparams.train_name = "Supervised"
