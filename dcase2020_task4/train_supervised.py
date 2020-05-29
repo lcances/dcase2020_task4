@@ -12,14 +12,16 @@ from typing import Callable, List
 
 from dcase2020.pytorch_metrics.metrics import Metrics
 from dcase2020_task4.learner import DefaultLearner
-from dcase2020_task4.util.utils_match import get_lr, build_writer, cross_entropy, cross_entropy_with_logits
+from dcase2020_task4.util.utils_match import get_lr, build_writer, cross_entropy_with_logits
 from dcase2020_task4.trainer import Trainer
 from dcase2020_task4.validator import DefaultValidator
 
 
 class SupervisedTrainer(Trainer):
-	def __init__(self, model: Module, acti_fn: Callable, optim: Optimizer, loader: DataLoader, criterion: Callable,
-				 metrics: Metrics, writer: SummaryWriter, hparams: edict):
+	def __init__(
+		self, model: Module, acti_fn: Callable, optim: Optimizer, loader: DataLoader, criterion: Callable, metrics: Metrics,
+		writer: SummaryWriter, hparams: edict
+	):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.optim = optim
@@ -39,7 +41,7 @@ class SupervisedTrainer(Trainer):
 
 		for i, (x, y) in enumerate(iter_train):
 			x, y_num = x.cuda().float(), y.cuda().long()
-			y = one_hot(y_num, self.nb_classes)
+			y = one_hot(y_num, self.nb_classes)  # TODO : change this for multihot, and for all other trainers
 
 			# Compute logits
 			logits = self.model(x)

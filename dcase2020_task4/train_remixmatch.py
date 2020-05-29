@@ -10,7 +10,7 @@ from dcase2020.pytorch_metrics.metrics import Metrics
 
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
-from dcase2020_task4.util.utils_match import build_writer, cross_entropy
+from dcase2020_task4.util.utils_match import build_writer
 from dcase2020_task4.validator import DefaultValidator
 
 

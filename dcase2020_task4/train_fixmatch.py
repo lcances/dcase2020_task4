@@ -2,7 +2,6 @@
 from easydict import EasyDict as edict
 from time import time
 from torch.nn import Module
-from torch.nn.functional import binary_cross_entropy
 from torch.optim import SGD
 from torch.utils.data import DataLoader
 from typing import Callable, List
@@ -11,7 +10,7 @@ from dcase2020.pytorch_metrics.metrics import Metrics
 
 from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
-from dcase2020_task4.util.utils_match import build_writer, cross_entropy
+from dcase2020_task4.util.utils_match import build_writer
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.validator import DefaultValidator
 
