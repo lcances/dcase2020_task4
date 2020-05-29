@@ -30,11 +30,6 @@ class FnMetric(Metrics):
 		return self.accumulate_value / self.count
 
 
-class LossMetric(FnMetric):
-	def __init__(self, criterion: Callable):
-		super().__init__(criterion)
-
-
 class MaxMetric(FnMetric):
 	def __init__(self):
 		super().__init__(lambda y_pred, y_true: y_pred.max(dim=1)[0])

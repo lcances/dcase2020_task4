@@ -16,7 +16,7 @@ from dcase2020.util.utils import get_datetime, reset_seed
 from dcase2020_task4.util.rgb_augmentations import Gray, Inversion, RandCrop, UniColor
 from dcase2020_task4.util.NoLabelDataLoader import NoLabelDataLoader
 from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
-from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, MaxMetric, LossMetric
+from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, MaxMetric, FnMetric
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.resnet import ResNet18
 from dcase2020_task4.vgg import VGG
@@ -24,14 +24,6 @@ from dcase2020_task4.train_fixmatch import train_fixmatch
 from dcase2020_task4.train_mixmatch import train_mixmatch
 from dcase2020_task4.train_remixmatch import train_remixmatch
 from dcase2020_task4.train_supervised import train_supervised
-
-
-def get_nb_parameters(model: Module) -> int:
-	return sum(p.numel() for p in model.parameters())
-
-
-def get_nb_trainable_parameters(model: Module) -> int:
-	return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 def create_args() -> Namespace:
@@ -47,6 +39,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--supervised_ratio", type=float, default=0.1)
 	parser.add_argument("--batch_size", type=int, default=16)
 	parser.add_argument("--nb_classes", type=int, default=10)
+	parser.add_argument("--confidence", type=float, default=0.3)
+	parser.add_argument("--mode", type=str, default="onehot", choices=["onehot", "multihot"])
 	return parser.parse_args()
 
 
@@ -93,11 +87,8 @@ def main():
 	hparams = edict()
 	args_filtered = {k: (" ".join(v) if isinstance(v, list) else v) for k, v in args.__dict__.items()}
 	hparams.update(args_filtered)
-	hparams.mode = "onehot"
-
-	# Note : some hyperparameters are overwritten when calling the training function
+	# Note : some hyperparameters are overwritten when calling the training function, change this in the future
 	hparams.begin_date = get_datetime()
-	hparams.confidence = 0.3
 
 	reset_seed(hparams.seed)
 
@@ -164,7 +155,7 @@ def main():
 	metrics_val_lst = [
 		CategoricalConfidenceAccuracy(hparams.confidence),
 		MaxMetric(),
-		LossMetric(cross_entropy),
+		FnMetric(cross_entropy),
 	]
 	metrics_names = ["acc", "max", "ce"]
 
@@ -199,6 +190,14 @@ def main():
 	print("")
 	print("Program started at \"%s\" and terminated at \"%s\"." % (hparams.begin_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)
+
+
+def get_nb_parameters(model: Module) -> int:
+	return sum(p.numel() for p in model.parameters())
+
+
+def get_nb_trainable_parameters(model: Module) -> int:
+	return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 if __name__ == "__main__":

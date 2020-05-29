@@ -31,6 +31,14 @@ class SupervisedTrainer(Trainer):
 		self.writer = writer
 		self.nb_classes = hparams.nb_classes
 
+		self.pre_batch_fn = lambda batch: batch.cuda().float()
+		if hparams.mode == "onehot":
+			self.pre_label_fn = lambda label: one_hot(label.cuda().long(), self.nb_classes).float()
+		elif hparams.mode == "multihot":
+			self.pre_label_fn = lambda label: label.cuda().float()
+		else:
+			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (hparams.mode, " or ".join(("onehot", "multihot"))))
+
 	def train(self, epoch: int):
 		train_start = time()
 		self.metrics.reset()
@@ -40,8 +48,8 @@ class SupervisedTrainer(Trainer):
 		iter_train = iter(self.loader)
 
 		for i, (x, y) in enumerate(iter_train):
-			x, y_num = x.cuda().float(), y.cuda().long()
-			y = one_hot(y_num, self.nb_classes)  # TODO : change this for multihot, and for all other trainers
+			x = self.pre_batch_fn(x)
+			y = self.pre_label_fn(y)
 
 			# Compute logits
 			logits = self.model(x)
@@ -102,7 +110,7 @@ def train_supervised(
 		model, acti_fn, optim, loader_train_full, cross_entropy_with_logits, metrics_s, writer, hparams
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, metrics_val_lst, metrics_names, writer, hparams.nb_classes
+		model, acti_fn, loader_val, metrics_val_lst, metrics_names, writer, hparams.nb_classes, hparams.mode
 	)
 	learner = DefaultLearner(trainer, validator, hparams.nb_epochs)
 

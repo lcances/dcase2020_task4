@@ -31,10 +31,10 @@ class MixMatchMixer(Callable):
 		self.mixup_mixer = MixUpMixer(alpha=mixup_alpha, apply_max=True)
 		self.mode = mode
 
-	def __call__(self, batch_labeled: Tensor, labels: Tensor, batch_unlabeled: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
-		return self.mix(batch_labeled, labels, batch_unlabeled)
+	def __call__(self, batch_s: Tensor, labels_s: Tensor, batch_u: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
+		return self.mix(batch_s, labels_s, batch_u)
 
-	def mix(self, batch_s: Tensor, labels: Tensor, batch_u: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
+	def mix(self, batch_s: Tensor, labels_s: Tensor, batch_u: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
 		with torch.no_grad():
 			if batch_s.size() != batch_u.size():
 				raise RuntimeError("Labeled and unlabeled batch must have the same size. (sizes: %s != %s)" % (
@@ -42,28 +42,30 @@ class MixMatchMixer(Callable):
 				))
 
 			# Apply augmentations
-			x_augm = self.augm_fn(batch_s)
-			u_augm = torch.stack([self.augm_fn(batch_u) for _ in range(self.nb_augms)]).cuda()
+			batch_s_augm = self.augm_fn(batch_s)
+			batch_u_augm = torch.stack([self.augm_fn(batch_u) for _ in range(self.nb_augms)]).cuda()
 
 			# Compute guessed label
-			logits = torch.stack([self.model(u_augm[k]) for k in range(self.nb_augms)]).cuda()
-			predictions = self.acti_fn(logits, dim=2)
-			guessed_labels = predictions.mean(dim=0)
+			logits_u_augm = torch.stack([self.model(batch_u_augm[k]) for k in range(self.nb_augms)]).cuda()
+			predictions_u_augm = self.acti_fn(logits_u_augm, dim=2)
+			labels_u_guessed = predictions_u_augm.mean(dim=0)
 			if self.mode == "onehot":
-				guessed_labels = sharpen(guessed_labels, self.sharpen_temp, dim=1)
-			guessed_labels_repeated = guessed_labels.repeat_interleave(self.nb_augms, dim=0)
+				labels_u_guessed = sharpen(labels_u_guessed, self.sharpen_temp, dim=1)
+			labels_u_guessed_repeated = labels_u_guessed.repeat_interleave(self.nb_augms, dim=0)
 
-			# Reshape "u_augm" of size (nb_augms, batch_size, sample_size, ...) to (nb_augms * batch_size, sample_size, ...)
-			u_augm = merge_first_dimension(u_augm)
+			# Reshape "batch_u_augm" of size (nb_augms, batch_size, sample_size...) to (nb_augms * batch_size, sample_size...)
+			batch_u_augm = merge_first_dimension(batch_u_augm)
 
-			w = torch.cat((x_augm, u_augm))
-			w_labels = torch.cat((labels, guessed_labels_repeated))
+			batch_w = torch.cat((batch_s_augm, batch_u_augm))
+			labels_w = torch.cat((labels_s, labels_u_guessed_repeated))
 
 			# Shuffle batch and labels
-			w, w_labels = same_shuffle([w, w_labels])
+			batch_w, labels_w = same_shuffle([batch_w, labels_w])
 
-			x_len = len(x_augm)
-			x_mixed, x_mixed_labels = self.mixup_mixer(x_augm, labels, w[:x_len], w_labels[:x_len])
-			u_mixed, u_mixed_labels = self.mixup_mixer(u_augm, guessed_labels_repeated, w[x_len:], w_labels[x_len:])
+			len_s = len(batch_s_augm)
+			batch_s_mixed, labels_s_mixed = self.mixup_mixer(
+				batch_s_augm, labels_s, batch_w[:len_s], labels_w[:len_s])
+			batch_u_mixed, labels_u_mixed = self.mixup_mixer(
+				batch_u_augm, labels_u_guessed_repeated, batch_w[len_s:], labels_w[len_s:])
 
-			return x_mixed, x_mixed_labels, u_mixed, u_mixed_labels
+			return batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed

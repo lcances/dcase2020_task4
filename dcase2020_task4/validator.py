@@ -28,8 +28,9 @@ class DefaultValidator(Validator):
 		loader: DataLoader,
 		metrics_lst: List[Metrics],
 		metrics_names: List[str],
-		writer: Optional[SummaryWriter],
-		nb_classes: int
+		writer: SummaryWriter,
+		nb_classes: int,
+		mode: str,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -39,6 +40,14 @@ class DefaultValidator(Validator):
 		self.writer = writer
 		self.nb_classes = nb_classes
 
+		self.pre_batch_fn = lambda batch: batch.cuda().float()
+		if mode == "onehot":
+			self.pre_label_fn = lambda label: one_hot(label.cuda().long(), self.nb_classes).float()
+		elif mode == "multihot":
+			self.pre_label_fn = lambda label: label.cuda().float()
+		else:
+			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
+
 	def val(self, epoch: int):
 		with torch.no_grad():
 			val_start = time()
@@ -47,11 +56,10 @@ class DefaultValidator(Validator):
 			self.model.eval()
 
 			metrics_values = [[] for _ in range(len(self.metrics_lst))]
-			losses = []
 			iter_val = iter(self.loader)
 			for i, (x, y) in enumerate(iter_val):
-				x, y = x.cuda().float(), y.cuda().long()
-				y = one_hot(y, self.nb_classes)
+				x = self.pre_batch_fn(x)
+				y = self.pre_label_fn(y)
 
 				logits_x = self.model(x)
 				pred_x = self.acti_fn(logits_x)

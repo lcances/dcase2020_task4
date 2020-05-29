@@ -37,7 +37,7 @@ def train_mixmatch(
 	hparams.lambda_u_max = 10.0  # In paper : 75
 	hparams.lr = 1e-2
 	hparams.weight_decay = 8e-4
-	hparams.criterion_unsupervised = "l2norm"
+	hparams.criterion_unsupervised = "crossentropy"  # In paper : sqdiff
 
 	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 
@@ -48,7 +48,7 @@ def train_mixmatch(
 		model, acti_fn, optim, loader_train_s, loader_train_u, augm_fn, metrics_s, metrics_u, writer, hparams
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, metrics_val_lst, metrics_names, writer, hparams.nb_classes
+		model, acti_fn, loader_val, metrics_val_lst, metrics_names, writer, hparams.nb_classes, hparams.mode
 	)
 	learner = DefaultLearner(trainer, validator, hparams.nb_epochs)
 

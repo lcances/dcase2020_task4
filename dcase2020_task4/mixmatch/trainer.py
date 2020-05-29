@@ -80,19 +80,19 @@ class MixMatchTrainer(SSTrainer):
 			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed = self.mixer.mix(batch_s, labels_s, batch_u)
 
 			# Compute logits
-			logits_x = self.model(batch_s_mixed)
+			logits_s = self.model(batch_s_mixed)
 			logits_u = self.model(batch_u_mixed)
 
 			# Compute accuracies
-			pred_x = self.acti_fn(logits_x)
+			pred_s = self.acti_fn(logits_s)
 			pred_u = self.acti_fn(logits_u)
 
-			accuracy_s = self.metrics_s(pred_x, labels_s_mixed)
+			accuracy_s = self.metrics_s(pred_s, labels_s_mixed)
 			accuracy_u = self.metrics_u(pred_u, labels_u_mixed)
 
 			# Update model
 			self.criterion.lambda_u = self.lambda_u_rampup.value()
-			loss = self.criterion(pred_x, labels_s_mixed, pred_u, labels_u_mixed)
+			loss = self.criterion(pred_s, labels_s_mixed, pred_u, labels_u_mixed)
 			self.optim.zero_grad()
 			loss.backward()
 			# clip_grad_norm_(self.model.parameters(), 100)  # TODO : rem

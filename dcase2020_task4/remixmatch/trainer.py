@@ -102,11 +102,11 @@ class ReMixMatchTrainer(SSTrainer):
 				self.mixer.distributions.add_batch_pred(pred_u, "unlabeled")
 
 			# Apply mix
-			batch_x_mixed, labels_x_mixed, batch_u_mixed, labels_u_mixed, batch_u1, labels_u1 = \
+			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed, batch_u1, labels_u1 = \
 				self.mixer.mix(batch_s, labels_s, batch_u)
 
 			# Predict labels for x (mixed), u (mixed) and u1 (strong augment)
-			logits_x = self.model(batch_x_mixed)
+			logits_s = self.model(batch_s_mixed)
 			logits_u = self.model(batch_u_mixed)
 			logits_u1 = self.model(batch_u1)
 
@@ -116,19 +116,19 @@ class ReMixMatchTrainer(SSTrainer):
 			logits_r = self.model.forward_rot(batch_u1_rotated)
 
 			# Compute accuracies
-			pred_x = self.acti_fn(logits_x)
+			pred_s = self.acti_fn(logits_s)
 			pred_u = self.acti_fn(logits_u)
 			pred_u1 = self.acti_fn(logits_u1)
 			pred_r = self.acti_fn(logits_r)
 
-			accuracy_s = self.metrics_s(pred_x, labels_x_mixed)
+			accuracy_s = self.metrics_s(pred_s, labels_s_mixed)
 			accuracy_u = self.metrics_u(pred_u, labels_u_mixed)
 			accuracy_u1 = self.metrics_u1(pred_u1, labels_u1)
 			accuracy_r = self.metrics_r(pred_r, labels_r)
 
 			# Update model
 			loss = self.criterion(
-				pred_x, labels_x_mixed,
+				pred_s, labels_s_mixed,
 				pred_u, labels_u_mixed,
 				pred_u1, labels_u1,
 				pred_r, labels_r,

@@ -47,7 +47,7 @@ def train_fixmatch(
 		model, acti_fn, optim, loader_train_s, loader_train_u, weak_augm_fn, strong_augm_fn, metrics_s, metrics_u, writer, hparams
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, metrics_val_lst, metrics_names, writer, hparams.nb_classes
+		model, acti_fn, loader_val, metrics_val_lst, metrics_names, writer, hparams.nb_classes, hparams.mode
 	)
 	learner = DefaultLearner(trainer, validator, hparams.nb_epochs, scheduler)
 

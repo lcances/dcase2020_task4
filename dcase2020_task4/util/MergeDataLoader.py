@@ -6,10 +6,10 @@ from typing import List
 
 class MergeDataLoader:
 	"""
-		TODO: doc
+		Merge iteration of loaders.
 	"""
 
-	def __init__(self, loaders: list):
+	def __init__(self, loaders: List[DataLoader]):
 		self._loaders = loaders
 
 		# Check loaders size for avoid exception in __iter__
@@ -23,6 +23,7 @@ class MergeDataLoader:
 
 		for _ in range(len(self)):
 			items = []
+
 			for i, _ in enumerate(iters):
 				if count[i] < len(self._loaders[i]):
 					item = next(iters[i])
@@ -37,11 +38,3 @@ class MergeDataLoader:
 
 	def __len__(self) -> int:
 		return max([len(loader) for loader in self._loaders])
-
-	@property
-	def loader_supervised(self) -> DataLoader:
-		return self._loaders[0]
-
-	@property
-	def loader_unsupervised(self) -> DataLoader:
-		return self._loaders[1]

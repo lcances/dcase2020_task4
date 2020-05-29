@@ -54,7 +54,7 @@ def train_remixmatch(
 		metrics_u1, metrics_r, writer, hparams
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, metrics_val_lst, metrics_names, writer, hparams.nb_classes
+		model, acti_fn, loader_val, metrics_val_lst, metrics_names, writer, hparams.nb_classes, hparams.mode
 	)
 	learner = DefaultLearner(trainer, validator, hparams.nb_epochs)
 
