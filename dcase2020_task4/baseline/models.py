@@ -2,6 +2,7 @@ import torch.nn as nn
 
 from dcase2020_task4.baseline.layers import ConvPoolReLU
 
+
 class WeakBaseline(nn.Module):
     def __init__(self, **kwargs):
         nn.Module.__init__(self)

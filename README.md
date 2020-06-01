@@ -5,16 +5,18 @@
 ##### 1. Clone repo & installation
 Install the repo as a local pip package 
 ```Bash
+conda activate myenv
+
 git clone https://github.com/leocances/dcase2020_task4.git
-git clone https://github.com/leocances/dcase2020.git # <-- dcase2020 dataset management
-
-cd dcase2020
-git submodule init
-git submodule update --recursive --remote
-
 cd ../dcase2020_task4
-git submodule init
-git submodule update --recursive --remote
+pip install -e .
+```
+
+or
+
+```bash
+conda activate myenv
+pip install git+https://github.com/leocances/dcase2020_task4.git
 ```
 
 ##### 2. Environement
@@ -26,23 +28,17 @@ conda install pytorch
 conda install h5py
 conda install pandas
 conda install tensorboard
-
-conda install pillow    # for the augmentation_utils package
+conda install pillow       # for the augmentation_utils package
 conda install scikit-image # ...
 
 pip install librosa
 pip install tqdm
+pip install torchsummaryX
 
-# Install dcase2020 as local package (dataset management)
-cd dcase2020
-pip install -e .
-
-# Install dcase2020_task4 local package
-cd ../dcase2020_task4
-pip install -e .
-
+pip install git+https://github.com/leocances/dcase2020_task4.git # <-- dcase2020 task 4 separate dataset management
+pip install git+https://github.com/leocances/pytorch_metrics.git # <-- personnal pytorch metrics functions
+pip install git+https://github.com/leocances/augmentation_utils.git # <-- personnal audio & image augmentation functions
 ```
-
 
 ##### 3. Download the dataset
 visit: https://github.com/turpaultn/DESED/tree/master/real
@@ -76,7 +72,7 @@ cd standalone
 python move_to_hdf.py -sr 22050 -l 10 -a ../dataset --num_workers 8 +DESED +FUSS
 ```
 
-With compression. All h5py conpression are supported.
+With compression. All h5py compression are supported.
 
 | algorytms | exec time | final size | command line argument |
 | --------- | --------- | ---------- | --------------------- |
@@ -98,6 +94,8 @@ the different subset independantly and create a train / validation split.
   - **Data augmentation** that can be apply on the signal before extraction, or on the feature after extraction.
   - **Process safe cache**  for storing the extracted feature to calculate them only once. It greatly improve training speed. :warning: The cache is automatically deactivate when using augmentation.
 
+By default **all the raw_audio is loaded into the memory**. to avoid that and pull raw audio from disk when needed, set
+*from_disk* to True
 ### Loading subset and create a train / val split
 ```python
 import ...
@@ -111,6 +109,7 @@ manager = DESEDManager(
     metadata_root, audio_root,
     sampling_rate = 22050,
     validation_ratio = 0.2,
+    from_disk=False,
     verbose = 1
     )
 
@@ -130,24 +129,24 @@ train_dataset = DESEDDataset(manager,
     train=True, val=False, augments=[],
     weak=True, strong=True, # <-- we want both weak and strong ground truth to be outputed
     cached=True)
-val_dataset = DESEDDataset(manager, train=False, val=True, augments=[], cached=True)
+val_dataset = DESEDDataset(manager, train=False, val=True, augments=[], cached=True) # <-- by default only weak ground truth will be return
 ```
+
  - With augmentation:
    - noise on signal with a target SNR of 15db and 
    - random time dropout of 30% on the mel-spectrogram
  ```python
  from dcase2020_task4 import DESEDDataset
 
- import dcase2020_task4 as signal_augmentations
- import dcase2020_task4.augmentation_utils.spec_augmentations as spec_augmentations
+ import augmentation_utils.signal_augmentations as signal_augmentations
+ import augmentation_utils.spec_augmentations as spec_augmentations
 
  augments = [
      signal_augmentations.Noise(0.5, target_snr=15),
      spec_augmentations.RandomTimeDropout(0.5, dropout=0.3)
  ]
 
- train_dataset = DESEDDataset(manager, train=True, val=False, augments=augments, cached=True) # <-- cache
- automatically deactivate
+ train_dataset = DESEDDataset(manager, train=True, val=False, augments=augments, cached=True) # <-- cache is automatically deactivate
  val_dataset = DESEDDataset(manager, train=False, val=True, augments=[], cached=True)
  ```
 
