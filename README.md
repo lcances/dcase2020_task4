@@ -6,7 +6,7 @@
 Install the repo as a local pip package 
 ```Bash
 git clone https://github.com/leocances/dcase2020_task4.git
-git clone https://github.com/leocances/dcase2020.git # <-- dcase2020 dataset management
+git clone https://github.com/leocances/dcase2020.git # <-- dcase2020_task4 dataset management
 
 cd dcase2020
 git submodule init
@@ -33,7 +33,7 @@ conda install scikit-image # ...
 pip install librosa
 pip install tqdm
 
-# Install dcase2020 as local package (dataset management)
+# Install dcase2020_task4 as local package (dataset management)
 cd dcase2020
 pip install -e .
 
