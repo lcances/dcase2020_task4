@@ -103,3 +103,11 @@ def build_writer(hparams: edict, suffix: str = "") -> SummaryWriter:
 	dirpath = osp.join(hparams.logdir, dirname)
 	writer = SummaryWriter(log_dir=dirpath, comment=hparams.train_name)
 	return writer
+
+
+def multi_hot(labels_nums: List[List[int]], nb_classes: int) -> Tensor:
+	""" TODO : test this fn """
+	res = torch.zeros((len(labels_nums), nb_classes))
+	for i, nums in enumerate(labels_nums):
+		res[i] = torch.sum(torch.stack([one_hot(num) for num in nums]), dim=0)
+	return res

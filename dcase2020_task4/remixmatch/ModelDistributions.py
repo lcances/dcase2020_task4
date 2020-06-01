@@ -5,7 +5,7 @@ from typing import Optional, List
 
 class ModelDistributions:
 	"""
-		Compute mean distributions of a model.
+		Compute mean output distributions of a model.
 	"""
 
 	def __init__(

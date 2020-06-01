@@ -1,4 +1,3 @@
-import torch
 
 from torch import Tensor
 from torch.nn.functional import binary_cross_entropy
@@ -8,6 +7,7 @@ from ..util.utils_match import cross_entropy
 
 
 class MixMatchLoss(Callable):
+	""" MixMatch loss component. """
 	def __init__(
 		self, lambda_u: float = 1.0, mode: str = "onehot", criterion_unsupervised: str = "sqdiff"
 	):
@@ -33,7 +33,7 @@ class MixMatchLoss(Callable):
 			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
 
 	def __call__(self, pred_s: Tensor, targets_x: Tensor, pred_u: Tensor, targets_u: Tensor) -> Tensor:
-		loss_s = self.criterion_s(pred_s, targets_x).mean()
+		loss_s = self.criterion_s(pred_s, targets_x)
 		loss_s = loss_s.mean()
 
 		loss_u = self.criterion_u(pred_u, targets_u)

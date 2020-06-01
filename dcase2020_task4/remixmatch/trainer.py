@@ -38,6 +38,10 @@ class ReMixMatchTrainer(SSTrainer):
 		writer: SummaryWriter,
 		hparams: edict
 	):
+		"""
+			TODO : doc
+			Note: model must implements torch.nn.Module and implements a method "forward_rot".
+		"""
 		self.model = model
 		self.acti_fn = acti_fn
 		self.optim = optim

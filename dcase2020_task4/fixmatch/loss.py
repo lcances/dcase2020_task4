@@ -1,6 +1,5 @@
-import torch
 from torch import Tensor
-from torch.nn.functional import binary_cross_entropy, one_hot
+from torch.nn.functional import binary_cross_entropy
 from typing import Callable
 
 from ..util.utils_match import cross_entropy
