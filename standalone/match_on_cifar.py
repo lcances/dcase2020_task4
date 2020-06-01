@@ -177,7 +177,7 @@ def main():
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, augment_fn,
 			metrics_s, metrics_u, metrics_val_lst, metrics_names, hparams_mm
 		)
-		hparams.criterion_unsupervised = "crossentropy"
+		hparams_mm.criterion_unsupervised = "crossentropy"
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, augment_fn,
 			metrics_s, metrics_u, metrics_val_lst, metrics_names, hparams_mm
