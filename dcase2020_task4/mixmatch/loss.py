@@ -3,7 +3,7 @@ from torch import Tensor
 from torch.nn.functional import binary_cross_entropy
 from typing import Callable
 
-from ..util.utils_match import cross_entropy
+from dcase2020_task4.util.utils_match import cross_entropy
 
 
 class MixMatchLoss(Callable):

@@ -3,9 +3,9 @@ from torch import Tensor
 from torch.nn import Module
 from typing import Callable
 
-from .model_distributions import ModelDistributions
-from ..mixup.mixer import MixUpMixer
-from ..util.utils_match import normalize, same_shuffle, sharpen, merge_first_dimension
+from dcase2020_task4.remixmatch.model_distributions import ModelDistributions
+from dcase2020_task4.mixup.mixer import MixUpMixer
+from dcase2020_task4.util.utils_match import normalize, same_shuffle, sharpen, merge_first_dimension
 
 
 class ReMixMatchMixer:
