@@ -1,10 +1,10 @@
 import numpy as np
-import torch
 
+from abc import ABC
 from dcase2020.augmentation_utils.augmentations import ImgAugmentation
 
 
-class ImgRGBAugmentation(ImgAugmentation):
+class ImgRGBAugmentation(ABC, ImgAugmentation):
 	""" Abstract class for images augmentations of size (3, width, height). """
 
 	def __init__(self, ratio: float, value_range: list = (0, 255)):

@@ -1,6 +1,7 @@
 
 from easydict import EasyDict as edict
 from time import time
+from torch import Tensor
 from torch.nn import Module
 from torch.optim import SGD
 from torch.utils.data import DataLoader
@@ -12,18 +13,6 @@ from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 from dcase2020_task4.util.utils_match import build_writer
 from dcase2020_task4.validator import DefaultValidator
-
-
-def default_hparams(hparams: edict) -> edict:
-	hparams.nb_augms_strong = 2  # In paper : 8
-	hparams.sharpen_temp = 0.5
-	hparams.mixup_alpha = 0.75
-	hparams.lambda_u = 1.0  # In paper : 1.5
-	hparams.lambda_u1 = 0.5
-	hparams.lambda_r = 0.5
-	hparams.lr = 1e-2  # In paper 2e-3
-	hparams.weight_decay = 1e-3  # In paper 0.02
-	return hparams
 
 
 def train_remixmatch(
@@ -39,7 +28,9 @@ def train_remixmatch(
 	metrics_u1: Metrics,
 	metrics_r: Metrics,
 	metrics_val_lst: List[Metrics],
-	metrics_names: List[str],
+	metrics_val_names: List[str],
+	pre_batch_fn: Callable[[Tensor], Tensor],
+	pre_labels_fn: Callable[[Tensor], Tensor],
 	hparams: edict,
 ):
 	if loader_train_s.batch_size != loader_train_u.batch_size:
@@ -53,24 +44,26 @@ def train_remixmatch(
 
 	trainer = ReMixMatchTrainer(
 		model, acti_fn, optim, loader_train_s, loader_train_u, weak_augm_fn, strong_augm_fn, metrics_s, metrics_u,
-		metrics_u1, metrics_r, writer, hparams
+		metrics_u1, metrics_r, writer, pre_batch_fn, pre_labels_fn, hparams
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, metrics_val_lst, metrics_names, writer, hparams.nb_classes, hparams.mode
+		model, acti_fn, loader_val, metrics_val_lst, metrics_val_names, writer, pre_batch_fn, pre_labels_fn
 	)
-	learner = DefaultLearner(trainer, validator, hparams.nb_epochs)
-
-	print("\nStart %s training (%d epochs, %d train examples supervised, %d train examples unsupervised, "
-		  "%d valid examples)..." % (
-			  hparams.train_name,
-			  hparams.nb_epochs,
-			  trainer.nb_examples_supervised(),
-			  trainer.nb_examples_unsupervised(),
-			  validator.nb_examples()
-		  ))
-	start = time()
+	learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 	learner.start()
-	print("End %s training. (duration = %.2f)" % (hparams.train_name, time() - start))
 
 	writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 	writer.close()
+
+
+def default_remixmatch_hparams() -> edict:
+	hparams = edict()
+	hparams.nb_augms_strong = 2  # In paper : 8
+	hparams.sharpen_temp = 0.5
+	hparams.mixup_alpha = 0.75
+	hparams.lambda_u = 1.0  # In paper : 1.5
+	hparams.lambda_u1 = 0.5
+	hparams.lambda_r = 0.5
+	hparams.lr = 1e-2  # In paper 2e-3
+	hparams.weight_decay = 1e-3  # In paper 0.02
+	return hparams

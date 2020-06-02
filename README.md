@@ -87,7 +87,7 @@ With compression. All h5py compression are supported.
 
 
 # Fast documentation
-## Using the datasetManager and create a pytorch dataset
+## Using the datasetManager and create a pytorch datas.et
 - So far, only the DESED manager is supported. The manager allow to load
 the different subset independantly and create a train / validation split.
 - The DESEDDatasets take care of extracting the feature in time, applying the augmentations. the same class is used for both train and validation. It has the folowing features

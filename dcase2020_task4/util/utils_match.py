@@ -60,7 +60,7 @@ def binarize_onehot_labels(distributions: Tensor) -> Tensor:
 	return bin_labels
 
 
-def to_class_num(one_hot_vectors: Tensor):
+def label_to_num(one_hot_vectors: Tensor):
 	""" Convert a list of one-hot vectors of size (N, C) to a list of classes numbers of size (N). """
 	return one_hot_vectors.argmax(dim=1)
 
@@ -111,3 +111,16 @@ def multi_hot(labels_nums: List[List[int]], nb_classes: int) -> Tensor:
 	for i, nums in enumerate(labels_nums):
 		res[i] = torch.sum(torch.stack([one_hot(num) for num in nums]), dim=0)
 	return res
+
+
+def multilabel_to_num(labels: Tensor) -> List[List[int]]:
+	res = [[] for _ in range(len(labels))]
+	for i, label in enumerate(labels):
+		for j, bin in enumerate(label):
+			if bin == 1.0:
+				res[i].append(j)
+	return res
+
+
+def to_batch_fn(x_fn: Callable) -> Callable:
+	return lambda batch: torch.stack([x_fn(x) for x in batch]).cuda()

@@ -3,11 +3,11 @@ import torch
 
 from abc import ABC
 from time import time
+from torch import Tensor
 from torch.nn import Module
-from torch.nn.functional import one_hot
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, Optional, List
+from typing import Callable, List
 
 from dcase2020.pytorch_metrics.metrics import Metrics
 
@@ -27,26 +27,19 @@ class DefaultValidator(Validator):
 		acti_fn: Callable,
 		loader: DataLoader,
 		metrics_lst: List[Metrics],
-		metrics_names: List[str],
+		metrics_val_names: List[str],
 		writer: SummaryWriter,
-		nb_classes: int,
-		mode: str,
+		pre_batch_fn: Callable[[Tensor], Tensor],
+		pre_labels_fn: Callable[[Tensor], Tensor],
 	):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.loader = loader
 		self.metrics_lst = metrics_lst
-		self.metrics_names = metrics_names
+		self.metrics_val_names = metrics_val_names
 		self.writer = writer
-		self.nb_classes = nb_classes
-
-		self.pre_batch_fn = lambda batch: batch.cuda().float()
-		if mode == "onehot":
-			self.pre_label_fn = lambda label: one_hot(label.cuda().long(), self.nb_classes).float()
-		elif mode == "multihot":
-			self.pre_label_fn = lambda label: label.cuda().float()
-		else:
-			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
+		self.pre_batch_fn = pre_batch_fn
+		self.pre_labels_fn = pre_labels_fn
 
 	def val(self, epoch: int):
 		with torch.no_grad():
@@ -59,7 +52,7 @@ class DefaultValidator(Validator):
 			iter_val = iter(self.loader)
 			for i, (x, y) in enumerate(iter_val):
 				x = self.pre_batch_fn(x)
-				y = self.pre_label_fn(y)
+				y = self.pre_labels_fn(y)
 
 				logits_x = self.model(x)
 				pred_x = self.acti_fn(logits_x)
@@ -67,7 +60,7 @@ class DefaultValidator(Validator):
 				buffer = []
 
 				# Compute metrics and store them in buffer for print and in metrics_values for writer
-				for values, metrics, name in zip(metrics_values, self.metrics_lst, self.metrics_names):
+				for values, metrics, name in zip(metrics_values, self.metrics_lst, self.metrics_val_names):
 					cur_mean_value = metrics(pred_x, y)
 					buffer.append("%s: %.4e" % (name, cur_mean_value))
 					values.append(metrics.value.item())
@@ -84,7 +77,7 @@ class DefaultValidator(Validator):
 
 			print("")
 
-			for values, name in zip(metrics_values, self.metrics_names):
+			for values, name in zip(metrics_values, self.metrics_val_names):
 				self.writer.add_scalar("val/%s" % name, float(np.mean(values)), epoch)
 
 	def nb_examples(self) -> int:

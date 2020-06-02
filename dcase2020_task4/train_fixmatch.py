@@ -1,6 +1,7 @@
 
 from easydict import EasyDict as edict
 from time import time
+from torch import Tensor
 from torch.nn import Module
 from torch.optim import SGD
 from torch.utils.data import DataLoader
@@ -15,17 +16,6 @@ from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.validator import DefaultValidator
 
 
-def default_hparams(hparams: edict) -> edict:
-	hparams.lambda_u = 1.0
-	hparams.beta = 0.9  # used only for SGD
-	hparams.threshold_mask = 0.95  # tau
-	hparams.threshold_multihot = 0.5  # tau
-	hparams.batch_size = 16  # in paper: 64
-	hparams.lr = 0.03  # learning rate, eta
-	hparams.weight_decay = 1e-4
-	return hparams
-
-
 def train_fixmatch(
 	model: Module,
 	acti_fn: Callable,
@@ -37,7 +27,9 @@ def train_fixmatch(
 	metrics_s: Metrics,
 	metrics_u: Metrics,
 	metrics_val_lst: List[Metrics],
-	metrics_names: List[str],
+	metrics_val_names: List[str],
+	pre_batch_fn: Callable[[Tensor], Tensor],
+	pre_labels_fn: Callable[[Tensor], Tensor],
 	hparams: edict,
 ):
 	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
@@ -47,24 +39,26 @@ def train_fixmatch(
 	writer = build_writer(hparams)
 
 	trainer = FixMatchTrainer(
-		model, acti_fn, optim, loader_train_s, loader_train_u, weak_augm_fn, strong_augm_fn, metrics_s, metrics_u, writer, hparams
+		model, acti_fn, optim, loader_train_s, loader_train_u, weak_augm_fn, strong_augm_fn, metrics_s, metrics_u,
+		writer, pre_batch_fn, pre_labels_fn, hparams
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, metrics_val_lst, metrics_names, writer, hparams.nb_classes, hparams.mode
+		model, acti_fn, loader_val, metrics_val_lst, metrics_val_names, writer, pre_batch_fn, pre_labels_fn
 	)
-	learner = DefaultLearner(trainer, validator, hparams.nb_epochs, scheduler)
-
-	print("\nStart %s training (%d epochs, %d train examples supervised, %d train examples unsupervised, "
-		  "%d valid examples)..." % (
-			  hparams.train_name,
-			  hparams.nb_epochs,
-			  trainer.nb_examples_supervised(),
-			  trainer.nb_examples_unsupervised(),
-			  validator.nb_examples()
-		  ))
-	start = time()
+	learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs, scheduler)
 	learner.start()
-	print("End %s training. (duration = %.2f)" % (hparams.train_name, time() - start))
 
 	writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 	writer.close()
+
+
+def default_fixmatch_hparams() -> edict:
+	hparams = edict()
+	hparams.lambda_u = 1.0
+	hparams.beta = 0.9  # used only for SGD
+	hparams.threshold_mask = 0.95  # tau
+	hparams.threshold_multihot = 0.5  # tau
+	hparams.batch_size = 16  # in paper: 64
+	hparams.lr = 0.03  # learning rate, eta
+	hparams.weight_decay = 1e-4
+	return hparams
