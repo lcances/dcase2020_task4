@@ -36,6 +36,8 @@ class ReMixMatchTrainer(SSTrainer):
 		metrics_u1: Metrics,
 		metrics_r: Metrics,
 		writer: SummaryWriter,
+		pre_batch_fn: Callable[[Tensor], Tensor],
+		pre_labels_fn: Callable[[Tensor], Tensor],
 		hparams: edict
 	):
 		"""
@@ -54,6 +56,8 @@ class ReMixMatchTrainer(SSTrainer):
 		self.metrics_u1 = metrics_u1
 		self.metrics_r = metrics_r
 		self.writer = writer
+		self.pre_batch_fn = pre_batch_fn
+		self.pre_labels_fn = pre_labels_fn
 		self.nb_classes = hparams.nb_classes
 
 		self.mixer = ReMixMatchMixer(
@@ -74,14 +78,6 @@ class ReMixMatchTrainer(SSTrainer):
 			mode=hparams.mode,
 		)
 
-		self.pre_batch_fn = lambda batch: batch.cuda().float()
-		if hparams.mode == "onehot":
-			self.pre_label_fn = lambda label: one_hot(label.cuda().long(), self.nb_classes).float()
-		elif hparams.mode == "multihot":
-			self.pre_label_fn = lambda label: label.cuda().float()
-		else:
-			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (hparams.mode, " or ".join(("onehot", "multihot"))))
-
 	def train(self, epoch: int):
 		train_start = time()
 		self.metrics_s.reset()
@@ -98,7 +94,7 @@ class ReMixMatchTrainer(SSTrainer):
 		for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
 			batch_s = self.pre_batch_fn(batch_s)
 			batch_u = self.pre_batch_fn(batch_u)
-			labels_s = self.pre_label_fn(labels_s)
+			labels_s = self.pre_labels_fn(labels_s)
 
 			with torch.no_grad():
 				self.mixer.distributions.add_batch_pred(labels_s, "labeled")
@@ -125,10 +121,10 @@ class ReMixMatchTrainer(SSTrainer):
 			pred_u1 = self.acti_fn(logits_u1)
 			pred_r = self.acti_fn(logits_r)
 
-			accuracy_s = self.metrics_s(pred_s, labels_s_mixed)
-			accuracy_u = self.metrics_u(pred_u, labels_u_mixed)
-			accuracy_u1 = self.metrics_u1(pred_u1, labels_u1)
-			accuracy_r = self.metrics_r(pred_r, labels_r)
+			mean_acc_s = self.metrics_s(pred_s, labels_s_mixed)
+			mean_acc_u = self.metrics_u(pred_u, labels_u_mixed)
+			mean_acc_u1 = self.metrics_u1(pred_u1, labels_u1)
+			mean_acc_r = self.metrics_r(pred_r, labels_r)
 
 			# Update model
 			loss = self.criterion(
@@ -154,10 +150,10 @@ class ReMixMatchTrainer(SSTrainer):
 					epoch + 1,
 					int(100 * (i + 1) / len(loader_merged)),
 					loss.item(),
-					accuracy_s,
-					accuracy_u,
-					accuracy_u1,
-					accuracy_r,
+					mean_acc_s,
+					mean_acc_u,
+					mean_acc_u1,
+					mean_acc_r,
 					time() - train_start
 				), end="\r")
 

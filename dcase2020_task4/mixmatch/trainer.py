@@ -2,9 +2,8 @@ import numpy as np
 
 from easydict import EasyDict as edict
 from time import time
+from torch import Tensor
 from torch.nn import Module
-from torch.nn.functional import one_hot
-from torch.nn.utils import clip_grad_norm_
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -14,7 +13,7 @@ from dcase2020.pytorch_metrics.metrics import Metrics
 
 from dcase2020_task4.mixmatch.loss import MixMatchLoss
 from dcase2020_task4.mixmatch.mixer import MixMatchMixer
-from dcase2020_task4.mixmatch.RampUp import RampUp
+from dcase2020_task4.mixmatch.rampup import RampUp
 from dcase2020_task4.trainer import SSTrainer
 from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
 from dcase2020_task4.util.utils_match import get_lr
@@ -32,6 +31,8 @@ class MixMatchTrainer(SSTrainer):
 		metrics_s: Metrics,
 		metrics_u: Metrics,
 		writer: SummaryWriter,
+		pre_batch_fn: Callable[[Tensor], Tensor],
+		pre_labels_fn: Callable[[Tensor], Tensor],
 		hparams: edict
 	):
 		self.model = model
@@ -43,6 +44,8 @@ class MixMatchTrainer(SSTrainer):
 		self.metrics_s = metrics_s
 		self.metrics_u = metrics_u
 		self.writer = writer
+		self.pre_batch_fn = pre_batch_fn
+		self.pre_labels_fn = pre_labels_fn
 		self.nb_classes = hparams.nb_classes
 
 		nb_rampup_steps = hparams.nb_epochs * len(loader_train_u)
@@ -52,14 +55,6 @@ class MixMatchTrainer(SSTrainer):
 		self.criterion = MixMatchLoss(
 			lambda_u=hparams.lambda_u_max, mode=hparams.mode, criterion_unsupervised=hparams.criterion_unsupervised
 		)
-
-		self.pre_batch_fn = lambda batch: batch.cuda().float()
-		if hparams.mode == "onehot":
-			self.pre_label_fn = lambda label: one_hot(label.cuda().long(), self.nb_classes).float()
-		elif hparams.mode == "multihot":
-			self.pre_label_fn = lambda label: label.cuda().float()
-		else:
-			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (hparams.mode, " or ".join(("onehot", "multihot"))))
 
 	def train(self, epoch: int):
 		train_start = time()
@@ -74,7 +69,7 @@ class MixMatchTrainer(SSTrainer):
 		for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
 			batch_s = self.pre_batch_fn(batch_s)
 			batch_u = self.pre_batch_fn(batch_u)
-			labels_s = self.pre_label_fn(labels_s)
+			labels_s = self.pre_labels_fn(labels_s)
 
 			# Apply mix
 			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed = self.mixer.mix(batch_s, labels_s, batch_u)
@@ -87,15 +82,14 @@ class MixMatchTrainer(SSTrainer):
 			pred_s = self.acti_fn(logits_s)
 			pred_u = self.acti_fn(logits_u)
 
-			accuracy_s = self.metrics_s(pred_s, labels_s_mixed)
-			accuracy_u = self.metrics_u(pred_u, labels_u_mixed)
+			mean_acc_s = self.metrics_s(pred_s, labels_s_mixed)
+			mean_acc_u = self.metrics_u(pred_u, labels_u_mixed)
 
 			# Update model
 			self.criterion.lambda_u = self.lambda_u_rampup.value()
 			loss = self.criterion(pred_s, labels_s_mixed, pred_u, labels_u_mixed)
 			self.optim.zero_grad()
 			loss.backward()
-			# clip_grad_norm_(self.model.parameters(), 100)  # TODO : rem
 			self.optim.step()
 
 			self.lambda_u_rampup.step()
@@ -109,8 +103,8 @@ class MixMatchTrainer(SSTrainer):
 				epoch + 1,
 				int(100 * (i + 1) / len(loader_merged)),
 				loss.item(),
-				accuracy_s,
-				accuracy_u,
+				mean_acc_s,
+				mean_acc_u,
 				time() - train_start
 			), end="\r")
 

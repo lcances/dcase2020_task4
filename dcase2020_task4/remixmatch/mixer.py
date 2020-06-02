@@ -3,8 +3,8 @@ from torch import Tensor
 from torch.nn import Module
 from typing import Callable
 
-from .ModelDistributions import ModelDistributions
-from ..mixup.mixup import MixUpMixer
+from .model_distributions import ModelDistributions
+from ..mixup.mixer import MixUpMixer
 from ..util.utils_match import normalize, same_shuffle, sharpen, merge_first_dimension
 
 

@@ -8,6 +8,7 @@ from ..util.utils_match import cross_entropy
 
 class MixMatchLoss(Callable):
 	""" MixMatch loss component. """
+
 	def __init__(
 		self, lambda_u: float = 1.0, mode: str = "onehot", criterion_unsupervised: str = "sqdiff"
 	):

@@ -2,8 +2,8 @@ import numpy as np
 
 from easydict import EasyDict as edict
 from time import time
+from torch import Tensor
 from torch.nn import Module
-from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -30,6 +30,8 @@ class FixMatchTrainer(SSTrainer):
 		metrics_s: Metrics,
 		metrics_u: Metrics,
 		writer: SummaryWriter,
+		pre_batch_fn: Callable[[Tensor], Tensor],
+		pre_labels_fn: Callable[[Tensor], Tensor],
 		hparams: edict
 	):
 		self.model = model
@@ -42,6 +44,8 @@ class FixMatchTrainer(SSTrainer):
 		self.metrics_s = metrics_s
 		self.metrics_u = metrics_u
 		self.writer = writer
+		self.pre_batch_fn = pre_batch_fn
+		self.pre_labels_fn = pre_labels_fn
 		self.nb_classes = hparams.nb_classes
 		self.mode = hparams.mode
 
@@ -51,14 +55,6 @@ class FixMatchTrainer(SSTrainer):
 			threshold_multihot=hparams.threshold_multihot,
 			mode=hparams.mode
 		)
-
-		self.pre_batch_fn = lambda batch: batch.cuda().float()
-		if hparams.mode == "onehot":
-			self.pre_label_fn = lambda label: one_hot(label.cuda().long(), self.nb_classes).float()
-		elif hparams.mode == "multihot":
-			self.pre_label_fn = lambda label: label.cuda().float()
-		else:
-			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (hparams.mode, " or ".join(("onehot", "multihot"))))
 
 	def train(self, epoch: int):
 		train_start = time()
@@ -73,7 +69,7 @@ class FixMatchTrainer(SSTrainer):
 		for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
 			batch_s = self.pre_batch_fn(batch_s)
 			batch_u = self.pre_batch_fn(batch_u)
-			labels_s = self.pre_label_fn(labels_s)
+			labels_s = self.pre_labels_fn(labels_s)
 
 			# Apply augmentations
 			batch_s_weak = self.weak_augm_fn(batch_s)
@@ -97,8 +93,8 @@ class FixMatchTrainer(SSTrainer):
 			else:
 				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
 
-			accuracy_s = self.metrics_s(pred_s_weak, labels_s)
-			accuracy_u = self.metrics_u(pred_u_strong, labels_u_guessed)
+			mean_acc_s = self.metrics_s(pred_s_weak, labels_s)
+			mean_acc_u = self.metrics_u(pred_u_strong, labels_u_guessed)
 
 			# Update model
 			loss = self.criterion(pred_s_weak, labels_s, pred_u_weak, pred_u_strong, labels_u_guessed)
@@ -111,12 +107,12 @@ class FixMatchTrainer(SSTrainer):
 			acc_train_s.append(self.metrics_s.value.item())
 			acc_train_u.append(self.metrics_u.value.item())
 
-			print("Epoch {}, {:d}% \t loss: {:.4e} - acc_s: {:.4e} - acc_u: {:.4e} - took {:.2f}s".format(
+			print("Epoch {}, {:d}% \t loss: {:.4e} - acc_s: {:.4e} - acc_u: {:.4e} - took {:.4e}s".format(
 				epoch + 1,
 				int(100 * (i + 1) / len(loader_merged)),
 				loss.item(),
-				accuracy_s,
-				accuracy_u,
+				mean_acc_s,
+				mean_acc_u,
 				time() - train_start
 			), end="\r")
 

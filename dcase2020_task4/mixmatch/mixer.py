@@ -4,7 +4,7 @@ from torch import Tensor
 from torch.nn import Module
 from typing import Callable
 
-from ..mixup.mixup import MixUpMixer
+from ..mixup.mixer import MixUpMixer
 from ..util.utils_match import same_shuffle, sharpen, merge_first_dimension
 
 
@@ -16,8 +16,8 @@ class MixMatchMixer(Callable):
 	def __init__(
 		self,
 		model: Module,
-		acti_fn: Callable,
-		augm_fn: Callable,
+		acti_fn: Callable[[Tensor, int], Tensor],
+		augm_fn: Callable[[Tensor], Tensor],
 		nb_augms: int = 2,
 		sharpen_temp: float = 0.5,
 		mixup_alpha: float = 0.75,
