@@ -1,8 +1,6 @@
 import numpy as np
 
-from easydict import EasyDict as edict
 from time import time
-from torch import Tensor
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
@@ -69,8 +67,8 @@ class MixMatchTrainer(SSTrainer):
 			logits_u = self.model(batch_u_mixed)
 
 			# Compute accuracies
-			pred_s = self.acti_fn(logits_s)
-			pred_u = self.acti_fn(logits_u)
+			pred_s = self.acti_fn(logits_s, dim=1)
+			pred_u = self.acti_fn(logits_u, dim=1)
 
 			mean_acc_s = self.metrics_s(pred_s, labels_s_mixed)
 			mean_acc_u = self.metrics_u(pred_u, labels_u_mixed)

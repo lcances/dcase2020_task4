@@ -9,10 +9,14 @@ class ModelDistributions:
 	"""
 
 	def __init__(
-		self, history_size: int, nb_classes: int, names: List[str], distributions_priori: Optional[Tensor] = None
+		self, history_size: int, nb_classes: int, names: List[str], mode: str = "onehot"
 	):
-		if distributions_priori is None:
+		if mode == "onehot":
 			distributions_priori = ModelDistributions.uniform_distribution_onehot(history_size, nb_classes)
+		elif mode == "multihot":
+			distributions_priori = ModelDistributions.uniform_distribution_multihot(history_size, nb_classes)
+		else:
+			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
 
 		self.names = names
 		self.distributions_priori = distributions_priori

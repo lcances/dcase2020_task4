@@ -35,7 +35,7 @@ class MixMatchLoss(Callable):
 
 	@staticmethod
 	def from_edict(hparams) -> 'MixMatchLoss':
-		return MixMatchLoss(hparams.lambda_u, hparams.mode, hparams.criterion_unsupervised)
+		return MixMatchLoss(hparams.lambda_u_max, hparams.mode, hparams.criterion_unsupervised)
 
 	def __call__(self, pred_s: Tensor, targets_x: Tensor, pred_u: Tensor, targets_u: Tensor) -> Tensor:
 		loss_s = self.criterion_s(pred_s, targets_x)

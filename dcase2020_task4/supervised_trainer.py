@@ -47,7 +47,7 @@ class SupervisedTrainer(Trainer):
 
 			# Compute logits
 			logits = self.model(x)
-			pred = self.acti_fn(logits)
+			pred = self.acti_fn(logits, dim=1)
 
 			# Compute accuracy
 			accuracy = self.metrics(pred, y)

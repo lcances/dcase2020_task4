@@ -15,7 +15,7 @@ class ReMixMatchMixer(Callable):
 		acti_fn: Callable,
 		weak_augm_fn: Callable,
 		strong_augm_fn: Callable,
-		nb_classes: int,
+		distributions: ModelDistributions,
 		nb_augms_strong: int,
 		sharpen_temp: float,
 		mixup_alpha: float,
@@ -25,11 +25,11 @@ class ReMixMatchMixer(Callable):
 		self.acti_fn = acti_fn
 		self.weak_augm_fn = weak_augm_fn
 		self.strong_augm_fn = strong_augm_fn
+		self.distributions = distributions
 		self.nb_augms_strong = nb_augms_strong
 		self.sharpen_temp = sharpen_temp
 		self.mode = mode
 
-		self.distributions = ModelDistributions(history_size=128, nb_classes=nb_classes, names=["labeled", "unlabeled"])
 		self.mixup_mixer = MixUpMixer(alpha=mixup_alpha, apply_max=True)
 
 	def __call__(self, batch_s: Tensor, labels_s: Tensor, batch_u: Tensor) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor):

@@ -52,7 +52,7 @@ class DefaultValidator(Validator):
 				y = y.cuda().float()
 
 				logits_x = self.model(x)
-				pred_x = self.acti_fn(logits_x)
+				pred_x = self.acti_fn(logits_x, dim=1)
 
 				buffer = []
 

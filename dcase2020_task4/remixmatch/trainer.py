@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 
-from easydict import EasyDict as edict
 from time import time
 from torch import Tensor
 from torch.nn import Module
@@ -14,8 +13,7 @@ from typing import Callable
 from dcase2020.augmentation_utils.img_augmentations import Transform
 from dcase2020.pytorch_metrics.metrics import Metrics
 
-from dcase2020_task4.remixmatch.loss import ReMixMatchLoss
-from dcase2020_task4.remixmatch.mixer import ReMixMatchMixer
+from dcase2020_task4.remixmatch.model_distributions import ModelDistributions
 from dcase2020_task4.trainer import SSTrainer
 from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
 from dcase2020_task4.util.utils_match import get_lr
@@ -37,7 +35,8 @@ class ReMixMatchTrainer(SSTrainer):
 		metrics_r: Metrics,
 		writer: SummaryWriter,
 		criterion: Callable,
-		mixer: Callable
+		mixer: Callable,
+		distributions: ModelDistributions,
 	):
 		"""
 			TODO : doc
@@ -57,6 +56,7 @@ class ReMixMatchTrainer(SSTrainer):
 		self.writer = writer
 		self.criterion = criterion
 		self.mixer = mixer
+		self.distributions = distributions
 
 	def train(self, epoch: int):
 		train_start = time()
@@ -72,16 +72,18 @@ class ReMixMatchTrainer(SSTrainer):
 		iter_train = iter(loader_merged)
 
 		for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
-			batch_s, labels_s, batch_u = self.pre_fn(batch_s, labels_s, batch_u)
+			batch_s = batch_s.cuda().float()
+			labels_s = labels_s.cuda().float()
+			batch_u = batch_u.cuda().float()
 
 			with torch.no_grad():
-				self.mixer.distributions.add_batch_pred(labels_s, "labeled")
-				pred_u = self.acti_fn(self.model(batch_u))
-				self.mixer.distributions.add_batch_pred(pred_u, "unlabeled")
+				self.distributions.add_batch_pred(labels_s, "labeled")
+				pred_u = self.acti_fn(self.model(batch_u), dim=1)
+				self.distributions.add_batch_pred(pred_u, "unlabeled")
 
 			# Apply mix
 			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed, batch_u1, labels_u1 = \
-				self.mixer.mix(batch_s, labels_s, batch_u)
+				self.mixer(batch_s, labels_s, batch_u)
 
 			# Predict labels for x (mixed), u (mixed) and u1 (strong augment)
 			logits_s = self.model(batch_s_mixed)
@@ -94,10 +96,10 @@ class ReMixMatchTrainer(SSTrainer):
 			logits_r = self.model.forward_rot(batch_u1_rotated)
 
 			# Compute accuracies
-			pred_s = self.acti_fn(logits_s)
-			pred_u = self.acti_fn(logits_u)
-			pred_u1 = self.acti_fn(logits_u1)
-			pred_r = self.acti_fn(logits_r)
+			pred_s = self.acti_fn(logits_s, dim=1)
+			pred_u = self.acti_fn(logits_u, dim=1)
+			pred_u1 = self.acti_fn(logits_u1, dim=1)
+			pred_r = self.acti_fn(logits_r, dim=1)
 
 			mean_acc_s = self.metrics_s(pred_s, labels_s_mixed)
 			mean_acc_u = self.metrics_u(pred_u, labels_u_mixed)

@@ -10,6 +10,7 @@ from dcase2020.pytorch_metrics.metrics import Metrics
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.remixmatch.loss import ReMixMatchLoss
 from dcase2020_task4.remixmatch.mixer import ReMixMatchMixer
+from dcase2020_task4.remixmatch.model_distributions import ModelDistributions
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 from dcase2020_task4.util.utils_match import build_writer
 from dcase2020_task4.validator import DefaultValidator
@@ -41,12 +42,15 @@ def train_remixmatch(
 	writer = build_writer(hparams)
 
 	criterion = ReMixMatchLoss.from_edict(hparams)
+	distributions = ModelDistributions(
+		history_size=128, nb_classes=hparams.nb_classes, names=["labeled", "unlabeled"], mode=hparams.mode
+	)
 	mixer = ReMixMatchMixer(
 		model,
 		acti_fn,
 		weak_augm_fn,
 		strong_augm_fn,
-		hparams.nb_classes,
+		distributions,
 		hparams.nb_augms_strong,
 		hparams.sharpen_temp,
 		hparams.mixup_alpha,
@@ -54,7 +58,7 @@ def train_remixmatch(
 	)
 	trainer = ReMixMatchTrainer(
 		model, acti_fn, optim, loader_train_s, loader_train_u, weak_augm_fn, strong_augm_fn, metrics_s, metrics_u,
-		metrics_u1, metrics_r, writer, criterion, mixer
+		metrics_u1, metrics_r, writer, criterion, mixer, distributions
 	)
 	validator = DefaultValidator(
 		model, acti_fn, loader_val, metrics_val_lst, metrics_val_names, writer
