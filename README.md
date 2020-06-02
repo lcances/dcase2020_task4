@@ -109,7 +109,7 @@ manager = DESEDManager(
     metadata_root, audio_root,
     sampling_rate = 22050,
     validation_ratio = 0.2,
-    from_disk=False,
+    from_disk=False, # <-- change to True if do not hold into memory
     verbose = 1
     )
 

@@ -4,15 +4,16 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
+import argparse
 
 # dataset manager
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
 # utility function & metrics & augmentation
-import dcase2020_task4.augmentation_utils.signal_augmentations as signal_augmentations
-import dcase2020_task4.augmentation_utils.spec_augmentations as spec_augmentations
-import dcase2020_task4.augmentation_utils.img_augmentations as img_augmentations
+import dcase2020.augmentation_utils.signal_augmentations as signal_augmentations
+import dcase2020.augmentation_utils.spec_augmentations as spec_augmentations
+import dcase2020.augmentation_utils.img_augmentations as img_augmentations
 from dcase2020_task4.pytorch_metrics.metrics import FScore, BinaryAccuracy
 from dcase2020_task4.util.utils import get_datetime, reset_seed
 
@@ -26,18 +27,26 @@ from dcase2020_task4.util.log import DEFAULT_LOGGING
 logging.config.dictConfig(DEFAULT_LOGGING)
 log = logging.getLogger(__name__)
 
+# ==== Get the arguments ====
+parser = argparse.ArgumentParser()
+
+parser.add_argument("-a", "--audio_root", default="../../dataset/DESED/dataset/audio", type=str)
+parser.add_argument("-m", "--metadata_root", default="../../dataset/DESED/dataset/metadata", type=str)
+
+args = parser.parse_args()
+
 # ==== reset the seed for reproducibility ====
 reset_seed(1234)
 
 # ==== load the dataset ====
-dese_metadata_root = "../../dataset/DESED/dataset/metadata"
-desed_audio_root = "../../dataset/DESED/dataset/audio"
+desed_metadata_root = args.metadata_root
+desed_audio_root = args.audio_root
 
 manager = DESEDManager(
-    dese_metadata_root, desed_audio_root,
+    desed_metadata_root, desed_audio_root,
     sampling_rate=22050,
     validation_ratio=0.2,
-    verbose=2
+    verbose=1
 )
 
 manager.add_subset("weak")
