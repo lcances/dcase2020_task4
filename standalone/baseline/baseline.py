@@ -1,25 +1,25 @@
 import time
-
+import os
+import argparse
+from pathlib import Path
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.utils.data
 from torch.utils.tensorboard import SummaryWriter
-import argparse
+
+import sys
+sys.path.append("..")
 
 # dataset manager
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
 # utility function & metrics & augmentation
-import dcase2020.augmentation_utils.signal_augmentations as signal_augmentations
-import dcase2020.augmentation_utils.spec_augmentations as spec_augmentations
-import dcase2020.augmentation_utils.img_augmentations as img_augmentations
-from dcase2020_task4.pytorch_metrics.metrics import FScore, BinaryAccuracy
+from metric_utils.metrics import FScore, BinaryAccuracy
 from dcase2020_task4.util.utils import get_datetime, reset_seed
 
 # models
 from dcase2020_task4.baseline.models import WeakBaseline
-
 
 # ==== set the log ====
 import logging.config
@@ -46,6 +46,7 @@ manager = DESEDManager(
     desed_metadata_root, desed_audio_root,
     sampling_rate=22050,
     validation_ratio=0.2,
+    from_disk=False,
     verbose=1
 )
 
@@ -98,16 +99,19 @@ def train(epoch: int):
     model.train()
     print("")  # <-- Force new line
 
-    for i, (X, y) in enumerate(training_loader):
-        X, y = X.cuda().float(), y.cuda().float()
+    for i, (X_weak, y_weak) in enumerate(training_loader):
+        # The DESEDDataset return a list of ground truth depending on the selecting option.
+        # If weak and strong ground truth are selected, the list order is [WEAK, STRONG]
+        # here there is only one [WEAK]
+        X_weak, y_weak = X_weak.cuda().float(), y_weak[0].cuda().float()
 
-        logits = model(X)
+        logits = model(X_weak)
 
-        loss = criterion(logits, y)
+        loss = criterion(logits, y_weak)
 
         # calc metrics
         pred = F.sigmoid(logits)
-        binacc = binacc_func(pred, y)
+        binacc = binacc_func(pred, y_weak)
 
         # back propagation
         optimizers.zero_grad()
@@ -133,16 +137,16 @@ def val(epoch):
     model.train()
     print("")  # <-- Force new line
 
-    for i, (X, y) in enumerate(val_loader):
-        X, y = X.cuda().float(), y.cuda().float()
+    for i, (X_weak, y_weak) in enumerate(val_loader):
+        X_weak, y_weak = X_weak.cuda().float(), y_weak[0].cuda().float()
 
-        logits = model(X)
+        logits = model(X_weak)
 
-        loss = criterion(logits, y)
+        loss = criterion(logits, y_weak)
 
         # calc metrics
         pred = F.sigmoid(logits)
-        binacc = binacc_func(pred, y)
+        binacc = binacc_func(pred, y_weak)
 
         # back propagation
         optimizers.zero_grad()
