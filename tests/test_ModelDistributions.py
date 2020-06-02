@@ -1,6 +1,6 @@
 import torch
 
-from dcase2020_task4.remixmatch.ModelDistributions import ModelDistributions
+from dcase2020_task4.remixmatch.model_distributions import ModelDistributions
 
 
 def test():
