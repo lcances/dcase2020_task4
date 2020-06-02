@@ -1,6 +1,5 @@
 import numpy as np
 import os.path as osp
-import torch
 
 from argparse import ArgumentParser, Namespace
 from easydict import EasyDict as edict
@@ -9,14 +8,15 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import RandomChoice, Compose
 
 from dcase2020.augmentation_utils.img_augmentations import Transform
+from dcase2020.augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Noise, Occlusion, Clip
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
 from dcase2020_task4.baseline.models import WeakBaseline
 from dcase2020_task4.train_fixmatch import train_fixmatch, default_fixmatch_hparams
+from dcase2020_task4.util.FnDataLoader import FnDataLoader
 from dcase2020_task4.util.NoLabelDataLoader import NoLabelDataLoader
 from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, FnMetric
-from dcase2020_task4.util.rgb_augmentations import RandCrop
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_match import to_batch_fn
 
@@ -24,7 +24,7 @@ from dcase2020_task4.util.utils_match import to_batch_fn
 def create_args() -> Namespace:
 	parser = ArgumentParser()
 	# TODO : help for acronyms
-	parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "sf", "sp"])
+	# parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "sf", "sp"])
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED")
 	parser.add_argument("--seed", type=int, default=123)
@@ -61,13 +61,16 @@ def get_desed_loaders(args) -> (DataLoader, DataLoader, DataLoader):
 	manager_u.add_subset("unlabel_in_domain")
 	manager_u.split_train_validation()
 
-	ds_train_s = DESEDDataset(manager_s, train=True, val=False, augments=[], cached=True, weak=True, strong=False)
-	ds_val = DESEDDataset(manager_s, train=False, val=True, augments=[], cached=True, weak=True, strong=False)
-	ds_train_u = DESEDDataset(manager_u, train=True, val=False, augments=[], cached=True, weak=False, strong=False)
+	dataset_train_s = DESEDDataset(manager_s, train=True, val=False, augments=[], cached=True, weak=True, strong=False)
+	dataset_val = DESEDDataset(manager_s, train=False, val=True, augments=[], cached=True, weak=True, strong=False)
+	dataset_train_u = DESEDDataset(manager_u, train=True, val=False, augments=[], cached=True, weak=False, strong=False)
 
-	loader_train_s = DataLoader(ds_train_s, batch_size=args.batch_size, shuffle=True)
-	loader_train_u = NoLabelDataLoader(ds_train_u, batch_size=args.batch_size, shuffle=True)
-	loader_val = DataLoader(ds_val, batch_size=args.batch_size, shuffle=False)
+	# Create loaders
+	process_fn = lambda batch, labels: (batch, labels[0])
+	loader_train_s = FnDataLoader(dataset_train_s, batch_size=args.batch_size, shuffle=True, fn=process_fn)
+	loader_val = FnDataLoader(dataset_val, batch_size=args.batch_size, shuffle=False, fn=process_fn)
+
+	loader_train_u = NoLabelDataLoader(dataset_train_u, batch_size=args.batch_size, shuffle=True)
 
 	return loader_train_s, loader_train_u, loader_val
 
@@ -81,7 +84,7 @@ def main():
 	hparams.update(args.__dict__)
 	hparams.begin_date = get_datetime()
 
-	model_factory = lambda: WeakBaseline()
+	model_factory = lambda: WeakBaseline().cuda()
 	acti_fn = lambda batch, dim: batch.sigmoid()
 
 	weak_augm_fn = to_batch_fn(RandomChoice([
@@ -89,17 +92,22 @@ def main():
 		Transform(0.5, rotation=(-np.pi, np.pi)),
 	]))
 	strong_augm_fn = to_batch_fn(Compose([
-		Transform(0.75, scale=(0.5, 1.5)),
-		Transform(0.75, rotation=(-np.pi, np.pi)),
-		RandCrop(1.0),
+		RandomChoice([
+			Transform(1.0, scale=(0.5, 1.5)),
+			Transform(1.0, rotation=(-np.pi, np.pi)),
+		]),
+		RandomChoice([
+			# TimeStretch(1.0),
+			PitchShiftRandom(1.0),
+			# Noise(1.0),
+			Occlusion(1.0),
+		]),
 	]))
+
 	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_u = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_val_lst = [CategoricalConfidenceAccuracy(hparams.confidence), FnMetric(binary_cross_entropy)]
 	metrics_val_names = ["acc", "loss"]
-
-	pre_batch_fn = lambda batch: torch.as_tensor(batch).cuda().float()
-	pre_labels_fn = lambda label: torch.as_tensor(label).cuda().float()
 
 	loader_train_s, loader_train_u, loader_val = get_desed_loaders(args)
 
@@ -107,7 +115,7 @@ def main():
 	hparams_fm.update(hparams)
 	train_fixmatch(
 		model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, weak_augm_fn, strong_augm_fn,
-		metrics_s, metrics_u, metrics_val_lst, metrics_val_names, pre_batch_fn, pre_labels_fn, hparams_fm
+		metrics_s, metrics_u, metrics_val_lst, metrics_val_names, hparams_fm
 	)
 
 

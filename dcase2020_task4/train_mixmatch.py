@@ -1,7 +1,5 @@
 
 from easydict import EasyDict as edict
-from time import time
-from torch import Tensor
 from torch.nn import Module
 from torch.optim import SGD
 from torch.utils.data import DataLoader
@@ -9,6 +7,9 @@ from typing import Callable, List
 
 from dcase2020.pytorch_metrics.metrics import Metrics
 
+from dcase2020_task4.mixmatch.loss import MixMatchLoss
+from dcase2020_task4.mixmatch.mixer import MixMatchMixer
+from dcase2020_task4.mixmatch.rampup import RampUp
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 from dcase2020_task4.util.utils_match import build_writer
 from dcase2020_task4.learner import DefaultLearner
@@ -26,8 +27,6 @@ def train_mixmatch(
 	metrics_u: Metrics,
 	metrics_val_lst: List[Metrics],
 	metrics_val_names: List[str],
-	pre_batch_fn: Callable[[Tensor], Tensor],
-	pre_labels_fn: Callable[[Tensor], Tensor],
 	hparams: edict,
 ):
 	if loader_train_s.batch_size != loader_train_u.batch_size:
@@ -39,12 +38,18 @@ def train_mixmatch(
 	hparams.train_name = "MixMatch"
 	writer = build_writer(hparams, suffix=hparams.criterion_unsupervised)
 
+	nb_rampup_steps = hparams.nb_epochs * len(loader_train_u)
+
+	criterion = MixMatchLoss.from_edict(hparams)
+	mixer = MixMatchMixer(model, acti_fn, augm_fn, hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha)
+	lambda_u_rampup = RampUp(hparams.lambda_u_max, nb_rampup_steps)
+
 	trainer = MixMatchTrainer(
 		model, acti_fn, optim, loader_train_s, loader_train_u, augm_fn, metrics_s, metrics_u,
-		writer, pre_batch_fn, pre_labels_fn, hparams
+		writer, criterion, mixer, lambda_u_rampup
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, metrics_val_lst, metrics_val_names, writer, pre_batch_fn, pre_labels_fn
+		model, acti_fn, loader_val, metrics_val_lst, metrics_val_names, writer
 	)
 	learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 	learner.start()

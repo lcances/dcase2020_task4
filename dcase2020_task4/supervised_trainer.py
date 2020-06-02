@@ -24,8 +24,6 @@ class SupervisedTrainer(Trainer):
 		criterion: Callable,
 		metrics: Metrics,
 		writer: SummaryWriter,
-		pre_batch_fn: Callable[[Tensor], Tensor],
-		pre_labels_fn: Callable[[Tensor], Tensor],
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -34,8 +32,6 @@ class SupervisedTrainer(Trainer):
 		self.criterion = criterion
 		self.metrics = metrics
 		self.writer = writer
-		self.pre_batch_fn = pre_batch_fn
-		self.pre_labels_fn = pre_labels_fn
 
 	def train(self, epoch: int):
 		train_start = time()
@@ -46,14 +42,14 @@ class SupervisedTrainer(Trainer):
 		iter_train = iter(self.loader)
 
 		for i, (x, y) in enumerate(iter_train):
-			x = self.pre_batch_fn(x)
-			y = self.pre_labels_fn(y)
+			x = x.cuda().float()
+			y = y.cuda().float()
 
 			# Compute logits
 			logits = self.model(x)
+			pred = self.acti_fn(logits)
 
 			# Compute accuracy
-			pred = self.acti_fn(logits)
 			accuracy = self.metrics(pred, y)
 
 			# Update model

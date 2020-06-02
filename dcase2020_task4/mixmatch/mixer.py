@@ -16,8 +16,8 @@ class MixMatchMixer(Callable):
 	def __init__(
 		self,
 		model: Module,
-		acti_fn: Callable[[Tensor, int], Tensor],
-		augm_fn: Callable[[Tensor], Tensor],
+		acti_fn: Callable,
+		augm_fn: Callable,
 		nb_augms: int = 2,
 		sharpen_temp: float = 0.5,
 		mixup_alpha: float = 0.75,

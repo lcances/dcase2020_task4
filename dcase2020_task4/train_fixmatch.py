@@ -1,7 +1,5 @@
 
 from easydict import EasyDict as edict
-from time import time
-from torch import Tensor
 from torch.nn import Module
 from torch.optim import SGD
 from torch.utils.data import DataLoader
@@ -10,6 +8,7 @@ from typing import Callable, List
 from dcase2020.pytorch_metrics.metrics import Metrics
 
 from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
+from dcase2020_task4.fixmatch.loss import FixMatchLoss
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 from dcase2020_task4.util.utils_match import build_writer
 from dcase2020_task4.learner import DefaultLearner
@@ -28,8 +27,6 @@ def train_fixmatch(
 	metrics_u: Metrics,
 	metrics_val_lst: List[Metrics],
 	metrics_val_names: List[str],
-	pre_batch_fn: Callable[[Tensor], Tensor],
-	pre_labels_fn: Callable[[Tensor], Tensor],
 	hparams: edict,
 ):
 	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
@@ -38,12 +35,13 @@ def train_fixmatch(
 	hparams.train_name = "FixMatch"
 	writer = build_writer(hparams)
 
+	criterion = FixMatchLoss.from_edict(hparams)
 	trainer = FixMatchTrainer(
 		model, acti_fn, optim, loader_train_s, loader_train_u, weak_augm_fn, strong_augm_fn, metrics_s, metrics_u,
-		writer, pre_batch_fn, pre_labels_fn, hparams
+		writer, criterion, hparams.mode, hparams.threshold_multihot
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, metrics_val_lst, metrics_val_names, writer, pre_batch_fn, pre_labels_fn
+		model, acti_fn, loader_val, metrics_val_lst, metrics_val_names, writer
 	)
 	learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs, scheduler)
 	learner.start()

@@ -27,19 +27,15 @@ class DefaultValidator(Validator):
 		acti_fn: Callable,
 		loader: DataLoader,
 		metrics_lst: List[Metrics],
-		metrics_val_names: List[str],
-		writer: SummaryWriter,
-		pre_batch_fn: Callable[[Tensor], Tensor],
-		pre_labels_fn: Callable[[Tensor], Tensor],
+		metrics_names: List[str],
+		writer: SummaryWriter
 	):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.loader = loader
 		self.metrics_lst = metrics_lst
-		self.metrics_val_names = metrics_val_names
+		self.metrics_names = metrics_names
 		self.writer = writer
-		self.pre_batch_fn = pre_batch_fn
-		self.pre_labels_fn = pre_labels_fn
 
 	def val(self, epoch: int):
 		with torch.no_grad():
@@ -50,9 +46,10 @@ class DefaultValidator(Validator):
 
 			metrics_values = [[] for _ in range(len(self.metrics_lst))]
 			iter_val = iter(self.loader)
+
 			for i, (x, y) in enumerate(iter_val):
-				x = self.pre_batch_fn(x)
-				y = self.pre_labels_fn(y)
+				x = x.cuda().float()
+				y = y.cuda().float()
 
 				logits_x = self.model(x)
 				pred_x = self.acti_fn(logits_x)
@@ -60,7 +57,7 @@ class DefaultValidator(Validator):
 				buffer = []
 
 				# Compute metrics and store them in buffer for print and in metrics_values for writer
-				for values, metrics, name in zip(metrics_values, self.metrics_lst, self.metrics_val_names):
+				for values, metrics, name in zip(metrics_values, self.metrics_lst, self.metrics_names):
 					cur_mean_value = metrics(pred_x, y)
 					buffer.append("%s: %.4e" % (name, cur_mean_value))
 					values.append(metrics.value.item())
@@ -77,7 +74,7 @@ class DefaultValidator(Validator):
 
 			print("")
 
-			for values, name in zip(metrics_values, self.metrics_val_names):
+			for values, name in zip(metrics_values, self.metrics_names):
 				self.writer.add_scalar("val/%s" % name, float(np.mean(values)), epoch)
 
 	def nb_examples(self) -> int:

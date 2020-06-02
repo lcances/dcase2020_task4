@@ -36,9 +36,8 @@ class ReMixMatchTrainer(SSTrainer):
 		metrics_u1: Metrics,
 		metrics_r: Metrics,
 		writer: SummaryWriter,
-		pre_batch_fn: Callable[[Tensor], Tensor],
-		pre_labels_fn: Callable[[Tensor], Tensor],
-		hparams: edict
+		criterion: Callable,
+		mixer: Callable
 	):
 		"""
 			TODO : doc
@@ -56,27 +55,8 @@ class ReMixMatchTrainer(SSTrainer):
 		self.metrics_u1 = metrics_u1
 		self.metrics_r = metrics_r
 		self.writer = writer
-		self.pre_batch_fn = pre_batch_fn
-		self.pre_labels_fn = pre_labels_fn
-		self.nb_classes = hparams.nb_classes
-
-		self.mixer = ReMixMatchMixer(
-			model,
-			acti_fn,
-			weak_augm_fn,
-			strong_augm_fn,
-			hparams.nb_classes,
-			hparams.nb_augms_strong,
-			hparams.sharpen_temp,
-			hparams.mixup_alpha,
-			hparams.mode
-		)
-		self.criterion = ReMixMatchLoss(
-			lambda_u=hparams.lambda_u,
-			lambda_u1=hparams.lambda_u1,
-			lambda_r=hparams.lambda_r,
-			mode=hparams.mode,
-		)
+		self.criterion = criterion
+		self.mixer = mixer
 
 	def train(self, epoch: int):
 		train_start = time()
@@ -92,9 +72,7 @@ class ReMixMatchTrainer(SSTrainer):
 		iter_train = iter(loader_merged)
 
 		for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
-			batch_s = self.pre_batch_fn(batch_s)
-			batch_u = self.pre_batch_fn(batch_u)
-			labels_s = self.pre_labels_fn(labels_s)
+			batch_s, labels_s, batch_u = self.pre_fn(batch_s, labels_s, batch_u)
 
 			with torch.no_grad():
 				self.mixer.distributions.add_batch_pred(labels_s, "labeled")

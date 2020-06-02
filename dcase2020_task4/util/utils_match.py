@@ -123,4 +123,4 @@ def multilabel_to_num(labels: Tensor) -> List[List[int]]:
 
 
 def to_batch_fn(x_fn: Callable) -> Callable:
-	return lambda batch: torch.stack([x_fn(x) for x in batch]).cuda()
+	return lambda batch: torch.stack([x_fn(x).cuda() for x in batch])

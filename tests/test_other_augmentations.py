@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from dcase2020_task4.util.rgb_augmentations import Inversion, UniColor, RandCrop, Gray
+from dcase2020_task4.util.other_augments import Inversion, UniColor, RandCrop, Gray
 
 
 def get_demo_image():

@@ -1,6 +1,5 @@
 import numpy as np
 
-from easydict import EasyDict as edict
 from time import time
 from torch import Tensor
 from torch.nn import Module
@@ -11,7 +10,6 @@ from typing import Callable
 
 from dcase2020.pytorch_metrics.metrics import Metrics
 
-from dcase2020_task4.fixmatch.loss import FixMatchLoss
 from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
 from dcase2020_task4.util.utils_match import binarize_onehot_labels, get_lr
 from dcase2020_task4.trainer import SSTrainer
@@ -25,14 +23,14 @@ class FixMatchTrainer(SSTrainer):
 		optim: Optimizer,
 		loader_train_s: DataLoader,
 		loader_train_u: DataLoader,
-		weak_augm_fn: Callable,
-		strong_augm_fn: Callable,
+		weak_augm_fn: Callable[[Tensor], Tensor],
+		strong_augm_fn: Callable[[Tensor], Tensor],
 		metrics_s: Metrics,
 		metrics_u: Metrics,
 		writer: SummaryWriter,
-		pre_batch_fn: Callable[[Tensor], Tensor],
-		pre_labels_fn: Callable[[Tensor], Tensor],
-		hparams: edict
+		criterion: Callable,
+		mode: str = "onehot",
+		threshold_multihot: float = 0.5,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -44,17 +42,9 @@ class FixMatchTrainer(SSTrainer):
 		self.metrics_s = metrics_s
 		self.metrics_u = metrics_u
 		self.writer = writer
-		self.pre_batch_fn = pre_batch_fn
-		self.pre_labels_fn = pre_labels_fn
-		self.nb_classes = hparams.nb_classes
-		self.mode = hparams.mode
-
-		self.criterion = FixMatchLoss(
-			lambda_u=hparams.lambda_u,
-			threshold_mask=hparams.threshold_mask,
-			threshold_multihot=hparams.threshold_multihot,
-			mode=hparams.mode
-		)
+		self.criterion = criterion
+		self.mode = mode
+		self.threshold_multihot = threshold_multihot
 
 	def train(self, epoch: int):
 		train_start = time()
@@ -67,9 +57,9 @@ class FixMatchTrainer(SSTrainer):
 		iter_train = iter(loader_merged)
 
 		for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
-			batch_s = self.pre_batch_fn(batch_s)
-			batch_u = self.pre_batch_fn(batch_u)
-			labels_s = self.pre_labels_fn(labels_s)
+			batch_s = batch_s.cuda().float()
+			labels_s = labels_s.cuda().float()
+			batch_u = batch_u.cuda().float()
 
 			# Apply augmentations
 			batch_s_weak = self.weak_augm_fn(batch_s)
@@ -89,7 +79,7 @@ class FixMatchTrainer(SSTrainer):
 			if self.mode == "onehot":
 				labels_u_guessed = binarize_onehot_labels(pred_u_weak)
 			elif self.mode == "multihot":
-				labels_u_guessed = (pred_u_weak > self.criterion.threshold_multihot).float()
+				labels_u_guessed = (pred_u_weak > self.threshold_multihot).float()
 			else:
 				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
 

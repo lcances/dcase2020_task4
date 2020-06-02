@@ -8,7 +8,7 @@ from dcase2020_task4.mixup.mixer import MixUpMixer
 from dcase2020_task4.util.utils_match import normalize, same_shuffle, sharpen, merge_first_dimension
 
 
-class ReMixMatchMixer:
+class ReMixMatchMixer(Callable):
 	def __init__(
 		self,
 		model: Module,

@@ -14,9 +14,10 @@ from dcase2020.augmentation_utils.img_augmentations import Transform
 from dcase2020.augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip
 from dcase2020.util.utils import get_datetime, reset_seed
 
-from dcase2020_task4.util.rgb_augmentations import Gray, Inversion, RandCrop, UniColor
-from dcase2020_task4.util.NoLabelDataLoader import NoLabelDataLoader
 from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
+from dcase2020_task4.util.FnDataLoader import FnDataLoader
+from dcase2020_task4.util.NoLabelDataLoader import NoLabelDataLoader
+from dcase2020_task4.util.other_augments import Gray, Inversion, RandCrop, UniColor
 from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, MaxMetric, FnMetric
 from dcase2020_task4.util.utils_match import cross_entropy, to_batch_fn
 
@@ -32,8 +33,8 @@ def create_args() -> Namespace:
 	parser = ArgumentParser()
 	# TODO : help for acronyms
 	parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "sf", "sp"])
-	parser.add_argument("--logdir", type=str, default="tensorboard")
-	parser.add_argument("--dataset", type=str, default="dataset/CIFAR10")
+	parser.add_argument("--logdir", type=str, default="../../tensorboard")
+	parser.add_argument("--dataset", type=str, default="../../dataset/CIFAR10")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
@@ -63,19 +64,22 @@ def get_cifar_loaders(hparams: edict) -> (DataLoader, DataLoader, DataLoader, Da
 	idx_train_s, idx_train_u = idx_train
 	idx_val = list(range(int(len(val_set) * hparams.dataset_ratio)))
 
-	loader_train_full = DataLoader(
+	process_fn = lambda batch, labels: (batch, one_hot(labels, hparams.nb_classes))
+	loader_train_full = FnDataLoader(
 		train_set, batch_size=hparams.batch_size, sampler=SubsetRandomSampler(idx_train_s + idx_train_u), num_workers=2,
-		drop_last=True
+		drop_last=True, fn=process_fn
 	)
-	loader_train_s = DataLoader(
-		train_set, batch_size=hparams.batch_size, sampler=SubsetRandomSampler(idx_train_s), num_workers=2, drop_last=True
+	loader_train_s = FnDataLoader(
+		train_set, batch_size=hparams.batch_size, sampler=SubsetRandomSampler(idx_train_s), num_workers=2,
+		drop_last=True, fn=process_fn
 	)
 	loader_train_u = NoLabelDataLoader(
-		train_set, batch_size=hparams.batch_size, sampler=SubsetRandomSampler(idx_train_u), num_workers=2, drop_last=True
+		train_set, batch_size=hparams.batch_size, sampler=SubsetRandomSampler(idx_train_u), num_workers=2,
+		drop_last=True
 	)
 
-	loader_val = DataLoader(
-		val_set, batch_size=hparams.batch_size, sampler=SubsetRandomSampler(idx_val), num_workers=2
+	loader_val = FnDataLoader(
+		val_set, batch_size=hparams.batch_size, sampler=SubsetRandomSampler(idx_val), num_workers=2, fn=process_fn
 	)
 
 	return loader_train_full, loader_train_s, loader_train_u, loader_val
@@ -115,13 +119,13 @@ def main():
 		hparams.model_name, get_nb_parameters(model_factory()), get_nb_trainable_parameters(model_factory())))
 
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	weak_augm_fn_x = RandomChoice([
+	weak_augm_fn = to_batch_fn(RandomChoice([
 		HorizontalFlip(0.5),
 		VerticalFlip(0.5),
 		Transform(0.5, scale=(0.75, 1.25)),
 		Transform(0.5, rotation=(-np.pi, np.pi)),
-	])
-	strong_augm_fn_x = Compose([
+	]))
+	strong_augm_fn = to_batch_fn(Compose([
 		RandomChoice([
 			Transform(1.0, scale=(0.5, 1.5)),
 			Transform(1.0, rotation=(-np.pi, np.pi)),
@@ -132,9 +136,9 @@ def main():
 			UniColor(1.0),
 			Inversion(1.0),
 		]),
-	])
+	]))
 	# Augmentation used by MixMatch
-	augment_fn_x = RandomChoice([
+	augment_fn = to_batch_fn(RandomChoice([
 		HorizontalFlip(0.5),
 		VerticalFlip(0.5),
 		Transform(0.5, scale=(0.75, 1.25)),
@@ -143,21 +147,7 @@ def main():
 		RandCrop(0.5, rect_max_scale=(0.2, 0.2)),
 		UniColor(0.5),
 		Inversion(0.5),
-	])
-
-	# Make augmentation work with a batch
-	weak_augm_fn = to_batch_fn(weak_augm_fn_x)
-	strong_augm_fn = to_batch_fn(strong_augm_fn_x)
-	augment_fn = to_batch_fn(augment_fn_x)
-
-	pre_batch_fn = lambda batch: torch.as_tensor(batch).cuda().float()
-	if hparams.mode == "onehot":
-		pre_labels_fn = lambda label: one_hot(torch.as_tensor(label).cuda().long(), hparams.nb_classes).float()
-	elif hparams.mode == "multihot":
-		pre_labels_fn = lambda label: torch.as_tensor(label).cuda().float()
-	else:
-		raise RuntimeError(
-			"Invalid argument \"mode = %s\". Use %s." % (hparams.mode, " or ".join(("onehot", "multihot"))))
+	]))
 
 	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_u = CategoricalConfidenceAccuracy(hparams.confidence)
@@ -175,26 +165,26 @@ def main():
 		hparams_fm.update(hparams)
 		train_fixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, weak_augm_fn, strong_augm_fn,
-			metrics_s, metrics_u, metrics_val_lst, metrics_val_names, pre_batch_fn, pre_labels_fn, hparams_fm
+			metrics_s, metrics_u, metrics_val_lst, metrics_val_names, hparams_fm
 		)
 	if "mm" in args.run:
 		hparams_mm = default_mixmatch_hparams()
 		hparams_mm.update(hparams)
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, augment_fn,
-			metrics_s, metrics_u, metrics_val_lst, metrics_val_names, pre_batch_fn, pre_labels_fn, hparams_mm
+			metrics_s, metrics_u, metrics_val_lst, metrics_val_names, hparams_mm
 		)
 		hparams_mm.criterion_unsupervised = "crossentropy"
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, augment_fn,
-			metrics_s, metrics_u, metrics_val_lst, metrics_val_names, pre_batch_fn, pre_labels_fn, hparams_mm
+			metrics_s, metrics_u, metrics_val_lst, metrics_val_names, hparams_mm
 		)
 	if "rmm" in args.run:
 		hparams_rmm = default_remixmatch_hparams()
 		hparams_rmm.update(hparams)
 		train_remixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, weak_augm_fn, strong_augm_fn,
-			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val_lst, metrics_val_names, pre_batch_fn, pre_labels_fn, hparams_rmm
+			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val_lst, metrics_val_names, hparams_rmm
 		)
 
 	if "sf" in args.run:
@@ -202,14 +192,14 @@ def main():
 		hparams_sf.update(hparams)
 		train_supervised(
 			model_factory(), acti_fn, loader_train_full, loader_val, metrics_s, metrics_val_lst, metrics_val_names,
-			pre_batch_fn, pre_labels_fn, hparams_sf, suffix="full_100"
+			hparams_sf, suffix="full_100"
 		)
 	if "sp" in args.run:
 		hparams_sp = default_supervised_hparams()
 		hparams_sp.update(hparams)
 		train_supervised(
 			model_factory(), acti_fn, loader_train_s, loader_val, metrics_s, metrics_val_lst, metrics_val_names,
-			pre_batch_fn, pre_labels_fn, hparams_sp, suffix="part_%d" % int(100 * hparams_sp.supervised_ratio)
+			hparams_sp, suffix="part_%d" % int(100 * hparams_sp.supervised_ratio)
 		)
 
 	exec_time = time() - prog_start

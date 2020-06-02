@@ -22,8 +22,6 @@ def train_supervised(
 	metrics_s: Metrics,
 	metrics_val_lst: List[Metrics],
 	metrics_val_names: List[str],
-	pre_batch_fn: Callable[[Tensor], Tensor],
-	pre_labels_fn: Callable[[Tensor], Tensor],
 	hparams: edict,
 	suffix: str
 ):
@@ -33,12 +31,10 @@ def train_supervised(
 	writer = build_writer(hparams, suffix=suffix)
 
 	trainer = SupervisedTrainer(
-		model, acti_fn, optim, loader_train_full, cross_entropy_with_logits, metrics_s,
-		writer, pre_batch_fn, pre_labels_fn
+		model, acti_fn, optim, loader_train_full, cross_entropy_with_logits, metrics_s, writer
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, metrics_val_lst, metrics_val_names,
-		writer, pre_batch_fn, pre_labels_fn
+		model, acti_fn, loader_val, metrics_val_lst, metrics_val_names, writer
 	)
 	learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 	learner.start()

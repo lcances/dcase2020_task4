@@ -12,16 +12,19 @@ class ReMixMatchLoss(Callable):
 		self.lambda_u = lambda_u
 		self.lambda_u1 = lambda_u1
 		self.lambda_r = lambda_r
-		self.mode = mode
 
 		self.criterion_r = cross_entropy
 
-		if self.mode == "onehot":
+		if mode == "onehot":
 			self.criterion = cross_entropy
-		elif self.mode == "multihot":
+		elif mode == "multihot":
 			self.criterion = binary_cross_entropy
 		else:
 			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
+
+	@staticmethod
+	def from_edict(hparams) -> 'ReMixMatchLoss':
+		return ReMixMatchLoss(hparams.lambda_u, hparams.lambda_u1, hparams.lambda_r, hparams.mode)
 
 	def __call__(
 		self,

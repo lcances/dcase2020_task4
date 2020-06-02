@@ -3,7 +3,7 @@ from typing import Callable
 
 
 class FnDataLoader(DataLoader):
-	def __init__(self, fn: Callable, *args, **kwargs):
+	def __init__(self, *args, fn: Callable, **kwargs):
 		super().__init__(*args, **kwargs)
 		self.fn = fn
 

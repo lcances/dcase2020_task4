@@ -1,7 +1,5 @@
 
 from easydict import EasyDict as edict
-from time import time
-from torch import Tensor
 from torch.nn import Module
 from torch.optim import SGD
 from torch.utils.data import DataLoader
@@ -10,6 +8,8 @@ from typing import Callable, List
 from dcase2020.pytorch_metrics.metrics import Metrics
 
 from dcase2020_task4.learner import DefaultLearner
+from dcase2020_task4.remixmatch.loss import ReMixMatchLoss
+from dcase2020_task4.remixmatch.mixer import ReMixMatchMixer
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 from dcase2020_task4.util.utils_match import build_writer
 from dcase2020_task4.validator import DefaultValidator
@@ -29,8 +29,6 @@ def train_remixmatch(
 	metrics_r: Metrics,
 	metrics_val_lst: List[Metrics],
 	metrics_val_names: List[str],
-	pre_batch_fn: Callable[[Tensor], Tensor],
-	pre_labels_fn: Callable[[Tensor], Tensor],
 	hparams: edict,
 ):
 	if loader_train_s.batch_size != loader_train_u.batch_size:
@@ -42,12 +40,24 @@ def train_remixmatch(
 	hparams.train_name = "ReMixMatch"
 	writer = build_writer(hparams)
 
+	criterion = ReMixMatchLoss.from_edict(hparams)
+	mixer = ReMixMatchMixer(
+		model,
+		acti_fn,
+		weak_augm_fn,
+		strong_augm_fn,
+		hparams.nb_classes,
+		hparams.nb_augms_strong,
+		hparams.sharpen_temp,
+		hparams.mixup_alpha,
+		hparams.mode
+	)
 	trainer = ReMixMatchTrainer(
 		model, acti_fn, optim, loader_train_s, loader_train_u, weak_augm_fn, strong_augm_fn, metrics_s, metrics_u,
-		metrics_u1, metrics_r, writer, pre_batch_fn, pre_labels_fn, hparams
+		metrics_u1, metrics_r, writer, criterion, mixer
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, metrics_val_lst, metrics_val_names, writer, pre_batch_fn, pre_labels_fn
+		model, acti_fn, loader_val, metrics_val_lst, metrics_val_names, writer
 	)
 	learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 	learner.start()

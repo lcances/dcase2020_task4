@@ -11,8 +11,6 @@ from typing import Callable
 
 from dcase2020.pytorch_metrics.metrics import Metrics
 
-from dcase2020_task4.mixmatch.loss import MixMatchLoss
-from dcase2020_task4.mixmatch.mixer import MixMatchMixer
 from dcase2020_task4.mixmatch.rampup import RampUp
 from dcase2020_task4.trainer import SSTrainer
 from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
@@ -31,9 +29,9 @@ class MixMatchTrainer(SSTrainer):
 		metrics_s: Metrics,
 		metrics_u: Metrics,
 		writer: SummaryWriter,
-		pre_batch_fn: Callable[[Tensor], Tensor],
-		pre_labels_fn: Callable[[Tensor], Tensor],
-		hparams: edict
+		criterion: Callable,
+		mixer: Callable,
+		lambda_u_rampup: RampUp
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -44,17 +42,9 @@ class MixMatchTrainer(SSTrainer):
 		self.metrics_s = metrics_s
 		self.metrics_u = metrics_u
 		self.writer = writer
-		self.pre_batch_fn = pre_batch_fn
-		self.pre_labels_fn = pre_labels_fn
-		self.nb_classes = hparams.nb_classes
-
-		nb_rampup_steps = hparams.nb_epochs * len(loader_train_u)
-
-		self.lambda_u_rampup = RampUp(max_value=hparams.lambda_u_max, nb_steps=nb_rampup_steps)
-		self.mixer = MixMatchMixer(model, acti_fn, augm_fn, hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha)
-		self.criterion = MixMatchLoss(
-			lambda_u=hparams.lambda_u_max, mode=hparams.mode, criterion_unsupervised=hparams.criterion_unsupervised
-		)
+		self.criterion = criterion
+		self.mixer = mixer
+		self.lambda_u_rampup = lambda_u_rampup
 
 	def train(self, epoch: int):
 		train_start = time()
@@ -67,12 +57,12 @@ class MixMatchTrainer(SSTrainer):
 		iter_train = iter(loader_merged)
 
 		for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
-			batch_s = self.pre_batch_fn(batch_s)
-			batch_u = self.pre_batch_fn(batch_u)
-			labels_s = self.pre_labels_fn(labels_s)
+			batch_s = batch_s.cuda().float()
+			labels_s = labels_s.cuda().float()
+			batch_u = batch_u.cuda().float()
 
 			# Apply mix
-			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed = self.mixer.mix(batch_s, labels_s, batch_u)
+			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed = self.mixer(batch_s, labels_s, batch_u)
 
 			# Compute logits
 			logits_s = self.model(batch_s_mixed)
