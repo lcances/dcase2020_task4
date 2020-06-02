@@ -5,6 +5,7 @@ from argparse import ArgumentParser, Namespace
 from easydict import EasyDict as edict
 from time import time
 from torch.nn import Module
+from torch.nn.functional import one_hot
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose
@@ -17,17 +18,14 @@ from dcase2020_task4.util.rgb_augmentations import Gray, Inversion, RandCrop, Un
 from dcase2020_task4.util.NoLabelDataLoader import NoLabelDataLoader
 from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
 from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, MaxMetric, FnMetric
-from dcase2020_task4.util.utils_match import cross_entropy
+from dcase2020_task4.util.utils_match import cross_entropy, to_batch_fn
+
 from dcase2020_task4.resnet import ResNet18
+from dcase2020_task4.train_fixmatch import train_fixmatch, default_fixmatch_hparams
+from dcase2020_task4.train_mixmatch import train_mixmatch, default_mixmatch_hparams
+from dcase2020_task4.train_remixmatch import train_remixmatch, default_remixmatch_hparams
+from dcase2020_task4.train_supervised import train_supervised, default_supervised_hparams
 from dcase2020_task4.vgg import VGG
-from dcase2020_task4.train_fixmatch import train_fixmatch
-from dcase2020_task4.train_fixmatch import default_hparams as add_fm_hparams
-from dcase2020_task4.train_mixmatch import train_mixmatch
-from dcase2020_task4.train_mixmatch import default_hparams as add_mm_hparams
-from dcase2020_task4.train_remixmatch import train_remixmatch
-from dcase2020_task4.train_remixmatch import default_hparams as add_rmm_hparams
-from dcase2020_task4.train_supervised import train_supervised
-from dcase2020_task4.train_supervised import default_hparams as add_s_hparams
 
 
 def create_args() -> Namespace:
@@ -44,7 +42,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--batch_size", type=int, default=16)
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.3)
-	parser.add_argument("--mode", type=str, default="onehot", choices=["onehot", "multihot"])
+	parser.add_argument("--mode", type=str, default="onehot")
 	return parser.parse_args()
 
 
@@ -107,9 +105,9 @@ def main():
 		raise RuntimeError("Unknown model %s" % hparams.model_name)
 
 	if hparams.mode == "onehot":
-		acti_fn = lambda x, dim=1: x.softmax(dim=dim)
+		acti_fn = lambda batch, dim: batch.softmax(dim=dim)
 	elif hparams.mode == "multihot":
-		acti_fn = lambda x, dim=1: x.sigmoid()
+		acti_fn = lambda batch, dim: batch.sigmoid()
 	else:
 		raise RuntimeError("Invalid argument")
 
@@ -148,9 +146,18 @@ def main():
 	])
 
 	# Make augmentation work with a batch
-	weak_augm_fn = lambda batch: torch.stack([weak_augm_fn_x(x).cuda() for x in batch]).cuda()
-	strong_augm_fn = lambda batch: torch.stack([strong_augm_fn_x(x).cuda() for x in batch]).cuda()
-	augment_fn = lambda batch: torch.stack([augment_fn_x(x).cuda() for x in batch]).cuda()
+	weak_augm_fn = to_batch_fn(weak_augm_fn_x)
+	strong_augm_fn = to_batch_fn(strong_augm_fn_x)
+	augment_fn = to_batch_fn(augment_fn_x)
+
+	pre_batch_fn = lambda batch: torch.as_tensor(batch).cuda().float()
+	if hparams.mode == "onehot":
+		pre_labels_fn = lambda label: one_hot(torch.as_tensor(label).cuda().long(), hparams.nb_classes).float()
+	elif hparams.mode == "multihot":
+		pre_labels_fn = lambda label: torch.as_tensor(label).cuda().float()
+	else:
+		raise RuntimeError(
+			"Invalid argument \"mode = %s\". Use %s." % (hparams.mode, " or ".join(("onehot", "multihot"))))
 
 	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_u = CategoricalConfidenceAccuracy(hparams.confidence)
@@ -161,48 +168,48 @@ def main():
 		MaxMetric(),
 		FnMetric(cross_entropy),
 	]
-	metrics_names = ["acc", "max", "loss"]
+	metrics_val_names = ["acc", "max", "loss"]
 
 	if "fm" in args.run:
-		hparams_fm = edict(hparams)
-		add_fm_hparams(hparams_fm)
+		hparams_fm = default_fixmatch_hparams()
+		hparams_fm.update(hparams)
 		train_fixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, weak_augm_fn, strong_augm_fn,
-			metrics_s, metrics_u, metrics_val_lst, metrics_names, hparams_fm
+			metrics_s, metrics_u, metrics_val_lst, metrics_val_names, pre_batch_fn, pre_labels_fn, hparams_fm
 		)
 	if "mm" in args.run:
-		hparams_mm = edict(hparams)
-		add_mm_hparams(hparams_mm)
+		hparams_mm = default_mixmatch_hparams()
+		hparams_mm.update(hparams)
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, augment_fn,
-			metrics_s, metrics_u, metrics_val_lst, metrics_names, hparams_mm
+			metrics_s, metrics_u, metrics_val_lst, metrics_val_names, pre_batch_fn, pre_labels_fn, hparams_mm
 		)
 		hparams_mm.criterion_unsupervised = "crossentropy"
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, augment_fn,
-			metrics_s, metrics_u, metrics_val_lst, metrics_names, hparams_mm
+			metrics_s, metrics_u, metrics_val_lst, metrics_val_names, pre_batch_fn, pre_labels_fn, hparams_mm
 		)
 	if "rmm" in args.run:
-		hparams_rmm = edict(hparams)
-		add_rmm_hparams(hparams_rmm)
+		hparams_rmm = default_remixmatch_hparams()
+		hparams_rmm.update(hparams)
 		train_remixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, weak_augm_fn, strong_augm_fn,
-			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val_lst, metrics_names, hparams_rmm
+			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val_lst, metrics_val_names, pre_batch_fn, pre_labels_fn, hparams_rmm
 		)
 
 	if "sf" in args.run:
-		hparams_sf = edict(hparams)
-		add_s_hparams(hparams_sf)
+		hparams_sf = default_supervised_hparams()
+		hparams_sf.update(hparams)
 		train_supervised(
-			model_factory(), acti_fn, loader_train_full, loader_val, metrics_s, metrics_val_lst, metrics_names,
-			hparams_sf, suffix="full_100"
+			model_factory(), acti_fn, loader_train_full, loader_val, metrics_s, metrics_val_lst, metrics_val_names,
+			pre_batch_fn, pre_labels_fn, hparams_sf, suffix="full_100"
 		)
 	if "sp" in args.run:
-		hparams_sp = edict(hparams)
-		add_s_hparams(hparams_sp)
+		hparams_sp = default_supervised_hparams()
+		hparams_sp.update(hparams)
 		train_supervised(
-			model_factory(), acti_fn, loader_train_s, loader_val, metrics_s, metrics_val_lst, metrics_names,
-			hparams_sp, suffix="part_%d" % int(100 * hparams.supervised_ratio)
+			model_factory(), acti_fn, loader_train_s, loader_val, metrics_s, metrics_val_lst, metrics_val_names,
+			pre_batch_fn, pre_labels_fn, hparams_sp, suffix="part_%d" % int(100 * hparams_sp.supervised_ratio)
 		)
 
 	exec_time = time() - prog_start
