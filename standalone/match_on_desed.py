@@ -38,6 +38,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.5)
 	parser.add_argument("--mode", type=str, default="multihot")
+	parser.add_argument("--from_disk", type=bool, default=False)
 	return parser.parse_args()
 
 
@@ -47,7 +48,7 @@ def get_desed_loaders(hparams: edict) -> (DataLoader, DataLoader, DataLoader):
 
 	manager_s = DESEDManager(
 		desed_metadata_root, desed_audio_root,
-		from_disk=True,
+		from_disk=hparams.from_disk,
 		sampling_rate=22050,
 		validation_ratio=0.2,
 		verbose=1
@@ -57,7 +58,7 @@ def get_desed_loaders(hparams: edict) -> (DataLoader, DataLoader, DataLoader):
 
 	manager_u = DESEDManager(
 		desed_metadata_root, desed_audio_root,
-		from_disk=True,
+		from_disk=hparams.from_disk,
 		sampling_rate=22050,
 		validation_ratio=0.0,
 		verbose=1

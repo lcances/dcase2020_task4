@@ -97,7 +97,7 @@ class FixMatchTrainer(SSTrainer):
 			acc_train_s.append(self.metrics_s.value.item())
 			acc_train_u.append(self.metrics_u.value.item())
 
-			print("Epoch {}, {:d}% \t loss: {:.4e} - acc_s: {:.4e} - acc_u: {:.4e} - took {:.4e}s".format(
+			print("Epoch {}, {:d}% \t loss: {:.4e} - acc_s: {:.4e} - acc_u: {:.4e} - took {:.2f}s".format(
 				epoch + 1,
 				int(100 * (i + 1) / len(loader_merged)),
 				loss.item(),
