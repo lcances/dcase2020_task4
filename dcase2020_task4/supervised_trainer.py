@@ -53,7 +53,7 @@ class SupervisedTrainer(Trainer):
 			accuracy = self.metrics(pred, y)
 
 			# Update model
-			loss = self.criterion(logits, y).mean()
+			loss = self.criterion(pred, y).mean()
 			self.optim.zero_grad()
 			loss.backward()
 			self.optim.step()

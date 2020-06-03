@@ -25,8 +25,8 @@ class FixMatchTrainer(SSTrainer):
 		loader_train_u: DataLoader,
 		weak_augm_fn: Callable[[Tensor], Tensor],
 		strong_augm_fn: Callable[[Tensor], Tensor],
-		metrics_s: Metrics,
-		metrics_u: Metrics,
+		metric_s: Metrics,
+		metric_u: Metrics,
 		writer: SummaryWriter,
 		criterion: Callable,
 		mode: str = "onehot",
@@ -39,8 +39,8 @@ class FixMatchTrainer(SSTrainer):
 		self.loader_train_u = loader_train_u
 		self.weak_augm_fn = weak_augm_fn
 		self.strong_augm_fn = strong_augm_fn
-		self.metrics_s = metrics_s
-		self.metrics_u = metrics_u
+		self.metric_s = metric_s
+		self.metric_u = metric_u
 		self.writer = writer
 		self.criterion = criterion
 		self.mode = mode
@@ -48,8 +48,8 @@ class FixMatchTrainer(SSTrainer):
 
 	def train(self, epoch: int):
 		train_start = time()
-		self.metrics_s.reset()
-		self.metrics_u.reset()
+		self.metric_s.reset()
+		self.metric_u.reset()
 		self.model.train()
 
 		losses, acc_train_s, acc_train_u = [], [], []
@@ -83,8 +83,8 @@ class FixMatchTrainer(SSTrainer):
 			else:
 				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
 
-			mean_acc_s = self.metrics_s(pred_s_weak, labels_s)
-			mean_acc_u = self.metrics_u(pred_u_strong, labels_u_guessed)
+			mean_acc_s = self.metric_s(pred_s_weak, labels_s)
+			mean_acc_u = self.metric_u(pred_u_strong, labels_u_guessed)
 
 			# Update model
 			loss = self.criterion(pred_s_weak, labels_s, pred_u_weak, pred_u_strong, labels_u_guessed)
@@ -94,8 +94,8 @@ class FixMatchTrainer(SSTrainer):
 
 			# Store data
 			losses.append(loss.item())
-			acc_train_s.append(self.metrics_s.value.item())
-			acc_train_u.append(self.metrics_u.value.item())
+			acc_train_s.append(self.metric_s.value.item())
+			acc_train_u.append(self.metric_u.value.item())
 
 			print("Epoch {}, {:d}% \t loss: {:.4e} - acc_s: {:.4e} - acc_u: {:.4e} - took {:.2f}s".format(
 				epoch + 1,

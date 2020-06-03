@@ -33,3 +33,17 @@ class FnMetric(Metrics):
 class MaxMetric(FnMetric):
 	def __init__(self):
 		super().__init__(lambda y_pred, y_true: y_pred.max(dim=1)[0])
+
+
+class EqConfidenceMetric(Metrics):
+	def __init__(self, confidence: float, epsilon: float = 1e-10):
+		super().__init__(epsilon)
+		self.confidence = confidence
+
+	def __call__(self, pred: Tensor, labels: Tensor):
+		y_pred = (pred > self.confidence).float()
+		y_true = (labels > self.confidence).float()
+
+		self.value = (y_pred == y_true).all()
+		self.accumulate_value += self.value
+		return self.accumulate_value / self.count

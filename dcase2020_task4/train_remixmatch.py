@@ -3,7 +3,7 @@ from easydict import EasyDict as edict
 from torch.nn import Module
 from torch.optim import SGD
 from torch.utils.data import DataLoader
-from typing import Callable, List
+from typing import Callable, Dict
 
 from dcase2020.pytorch_metrics.metrics import Metrics
 
@@ -24,12 +24,11 @@ def train_remixmatch(
 	loader_val: DataLoader,
 	weak_augm_fn: Callable,
 	strong_augm_fn: Callable,
-	metrics_s: Metrics,
-	metrics_u: Metrics,
-	metrics_u1: Metrics,
-	metrics_r: Metrics,
-	metrics_val_lst: List[Metrics],
-	metrics_val_names: List[str],
+	metric_s: Metrics,
+	metric_u: Metrics,
+	metric_u1: Metrics,
+	metric_r: Metrics,
+	metrics_val: Dict[str, Metrics],
 	hparams: edict,
 ):
 	if loader_train_s.batch_size != loader_train_u.batch_size:
@@ -57,11 +56,11 @@ def train_remixmatch(
 		hparams.mode
 	)
 	trainer = ReMixMatchTrainer(
-		model, acti_fn, optim, loader_train_s, loader_train_u, weak_augm_fn, strong_augm_fn, metrics_s, metrics_u,
-		metrics_u1, metrics_r, writer, criterion, mixer, distributions
+		model, acti_fn, optim, loader_train_s, loader_train_u, weak_augm_fn, strong_augm_fn, metric_s, metric_u,
+		metric_u1, metric_r, writer, criterion, mixer, distributions
 	)
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, metrics_val_lst, metrics_val_names, writer
+		model, acti_fn, loader_val, metrics_val, writer
 	)
 	learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 	learner.start()

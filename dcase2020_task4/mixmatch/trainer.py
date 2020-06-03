@@ -24,8 +24,8 @@ class MixMatchTrainer(SSTrainer):
 		loader_train_s: DataLoader,
 		loader_train_u: DataLoader,
 		augm_fn: Callable,
-		metrics_s: Metrics,
-		metrics_u: Metrics,
+		metric_s: Metrics,
+		metric_u: Metrics,
 		writer: SummaryWriter,
 		criterion: Callable,
 		mixer: Callable,
@@ -37,8 +37,8 @@ class MixMatchTrainer(SSTrainer):
 		self.loader_train_s = loader_train_s
 		self.loader_train_u = loader_train_u
 		self.augm_fn = augm_fn
-		self.metrics_s = metrics_s
-		self.metrics_u = metrics_u
+		self.metric_s = metric_s
+		self.metric_u = metric_u
 		self.writer = writer
 		self.criterion = criterion
 		self.mixer = mixer
@@ -46,8 +46,8 @@ class MixMatchTrainer(SSTrainer):
 
 	def train(self, epoch: int):
 		train_start = time()
-		self.metrics_s.reset()
-		self.metrics_u.reset()
+		self.metric_s.reset()
+		self.metric_u.reset()
 		self.model.train()
 
 		losses, acc_train_s, acc_train_u = [], [], []
@@ -70,8 +70,8 @@ class MixMatchTrainer(SSTrainer):
 			pred_s = self.acti_fn(logits_s, dim=1)
 			pred_u = self.acti_fn(logits_u, dim=1)
 
-			mean_acc_s = self.metrics_s(pred_s, labels_s_mixed)
-			mean_acc_u = self.metrics_u(pred_u, labels_u_mixed)
+			mean_acc_s = self.metric_s(pred_s, labels_s_mixed)
+			mean_acc_u = self.metric_u(pred_u, labels_u_mixed)
 
 			# Update model
 			self.criterion.lambda_u = self.lambda_u_rampup.value()
@@ -84,8 +84,8 @@ class MixMatchTrainer(SSTrainer):
 
 			# Store data
 			losses.append(loss.item())
-			acc_train_s.append(self.metrics_s.value.item())
-			acc_train_u.append(self.metrics_u.value.item())
+			acc_train_s.append(self.metric_s.value.item())
+			acc_train_u.append(self.metric_u.value.item())
 
 			print("Epoch {}, {:d}% \t loss: {:.4e} - acc_s: {:.4e} - acc_u: {:.4e} - took {:.2f}s".format(
 				epoch + 1,

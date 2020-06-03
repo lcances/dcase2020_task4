@@ -3,11 +3,10 @@ import torch
 
 from abc import ABC
 from time import time
-from torch import Tensor
 from torch.nn import Module
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, List
+from typing import Callable, Dict
 
 from dcase2020.pytorch_metrics.metrics import Metrics
 
@@ -26,25 +25,23 @@ class DefaultValidator(Validator):
 		model: Module,
 		acti_fn: Callable,
 		loader: DataLoader,
-		metrics_lst: List[Metrics],
-		metrics_names: List[str],
+		metrics: Dict[str, Metrics],
 		writer: SummaryWriter
 	):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.loader = loader
-		self.metrics_lst = metrics_lst
-		self.metrics_names = metrics_names
+		self.metrics = metrics
 		self.writer = writer
 
 	def val(self, epoch: int):
 		with torch.no_grad():
 			val_start = time()
-			for metrics in self.metrics_lst:
-				metrics.reset()
+			for metric in self.metrics.values():
+				metric.reset()
 			self.model.eval()
 
-			metrics_values = [[] for _ in range(len(self.metrics_lst))]
+			metrics_values_dict = {metric_name: [] for metric_name in self.metrics.keys()}
 			iter_val = iter(self.loader)
 
 			for i, (x, y) in enumerate(iter_val):
@@ -56,11 +53,11 @@ class DefaultValidator(Validator):
 
 				buffer = []
 
-				# Compute metrics and store them in buffer for print and in metrics_values for writer
-				for values, metrics, name in zip(metrics_values, self.metrics_lst, self.metrics_names):
-					cur_mean_value = metrics(pred_x, y)
-					buffer.append("%s: %.4e" % (name, cur_mean_value))
-					values.append(metrics.value.item())
+				# Compute metrics and store them in buffer for print and in metrics_values_dict for writer
+				for metric_name, metric in self.metrics.items():
+					cur_mean_value = metric(pred_x, y)
+					buffer.append("%s: %.4e" % (metric_name, cur_mean_value))
+					metrics_values_dict[metric_name].append(metric.value.item())
 
 				# Add time elapsed since the beginning of validation
 				buffer.append("took %.2fs" % (time() - val_start))
@@ -74,8 +71,8 @@ class DefaultValidator(Validator):
 
 			print("")
 
-			for values, name in zip(metrics_values, self.metrics_names):
-				self.writer.add_scalar("val/%s" % name, float(np.mean(values)), epoch)
+			for metric_name, metric_values in metrics_values_dict.items():
+				self.writer.add_scalar("val/%s" % metric_name, float(np.mean(metric_values)), epoch)
 
 	def nb_examples(self) -> int:
 		return len(self.loader) * self.loader.batch_size

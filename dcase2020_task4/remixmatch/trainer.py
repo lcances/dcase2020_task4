@@ -29,10 +29,10 @@ class ReMixMatchTrainer(SSTrainer):
 		loader_train_u: DataLoader,
 		weak_augm_fn: Callable,
 		strong_augm_fn: Callable,
-		metrics_s: Metrics,
-		metrics_u: Metrics,
-		metrics_u1: Metrics,
-		metrics_r: Metrics,
+		metric_s: Metrics,
+		metric_u: Metrics,
+		metric_u1: Metrics,
+		metric_r: Metrics,
 		writer: SummaryWriter,
 		criterion: Callable,
 		mixer: Callable,
@@ -49,10 +49,10 @@ class ReMixMatchTrainer(SSTrainer):
 		self.loader_train_u = loader_train_u
 		self.weak_augm_fn = weak_augm_fn
 		self.strong_augm_fn = strong_augm_fn
-		self.metrics_s = metrics_s
-		self.metrics_u = metrics_u
-		self.metrics_u1 = metrics_u1
-		self.metrics_r = metrics_r
+		self.metric_s = metric_s
+		self.metric_u = metric_u
+		self.metric_u1 = metric_u1
+		self.metric_r = metric_r
 		self.writer = writer
 		self.criterion = criterion
 		self.mixer = mixer
@@ -62,10 +62,10 @@ class ReMixMatchTrainer(SSTrainer):
 
 	def train(self, epoch: int):
 		train_start = time()
-		self.metrics_s.reset()
-		self.metrics_u.reset()
-		self.metrics_u1.reset()
-		self.metrics_r.reset()
+		self.metric_s.reset()
+		self.metric_u.reset()
+		self.metric_u1.reset()
+		self.metric_r.reset()
 		self.model.train()
 
 		angles_allowed = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
@@ -103,10 +103,10 @@ class ReMixMatchTrainer(SSTrainer):
 			pred_u1 = self.acti_fn(logits_u1, dim=1)
 			pred_r = self.acti_fn_rot(logits_r, dim=1)
 
-			mean_acc_s = self.metrics_s(pred_s, labels_s_mixed)
-			mean_acc_u = self.metrics_u(pred_u, labels_u_mixed)
-			mean_acc_u1 = self.metrics_u1(pred_u1, labels_u1)
-			mean_acc_r = self.metrics_r(pred_r, labels_r)
+			mean_acc_s = self.metric_s(pred_s, labels_s_mixed)
+			mean_acc_u = self.metric_u(pred_u, labels_u_mixed)
+			mean_acc_u1 = self.metric_u1(pred_u1, labels_u1)
+			mean_acc_r = self.metric_r(pred_r, labels_r)
 
 			# Update model
 			loss = self.criterion(
@@ -122,10 +122,10 @@ class ReMixMatchTrainer(SSTrainer):
 
 			# Store data
 			losses.append(loss.item())
-			acc_train_s.append(self.metrics_s.value.item())
-			acc_train_u.append(self.metrics_u.value.item())
-			acc_train_u1.append(self.metrics_u1.value.item())
-			acc_train_r.append(self.metrics_r.value.item())
+			acc_train_s.append(self.metric_s.value.item())
+			acc_train_u.append(self.metric_u.value.item())
+			acc_train_u1.append(self.metric_u1.value.item())
+			acc_train_r.append(self.metric_r.value.item())
 
 			print(
 				"Epoch {}, {:d}% \t loss: {:.4e} - acc_s: {:.4e} - acc_u: {:.4e} - acc_u1: {:.4e} - acc_r: {:.4e} - took {:.2f}s".format(

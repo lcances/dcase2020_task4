@@ -19,7 +19,7 @@ from dcase2020_task4.train_remixmatch import train_remixmatch, default_remixmatc
 from dcase2020_task4.train_supervised import train_supervised, default_supervised_hparams
 from dcase2020_task4.util.FnDataLoader import FnDataLoader
 from dcase2020_task4.util.NoLabelDataLoader import NoLabelDataLoader
-from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, FnMetric, MaxMetric
+from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, FnMetric, MaxMetric, EqConfidenceMetric
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_match import to_batch_fn
 from dcase2020_task4.weak_baseline_rot import WeakBaselineRot
@@ -124,16 +124,16 @@ def main():
 		Occlusion(0.5),
 	]))
 
-	metrics_s = CategoricalConfidenceAccuracy(hparams.confidence)
-	metrics_u = CategoricalConfidenceAccuracy(hparams.confidence)
-	metrics_u1 = CategoricalConfidenceAccuracy(hparams.confidence)
-	metrics_r = CategoricalConfidenceAccuracy(hparams.confidence)
-	metrics_val_lst = [
-		CategoricalConfidenceAccuracy(hparams.confidence),
-		MaxMetric(),
-		FnMetric(binary_cross_entropy),
-	]
-	metrics_val_names = ["acc", "max", "loss"]
+	metric_s = CategoricalConfidenceAccuracy(hparams.confidence)
+	metric_u = CategoricalConfidenceAccuracy(hparams.confidence)
+	metric_u1 = CategoricalConfidenceAccuracy(hparams.confidence)
+	metric_r = CategoricalConfidenceAccuracy(hparams.confidence)
+	metrics_val = {
+		"acc": CategoricalConfidenceAccuracy(hparams.confidence),
+		"max": MaxMetric(),
+		"loss": FnMetric(binary_cross_entropy),
+		"eq": EqConfidenceMetric(hparams.confidence)
+	}
 
 	loader_train_s, loader_train_u, loader_val = get_desed_loaders(hparams)
 
@@ -142,33 +142,33 @@ def main():
 		hparams_fm.update(hparams)
 		train_fixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, weak_augm_fn, strong_augm_fn,
-			metrics_s, metrics_u, metrics_val_lst, metrics_val_names, hparams_fm
+			metric_s, metric_u, metrics_val, hparams_fm
 		)
 	if "mm" in args.run:
 		hparams_mm = default_mixmatch_hparams()
 		hparams_mm.update(hparams)
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, augment_fn,
-			metrics_s, metrics_u, metrics_val_lst, metrics_val_names, hparams_mm
+			metric_s, metric_u, metrics_val, hparams_mm
 		)
 		hparams_mm.criterion_unsupervised = "crossentropy"
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, augment_fn,
-			metrics_s, metrics_u, metrics_val_lst, metrics_val_names, hparams_mm
+			metric_s, metric_u, metrics_val, hparams_mm
 		)
 	if "rmm" in args.run:
 		hparams_rmm = default_remixmatch_hparams()
 		hparams_rmm.update(hparams)
 		train_remixmatch(
 			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, weak_augm_fn, strong_augm_fn,
-			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val_lst, metrics_val_names, hparams_rmm
+			metric_s, metric_u, metric_u1, metric_r, metrics_val, hparams_rmm
 		)
 
 	if "sf" in args.run:
 		hparams_sf = default_supervised_hparams()
 		hparams_sf.update(hparams)
 		train_supervised(
-			model_factory(), acti_fn, loader_train_s, loader_val, metrics_s, metrics_val_lst, metrics_val_names,
+			model_factory(), acti_fn, loader_train_s, loader_val, metric_s, metrics_val,
 			hparams_sf, suffix="full_100"
 		)
 
