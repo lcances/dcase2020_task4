@@ -58,6 +58,8 @@ class ReMixMatchTrainer(SSTrainer):
 		self.mixer = mixer
 		self.distributions = distributions
 
+		self.acti_fn_rot = lambda batch, dim: batch.softmax(dim=dim)
+
 	def train(self, epoch: int):
 		train_start = time()
 		self.metrics_s.reset()
@@ -99,7 +101,7 @@ class ReMixMatchTrainer(SSTrainer):
 			pred_s = self.acti_fn(logits_s, dim=1)
 			pred_u = self.acti_fn(logits_u, dim=1)
 			pred_u1 = self.acti_fn(logits_u1, dim=1)
-			pred_r = self.acti_fn(logits_r, dim=1)
+			pred_r = self.acti_fn_rot(logits_r, dim=1)
 
 			mean_acc_s = self.metrics_s(pred_s, labels_s_mixed)
 			mean_acc_u = self.metrics_u(pred_u, labels_u_mixed)

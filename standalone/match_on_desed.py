@@ -38,7 +38,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.5)
 	parser.add_argument("--mode", type=str, default="multihot")
-	parser.add_argument("--from_disk", type=bool, default=False)
+	parser.add_argument("--from_disk", type=bool, default=False,
+						help="Select False if you want ot load all data into RAM.")
 	return parser.parse_args()
 
 
@@ -72,10 +73,14 @@ def get_desed_loaders(hparams: edict) -> (DataLoader, DataLoader, DataLoader):
 
 	# Create loaders
 	process_fn = lambda batch, labels: (batch, labels[0])
-	loader_train_s = FnDataLoader(dataset_train_s, batch_size=hparams.batch_size, shuffle=True, fn=process_fn)
-	loader_val = FnDataLoader(dataset_val, batch_size=hparams.batch_size, shuffle=False, fn=process_fn)
+	loader_train_s = FnDataLoader(
+		dataset_train_s, batch_size=hparams.batch_size, shuffle=True, num_workers=2, drop_last=True, fn=process_fn)
 
-	loader_train_u = NoLabelDataLoader(dataset_train_u, batch_size=hparams.batch_size, shuffle=True)
+	loader_val = FnDataLoader(
+		dataset_val, batch_size=hparams.batch_size, shuffle=False, num_workers=2, fn=process_fn)
+
+	loader_train_u = NoLabelDataLoader(
+		dataset_train_u, batch_size=hparams.batch_size, shuffle=True, num_workers=2, drop_last=True)
 
 	return loader_train_s, loader_train_u, loader_val
 

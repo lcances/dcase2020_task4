@@ -1,7 +1,6 @@
-from torch.utils.data import DataLoader
+from dcase2020_task4.util.FnDataLoader import FnDataLoader
 
 
-class NoLabelDataLoader(DataLoader):
-	def __iter__(self):
-		for x, _y in super().__iter__():
-			yield [x]
+class NoLabelDataLoader(FnDataLoader):
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, fn=lambda x, y: [x], **kwargs)
