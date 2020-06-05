@@ -4,7 +4,7 @@ from typing import Iterable, Sized
 
 class ZipLongestCycle(Iterable, Sized):
 	"""
-		Zip through a list of iterables of different lengths.
+		Zip through a list of iterables and sized object of different lengths.
 		When a iterable smaller than the longest is over, this iterator is reset to the beginning.
 
 		Example :
@@ -23,13 +23,11 @@ class ZipLongestCycle(Iterable, Sized):
 	"""
 
 	def __init__(self, iterables: list):
-		self._iterables = iterables
-
-		# Check iterable size for avoid exception in __iter__
-		for iterable in self._iterables:
+		for iterable in iterables:
 			if len(iterable) == 0:
 				raise RuntimeError("An iterable is empty.")
 
+		self._iterables = iterables
 		self._len = max([len(iterable) for iterable in self._iterables])
 
 	def __iter__(self) -> list:

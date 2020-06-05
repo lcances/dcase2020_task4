@@ -6,8 +6,6 @@ from torch.optim import SGD
 from torch.utils.data import DataLoader
 from typing import Callable, Dict
 
-from dcase2020.pytorch_metrics.metrics import Metrics
-
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.remixmatch.loss import ReMixMatchLoss
 from dcase2020_task4.remixmatch.mixer import ReMixMatchMixer
@@ -16,12 +14,14 @@ from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 from dcase2020_task4.util.utils_match import build_writer
 from dcase2020_task4.validator import DefaultValidator
 
+from metric_utils.metrics import Metrics
+
 
 def train_remixmatch(
 	model: Module,
 	acti_fn: Callable,
-	loader_train_s: DataLoader,
-	loader_train_u: DataLoader,
+	loader_train_s_strong: DataLoader,
+	loader_train_u_weak_strongs: DataLoader,
 	loader_val: DataLoader,
 	metric_s: Metrics,
 	metric_u: Metrics,
@@ -30,9 +30,9 @@ def train_remixmatch(
 	metrics_val: Dict[str, Metrics],
 	hparams: edict,
 ):
-	if loader_train_s.batch_size != loader_train_u.batch_size:
+	if loader_train_s_strong.batch_size != loader_train_u_weak_strongs.batch_size:
 		raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
-			loader_train_s.batch_size, loader_train_u.batch_size))
+			loader_train_s_strong.batch_size, loader_train_u_weak_strongs.batch_size))
 
 	rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
 	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
@@ -54,7 +54,7 @@ def train_remixmatch(
 		hparams.mode
 	)
 	trainer = ReMixMatchTrainer(
-		model, acti_fn, optim, loader_train_s, loader_train_u, metric_s, metric_u,
+		model, acti_fn, optim, loader_train_s_strong, loader_train_u_weak_strongs, metric_s, metric_u,
 		metric_u1, metric_r, writer, criterion, mixer, distributions, rot_angles
 	)
 	validator = DefaultValidator(

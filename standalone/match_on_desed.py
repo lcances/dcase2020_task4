@@ -13,8 +13,9 @@ from torch.nn.functional import binary_cross_entropy
 from torch.utils.data import DataLoader
 from torchvision.transforms import RandomChoice, Compose
 
-from dcase2020.augmentation_utils.img_augmentations import Transform
-from dcase2020.augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Noise, Occlusion
+from augmentation_utils.img_augmentations import Transform
+from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Noise, Occlusion
+
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
@@ -36,13 +37,13 @@ def create_args() -> Namespace:
 	parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "sf"], choices=["fm", "mm", "rmm", "sf"])
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED")
+	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
-	parser.add_argument("--batch_size", type=int, default=64)
+	parser.add_argument("--batch_size", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.5)
-	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--from_disk", type=bool, default=True,
 						help="Select False if you want ot load all data into RAM.")
 	parser.add_argument("--num_workers_s", type=int, default=4)
@@ -98,6 +99,7 @@ def main():
 	model_factory = lambda: WeakBaselineRot().cuda()
 	acti_fn = lambda batch, dim: batch.sigmoid()
 
+	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	weak_augm_fn = RandomChoice([
 		Transform(0.5, scale=(0.75, 1.25)),
 		Transform(0.5, rotation=(-np.pi, np.pi)),
@@ -114,6 +116,7 @@ def main():
 			Occlusion(1.0),
 		]),
 	])
+	# Augmentation used by MixMatch
 	augment_fn = RandomChoice([
 		Transform(0.5, scale=(0.75, 1.25)),
 		Transform(0.5, rotation=(-np.pi, np.pi)),
@@ -140,30 +143,31 @@ def main():
 	dataset_val = FnDataset(dataset_val, get_batch_label)
 	loader_val = DataLoader(dataset_val, batch_size=hparams.batch_size, shuffle=False)
 
+	args_dataset_train_s = dict(manager=manager_s, train=True, val=False, cached=True, weak=True, strong=False)
+	args_dataset_train_s_augm = dict(manager=manager_s, train=True, val=False, cached=False, weak=True, strong=False)
+	args_dataset_train_u_augm = dict(manager=manager_u, train=True, val=False, cached=False, weak=False, strong=False)
+	args_loader_train_s = dict(
+		batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_s, drop_last=True)
+	args_loader_train_u = dict(
+		batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_u, drop_last=True)
+
 	if "fm" in args.run:
 		hparams_fm = default_fixmatch_hparams()
 		hparams_fm.update(hparams)
 
-		dataset_train_s_weak = DESEDDataset(
-			manager_s, train=True, val=False, augments=[weak_augm_fn], cached=False, weak=True, strong=False)
+		dataset_train_s_weak = DESEDDataset(augments=[weak_augm_fn], **args_dataset_train_s_augm)
 		dataset_train_s_weak = FnDataset(dataset_train_s_weak, get_batch_label)
 
-		dataset_train_u_weak = DESEDDataset(
-			manager_u, train=True, val=False, augments=[weak_augm_fn], cached=False, weak=False, strong=False)
+		dataset_train_u_weak = DESEDDataset(augments=[weak_augm_fn], **args_dataset_train_u_augm)
 		dataset_train_u_weak = NoLabelDataset(dataset_train_u_weak)
 
-		dataset_train_u_strong = DESEDDataset(
-			manager_u, train=True, val=False, augments=[strong_augm_fn], cached=False, weak=False, strong=False)
+		dataset_train_u_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_u_augm)
 		dataset_train_u_strong = NoLabelDataset(dataset_train_u_strong)
 
 		dataset_train_u_weak_strong = MultipleDataset([dataset_train_u_weak, dataset_train_u_strong])
 
-		loader_train_s_weak = DataLoader(
-			dataset_train_s_weak, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_s,
-			drop_last=True)
-		loader_train_u_weak_strong = DataLoader(
-			dataset_train_u_weak_strong, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_u,
-			drop_last=True)
+		loader_train_s_weak = DataLoader(dataset=dataset_train_s_weak, **args_loader_train_s)
+		loader_train_u_weak_strong = DataLoader(dataset=dataset_train_u_weak_strong, **args_loader_train_u)
 
 		train_fixmatch(
 			model_factory(), acti_fn, loader_train_s_weak, loader_train_u_weak_strong, loader_val,
@@ -174,66 +178,61 @@ def main():
 		hparams_mm = default_mixmatch_hparams()
 		hparams_mm.update(hparams)
 
-		dataset_train_s_augm = DESEDDataset(manager_s, train=True, val=False, augments=[augment_fn], cached=False,
-											weak=True, strong=False)
+		dataset_train_s_augm = DESEDDataset(augments=[augment_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm = FnDataset(dataset_train_s_augm, get_batch_label)
 
-		dataset_train_u_augm = DESEDDataset(manager_u, train=True, val=False, augments=[augment_fn], cached=False,
-											weak=False, strong=False)
+		dataset_train_u_augm = DESEDDataset(augments=[augment_fn], **args_dataset_train_u_augm)
 		dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm)
 
 		dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * hparams.nb_augms)
 
-		loader_train_s_augm = DataLoader(
-			dataset_train_s_augm, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_s,
-			drop_last=True)
-		loader_train_u_augms = DataLoader(
-			dataset_train_u_augms, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_u,
-			drop_last=True)
+		loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm, **args_loader_train_s)
+		loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
 
+		# Train MixMatch with sqdiff for loss_u
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
 			metric_s, metric_u, metrics_val, hparams_mm
 		)
+		# Train MixMatch with crossentropy for loss_u
 		hparams_mm.criterion_unsupervised = "crossentropy"
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
 			metric_s, metric_u, metrics_val, hparams_mm
 		)
+
 	if "rmm" in args.run:
 		hparams_rmm = default_remixmatch_hparams()
 		hparams_rmm.update(hparams)
 
-		# ReMixMatch
-		dataset_train_s_strong = DESEDDataset(manager_s, train=True, val=False, augments=[strong_augm_fn], cached=False,
-											  weak=True, strong=False)
-		dataset_train_u_weak = DESEDDataset(manager_u, train=True, val=False, augments=[weak_augm_fn], cached=False,
-											weak=False, strong=False)
-		dataset_train_u_strong = DESEDDataset(manager_u, train=True, val=False, augments=[strong_augm_fn], cached=False,
-											  weak=False, strong=False)
+		dataset_train_s_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_s_augm)
+		dataset_train_s_strong = FnDataset(dataset_train_s_strong, get_batch_label)
+
+		dataset_train_u_weak = DESEDDataset(augments=[weak_augm_fn], **args_dataset_train_u_augm)
+		dataset_train_u_weak = NoLabelDataset(dataset_train_u_weak)
+
+		dataset_train_u_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_u_augm)
+		dataset_train_u_strong = NoLabelDataset(dataset_train_u_strong)
+
 		dataset_train_u_strongs = MultipleDataset([dataset_train_u_strong] * hparams.nb_augms_strong)
 		dataset_train_u_weak_strongs = MultipleDataset([dataset_train_u_weak, dataset_train_u_strongs])
 
-		loader_train_s_strong = DataLoader(
-			dataset_train_s_strong, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_s,
-			drop_last=True)
-		loader_train_u_weak_strongs = DataLoader(
-			dataset_train_u_weak_strongs, batch_size=hparams.batch_size, shuffle=True,
-			num_workers=hparams.num_workers_u, drop_last=True)
+		loader_train_s_strong = DataLoader(dataset=dataset_train_s_strong, **args_loader_train_s)
+		loader_train_u_weak_strongs = DataLoader(dataset=dataset_train_u_weak_strongs, **args_loader_train_u)
 
 		train_remixmatch(
 			model_factory(), acti_fn, loader_train_s_strong, loader_train_u_weak_strongs, loader_val,
 			metric_s, metric_u, metric_u1, metric_r, metrics_val, hparams_rmm
 		)
+
 	if "sf" in args.run:
 		hparams_sf = default_supervised_hparams()
 		hparams_sf.update(hparams)
 
-		dataset_train_s = DESEDDataset(
-			manager_s, train=True, val=False, augments=[], cached=True, weak=True, strong=False)
+		dataset_train_s = DESEDDataset(**args_dataset_train_s)
 		dataset_train_s = FnDataset(dataset_train_s, get_batch_label)
-		loader_train_s = DataLoader(
-			dataset_train_s, batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_s, drop_last=True)
+
+		loader_train_s = DataLoader(dataset=dataset_train_s, **args_loader_train_s)
 
 		train_supervised(
 			model_factory(), acti_fn, loader_train_s, loader_val, metric_s, metrics_val,

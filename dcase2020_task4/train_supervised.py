@@ -3,7 +3,7 @@ from easydict import EasyDict as edict
 from torch.nn import Module
 from torch.optim import SGD
 from torch.nn.functional import binary_cross_entropy
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from typing import Callable, Dict
 
 from dcase2020.pytorch_metrics.metrics import Metrics
@@ -16,7 +16,7 @@ from dcase2020_task4.validator import DefaultValidator
 def train_supervised(
 	model: Module,
 	acti_fn: Callable,
-	loader_train_full: DataLoader,
+	loader_train_s: DataLoader,
 	loader_val: DataLoader,
 	metric_s: Metrics,
 	metrics_val: Dict[str, Metrics],
@@ -36,7 +36,7 @@ def train_supervised(
 		raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (hparams.mode, " or ".join(("onehot", "multihot"))))
 
 	trainer = SupervisedTrainer(
-		model, acti_fn, optim, loader_train_full, criterion, metric_s, writer
+		model, acti_fn, optim, loader_train_s, criterion, metric_s, writer
 	)
 	validator = DefaultValidator(
 		model, acti_fn, loader_val, metrics_val, writer
