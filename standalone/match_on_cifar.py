@@ -73,7 +73,7 @@ def main():
 	hparams.update(args_filtered)
 	# Note : some hyperparameters are overwritten when calling the training function, change this in the future
 	hparams.begin_date = get_datetime()
-	hparams.dataset_name = "CIFAR"
+	hparams.dataset_name = "CIFAR10"
 
 	reset_seed(hparams.seed)
 

@@ -84,7 +84,7 @@ class FScore(Metrics):
 
 		with torch.no_grad():
 			if self.precision == 0.0 and self.recall == 0.0:
-				self.value = 0.0
+				self.value = torch.as_tensor(0.0)
 			else:
 				self.value = 2.0 * ((self.precision_func.value * self.recall_func.value) / (
 							self.precision_func.value + self.recall_func.value + self.epsilon))
