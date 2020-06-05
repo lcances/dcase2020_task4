@@ -4,13 +4,14 @@ from typing import Iterable, Sized
 
 class ZipLongestCycle(Iterable, Sized):
 	"""
-		Merge iteration of collections.
+		Zip through a list of iterables of different lengths.
+		When a iterable smaller than the longest is over, this iterator is reset to the beginning.
 
 		Example :
-		r1 = range(1, 3)
-		r2 = range(1, 5)
-		multiter = MultipleIterable([r1, r2])
-		for v1, v2 in multiter:
+		r1 = range(1, 4)
+		r2 = range(1, 6)
+		iters = ZipLongestCycle([r1, r2])
+		for v1, v2 in iters:
 			print(v1, v2)
 
 		will print :
