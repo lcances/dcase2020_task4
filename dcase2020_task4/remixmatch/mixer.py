@@ -13,8 +13,6 @@ class ReMixMatchMixer(Callable):
 		self,
 		model: Module,
 		acti_fn: Callable,
-		weak_augm_fn: Callable,
-		strong_augm_fn: Callable,
 		distributions: ModelDistributions,
 		nb_augms_strong: int,
 		sharpen_temp: float,
@@ -23,8 +21,6 @@ class ReMixMatchMixer(Callable):
 	):
 		self.model = model
 		self.acti_fn = acti_fn
-		self.weak_augm_fn = weak_augm_fn
-		self.strong_augm_fn = strong_augm_fn
 		self.distributions = distributions
 		self.nb_augms_strong = nb_augms_strong
 		self.sharpen_temp = sharpen_temp
@@ -32,40 +28,40 @@ class ReMixMatchMixer(Callable):
 
 		self.mixup_mixer = MixUpMixer(alpha=mixup_alpha, apply_max=True)
 
-	def __call__(self, batch_s: Tensor, labels_s: Tensor, batch_u: Tensor) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor):
-		return self.mix(batch_s, labels_s, batch_u)
+	def __call__(
+		self, batch_s_strong: Tensor, labels_s: Tensor, batch_u_weak: Tensor, batch_u_strongs: Tensor
+	) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor):
+		return self.mix(batch_s_strong, labels_s, batch_u_weak, batch_u_strongs)
 
-	def mix(self, batch_s: Tensor, labels_s: Tensor, batch_u: Tensor) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor):
+	def mix(
+		self, batch_s_strong: Tensor, labels_s: Tensor, batch_u_weak: Tensor, batch_u_strongs: Tensor
+	) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor):
+		"""
+			batch_s_strong of size (bsize, feat_size, ...)
+			labels_s of size (bsize, label_size)
+			batch_u_weak of size (bsize, feat_size, ...)
+			batch_u_strongs of size (nb_augms, bsize, feat_size, ...)
+		"""
 		with torch.no_grad():
-			if batch_s.size() != batch_u.size():
-				raise RuntimeError("Labeled and unlabeled batch must have the same size. (sizes: %s != %s)" % (
-					str(batch_s.size()), str(batch_u.size())
-				))
-
-			# Apply augmentations
-			batch_s_strong = self.strong_augm_fn(batch_s)
-			batch_u_strong = torch.stack([self.strong_augm_fn(batch_u) for _ in range(self.nb_augms_strong)]).cuda()
-			batch_u_weak = self.weak_augm_fn(batch_u)
-
 			# Compute guessed label
 			logits_u_weak = self.model(batch_u_weak)
 			labels_u_guessed = self.acti_fn(logits_u_weak, dim=1)
-			labels_u_guessed = labels_u_guessed * self.distributions.get_mean_pred("labeled") / self.distributions.get_mean_pred("unlabeled")
+			labels_u_guessed *= self.distributions.get_mean_pred("labeled") / self.distributions.get_mean_pred("unlabeled")
 			if self.mode == "onehot":
 				labels_u_guessed = normalize(labels_u_guessed, dim=1)
 				labels_u_guessed = sharpen(labels_u_guessed, self.sharpen_temp, dim=1)
-			labels_u_guessed_repeated = labels_u_guessed.repeat_interleave(self.nb_augms_strong, dim=0)
 
 			# Get strongly augmented batch "batch_u1"
-			batch_u1 = batch_u_strong[0, :].clone()
+			batch_u1 = batch_u_strongs[0, :].clone()
 			labels_u1 = labels_u_guessed.clone()
 
-			# Reshape batch_u_strong of size (nb_augms, batch_size, sample_size...) to (nb_augms * batch_size, sample_size...)
-			batch_u_strong = merge_first_dimension(batch_u_strong)
+			repeated_size = [self.nb_augms_strong] + [1] * (len(labels_u_guessed.size()) - 1)
+			labels_u_guessed_repeated = labels_u_guessed.repeat(repeated_size)
+			batch_u_strongs = merge_first_dimension(batch_u_strongs)
 
 			# Concatenate strongly and weakly augmented data from batch_u
-			batch_u_cat = torch.cat((batch_u_strong, batch_u_weak))
-			labels_u_cat = torch.cat((labels_u_guessed_repeated, labels_u_guessed))
+			batch_u_cat = torch.cat((batch_u_strongs, batch_u_weak), dim=0)
+			labels_u_cat = torch.cat((labels_u_guessed_repeated, labels_u_guessed), dim=0)
 
 			batch_w = torch.cat((batch_s_strong, batch_u_cat), dim=0)
 			labels_w = torch.cat((labels_s, labels_u_cat), dim=0)

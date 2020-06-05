@@ -17,7 +17,6 @@ class MixMatchMixer(Callable):
 		self,
 		model: Module,
 		acti_fn: Callable,
-		augm_fn: Callable,
 		nb_augms: int = 2,
 		sharpen_temp: float = 0.5,
 		mixup_alpha: float = 0.75,
@@ -25,38 +24,35 @@ class MixMatchMixer(Callable):
 	):
 		self.model = model
 		self.acti_fn = acti_fn
-		self.augm_fn = augm_fn
 		self.nb_augms = nb_augms
 		self.sharpen_temp = sharpen_temp
 		self.mixup_mixer = MixUpMixer(alpha=mixup_alpha, apply_max=True)
 		self.mode = mode
 
-	def __call__(self, batch_s: Tensor, labels_s: Tensor, batch_u: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
-		return self.mix(batch_s, labels_s, batch_u)
+	def __call__(self, batch_s_augm: Tensor, labels_s: Tensor, batch_u_augms: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
+		return self.mix(batch_s_augm, labels_s, batch_u_augms)
 
-	def mix(self, batch_s: Tensor, labels_s: Tensor, batch_u: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
+	def mix(self, batch_s_augm: Tensor, labels_s: Tensor, batch_u_augms: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
+		"""
+			batch_s_augm of size (bsize, feat_size, ...)
+			labels_s of size (bsize, label_size)
+			batch_u_augms of size (nb_augms, bsize, feat_size, ...)
+		"""
 		with torch.no_grad():
-			if batch_s.size() != batch_u.size():
-				raise RuntimeError("Labeled and unlabeled batch must have the same size. (sizes: %s != %s)" % (
-					str(batch_s.size()), str(batch_u.size())
-				))
-
-			# Apply augmentations
-			batch_s_augm = self.augm_fn(batch_s)
-			batch_u_augm = torch.stack([self.augm_fn(batch_u) for _ in range(self.nb_augms)]).cuda()
-
 			# Compute guessed label
-			logits_u_augm = torch.stack([self.model(batch_u_augm[k]) for k in range(self.nb_augms)]).cuda()
+			logits_u_augm = torch.zeros([self.nb_augms] + list(labels_s.size())).cuda()
+			for k in range(self.nb_augms):
+				logits_u_augm[k] = self.model(batch_u_augms[k])
 			predictions_u_augm = self.acti_fn(logits_u_augm, dim=2)
 			labels_u_guessed = predictions_u_augm.mean(dim=0)
 			if self.mode == "onehot":
 				labels_u_guessed = sharpen(labels_u_guessed, self.sharpen_temp, dim=1)
-			labels_u_guessed_repeated = labels_u_guessed.repeat_interleave(self.nb_augms, dim=0)
 
-			# Reshape "batch_u_augm" of size (nb_augms, batch_size, sample_size...) to (nb_augms * batch_size, sample_size...)
-			batch_u_augm = merge_first_dimension(batch_u_augm)
+			repeated_size = [self.nb_augms] + [1] * (len(labels_u_guessed.size()) - 1)
+			labels_u_guessed_repeated = labels_u_guessed.repeat(repeated_size)
+			batch_u_augms = merge_first_dimension(batch_u_augms)
 
-			batch_w = torch.cat((batch_s_augm, batch_u_augm))
+			batch_w = torch.cat((batch_s_augm, batch_u_augms))
 			labels_w = torch.cat((labels_s, labels_u_guessed_repeated))
 
 			# Shuffle batch and labels
@@ -66,6 +62,6 @@ class MixMatchMixer(Callable):
 			batch_s_mixed, labels_s_mixed = self.mixup_mixer(
 				batch_s_augm, labels_s, batch_w[:len_s], labels_w[:len_s])
 			batch_u_mixed, labels_u_mixed = self.mixup_mixer(
-				batch_u_augm, labels_u_guessed_repeated, batch_w[len_s:], labels_w[len_s:])
+				batch_u_augms, labels_u_guessed_repeated, batch_w[len_s:], labels_w[len_s:])
 
 			return batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed

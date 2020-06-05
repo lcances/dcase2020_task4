@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from time import time
 from torch.nn import Module
@@ -11,7 +12,7 @@ from dcase2020.pytorch_metrics.metrics import Metrics
 
 from dcase2020_task4.mixmatch.rampup import RampUp
 from dcase2020_task4.trainer import SSTrainer
-from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
+from dcase2020_task4.util.ZipLongestCycle import ZipLongestCycle
 from dcase2020_task4.util.utils_match import get_lr
 
 
@@ -21,9 +22,8 @@ class MixMatchTrainer(SSTrainer):
 		model: Module,
 		acti_fn: Callable,
 		optim: Optimizer,
-		loader_train_s: DataLoader,
-		loader_train_u: DataLoader,
-		augm_fn: Callable,
+		loader_train_s_augm: DataLoader,
+		loader_train_u_augms: DataLoader,
 		metric_s: Metrics,
 		metric_u: Metrics,
 		writer: SummaryWriter,
@@ -34,9 +34,8 @@ class MixMatchTrainer(SSTrainer):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.optim = optim
-		self.loader_train_s = loader_train_s
-		self.loader_train_u = loader_train_u
-		self.augm_fn = augm_fn
+		self.loader_train_s_augm = loader_train_s_augm
+		self.loader_train_u_augms = loader_train_u_augms
 		self.metric_s = metric_s
 		self.metric_u = metric_u
 		self.writer = writer
@@ -51,16 +50,15 @@ class MixMatchTrainer(SSTrainer):
 		self.model.train()
 
 		losses, acc_train_s, acc_train_u = [], [], []
-		loader_merged = MergeDataLoader([self.loader_train_s, self.loader_train_u])
-		iter_train = iter(loader_merged)
+		zip_cycle = ZipLongestCycle([self.loader_train_s_augm, self.loader_train_u_augms])
 
-		for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
-			batch_s = batch_s.cuda().float()
+		for i, ((batch_s_augm, labels_s), batch_u_augms) in enumerate(zip_cycle):
+			batch_s_augm = batch_s_augm.cuda().float()
 			labels_s = labels_s.cuda().float()
-			batch_u = batch_u.cuda().float()
+			batch_u_augms = torch.stack(batch_u_augms).cuda().float()
 
 			# Apply mix
-			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed = self.mixer(batch_s, labels_s, batch_u)
+			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed = self.mixer(batch_s_augm, labels_s, batch_u_augms)
 
 			# Compute logits
 			logits_s = self.model(batch_s_mixed)
@@ -89,7 +87,7 @@ class MixMatchTrainer(SSTrainer):
 
 			print("Epoch {}, {:d}% \t loss: {:.4e} - acc_s: {:.4e} - acc_u: {:.4e} - took {:.2f}s".format(
 				epoch + 1,
-				int(100 * (i + 1) / len(loader_merged)),
+				int(100 * (i + 1) / len(zip_cycle)),
 				loss.item(),
 				mean_acc_s,
 				mean_acc_u,
@@ -104,7 +102,7 @@ class MixMatchTrainer(SSTrainer):
 		self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
 
 	def nb_examples_supervised(self) -> int:
-		return len(self.loader_train_s) * self.loader_train_s.batch_size
+		return len(self.loader_train_s_augm) * self.loader_train_s_augm.batch_size
 
 	def nb_examples_unsupervised(self) -> int:
-		return len(self.loader_train_u) * self.loader_train_u.batch_size
+		return len(self.loader_train_u_augms) * self.loader_train_u_augms.batch_size

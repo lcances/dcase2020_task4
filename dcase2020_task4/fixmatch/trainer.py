@@ -10,7 +10,7 @@ from typing import Callable
 
 from dcase2020.pytorch_metrics.metrics import Metrics
 
-from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
+from dcase2020_task4.util.ZipLongestCycle import ZipLongestCycle
 from dcase2020_task4.util.utils_match import binarize_onehot_labels, get_lr
 from dcase2020_task4.trainer import SSTrainer
 
@@ -21,10 +21,8 @@ class FixMatchTrainer(SSTrainer):
 		model: Module,
 		acti_fn: Callable,
 		optim: Optimizer,
-		loader_train_s: DataLoader,
-		loader_train_u: DataLoader,
-		weak_augm_fn: Callable[[Tensor], Tensor],
-		strong_augm_fn: Callable[[Tensor], Tensor],
+		loader_train_s_weak: DataLoader,
+		loader_train_u_weak_strong: DataLoader,
 		metric_s: Metrics,
 		metric_u: Metrics,
 		writer: SummaryWriter,
@@ -35,10 +33,8 @@ class FixMatchTrainer(SSTrainer):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.optim = optim
-		self.loader_train_s = loader_train_s
-		self.loader_train_u = loader_train_u
-		self.weak_augm_fn = weak_augm_fn
-		self.strong_augm_fn = strong_augm_fn
+		self.loader_train_s_weak = loader_train_s_weak
+		self.loader_train_u_weak_strong = loader_train_u_weak_strong
 		self.metric_s = metric_s
 		self.metric_u = metric_u
 		self.writer = writer
@@ -53,18 +49,13 @@ class FixMatchTrainer(SSTrainer):
 		self.model.train()
 
 		losses, acc_train_s, acc_train_u = [], [], []
-		loader_merged = MergeDataLoader([self.loader_train_s, self.loader_train_u])
-		iter_train = iter(loader_merged)
+		zip_cycle = ZipLongestCycle([self.loader_train_s_weak, self.loader_train_u_weak_strong])
 
-		for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
-			batch_s = batch_s.cuda().float()
+		for i, ((batch_s_weak, labels_s), (batch_u_weak, batch_u_strong)) in enumerate(zip_cycle):
+			batch_s_weak = batch_s_weak.cuda().float()
 			labels_s = labels_s.cuda().float()
-			batch_u = batch_u.cuda().float()
-
-			# Apply augmentations
-			batch_s_weak = self.weak_augm_fn(batch_s)
-			batch_u_weak = self.weak_augm_fn(batch_u)
-			batch_u_strong = self.strong_augm_fn(batch_u)
+			batch_u_weak = batch_u_weak.cuda().float()
+			batch_u_strong = batch_u_strong.cuda().float()
 
 			# Compute logits
 			logits_s_weak = self.model(batch_s_weak)
@@ -99,7 +90,7 @@ class FixMatchTrainer(SSTrainer):
 
 			print("Epoch {}, {:d}% \t loss: {:.4e} - acc_s: {:.4e} - acc_u: {:.4e} - took {:.2f}s".format(
 				epoch + 1,
-				int(100 * (i + 1) / len(loader_merged)),
+				int(100 * (i + 1) / len(zip_cycle)),
 				loss.item(),
 				mean_acc_s,
 				mean_acc_u,
@@ -114,7 +105,7 @@ class FixMatchTrainer(SSTrainer):
 		self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
 
 	def nb_examples_supervised(self) -> int:
-		return len(self.loader_train_s) * self.loader_train_s.batch_size
+		return len(self.loader_train_s_weak) * self.loader_train_s_weak.batch_size
 
 	def nb_examples_unsupervised(self) -> int:
-		return len(self.loader_train_u) * self.loader_train_u.batch_size
+		return len(self.loader_train_u_weak_strong) * self.loader_train_u_weak_strong.batch_size

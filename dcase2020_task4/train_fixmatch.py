@@ -18,16 +18,15 @@ from dcase2020_task4.validator import DefaultValidator
 def train_fixmatch(
 	model: Module,
 	acti_fn: Callable,
-	loader_train_s: DataLoader,
-	loader_train_u: DataLoader,
+	loader_train_s_weak: DataLoader,
+	loader_train_u_weak_strong: DataLoader,
 	loader_val: DataLoader,
-	weak_augm_fn: Callable,
-	strong_augm_fn: Callable,
 	metric_s: Metrics,
 	metric_u: Metrics,
 	metrics_val: Dict[str, Metrics],
 	hparams: edict,
 ):
+
 	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 	scheduler = CosineLRScheduler(optim, nb_epochs=hparams.nb_epochs, lr0=hparams.lr)
 
@@ -36,7 +35,7 @@ def train_fixmatch(
 
 	criterion = FixMatchLoss.from_edict(hparams)
 	trainer = FixMatchTrainer(
-		model, acti_fn, optim, loader_train_s, loader_train_u, weak_augm_fn, strong_augm_fn, metric_s, metric_u,
+		model, acti_fn, optim, loader_train_s_weak, loader_train_u_weak_strong, metric_s, metric_u,
 		writer, criterion, hparams.mode, hparams.threshold_multihot
 	)
 	validator = DefaultValidator(
@@ -55,7 +54,7 @@ def default_fixmatch_hparams() -> edict:
 	hparams.beta = 0.9  # used only for SGD
 	hparams.threshold_mask = 0.95  # tau
 	hparams.threshold_multihot = 0.5  # tau
-	hparams.batch_size = 16  # in paper: 64
+	# hparams.batch_size = 16  # in paper: 64
 	hparams.lr = 0.03  # learning rate, eta
 	hparams.weight_decay = 1e-4
 	return hparams

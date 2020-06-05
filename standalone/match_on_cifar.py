@@ -1,5 +1,9 @@
+import os
+os.environ["MKL_NUM_THREADS"] = "2"
+os.environ["NUMEXPR_NU M_THREADS"] = "2"
+os.environ["OMP_NUM_THREADS"] = "2"
+
 import numpy as np
-import torch
 
 from argparse import ArgumentParser, Namespace
 from easydict import EasyDict as edict
@@ -15,7 +19,7 @@ from dcase2020.augmentation_utils.spec_augmentations import HorizontalFlip, Vert
 from dcase2020.util.utils import get_datetime, reset_seed
 
 from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
-from dcase2020_task4.util.FnDataLoader import FnDataLoader
+from dcase2020_task4.util.FnDataLoader import FnDataset
 from dcase2020_task4.util.NoLabelDataLoader import NoLabelDataLoader
 from dcase2020_task4.util.other_augments import Gray, Inversion, RandCrop, UniColor
 from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, MaxMetric, FnMetric, EqConfidenceMetric
@@ -40,7 +44,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--dataset_ratio", type=float, default=1.0)
 	parser.add_argument("--supervised_ratio", type=float, default=0.1)
-	parser.add_argument("--batch_size", type=int, default=16)
+	parser.add_argument("--batch_size", type=int, default=64)
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.3)
 	parser.add_argument("--mode", type=str, default="onehot")
@@ -65,11 +69,11 @@ def get_cifar_loaders(hparams: edict) -> (DataLoader, DataLoader, DataLoader, Da
 	idx_val = list(range(int(len(val_set) * hparams.dataset_ratio)))
 
 	process_fn = lambda batch, labels: (batch, one_hot(labels, hparams.nb_classes))
-	loader_train_full = FnDataLoader(
+	loader_train_full = FnDataset(
 		train_set, batch_size=hparams.batch_size, sampler=SubsetRandomSampler(idx_train_s + idx_train_u), num_workers=2,
 		drop_last=True, fn=process_fn
 	)
-	loader_train_s = FnDataLoader(
+	loader_train_s = FnDataset(
 		train_set, batch_size=hparams.batch_size, sampler=SubsetRandomSampler(idx_train_s), num_workers=2,
 		drop_last=True, fn=process_fn
 	)
@@ -78,7 +82,7 @@ def get_cifar_loaders(hparams: edict) -> (DataLoader, DataLoader, DataLoader, Da
 		drop_last=True
 	)
 
-	loader_val = FnDataLoader(
+	loader_val = FnDataset(
 		val_set, batch_size=hparams.batch_size, sampler=SubsetRandomSampler(idx_val), num_workers=2, fn=process_fn
 	)
 
@@ -95,6 +99,7 @@ def main():
 	hparams.update(args_filtered)
 	# Note : some hyperparameters are overwritten when calling the training function, change this in the future
 	hparams.begin_date = get_datetime()
+	hparams.dataset_name = "CIFAR"
 
 	reset_seed(hparams.seed)
 
@@ -164,26 +169,28 @@ def main():
 		hparams_fm = default_fixmatch_hparams()
 		hparams_fm.update(hparams)
 		train_fixmatch(
-			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, weak_augm_fn, strong_augm_fn,
+			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val,
 			metric_s, metric_u, metrics_val, hparams_fm
 		)
+
 	if "mm" in args.run:
 		hparams_mm = default_mixmatch_hparams()
 		hparams_mm.update(hparams)
 		train_mixmatch(
-			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, augment_fn,
+			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val,
 			metric_s, metric_u, metrics_val, hparams_mm
 		)
 		hparams_mm.criterion_unsupervised = "crossentropy"
 		train_mixmatch(
-			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, augment_fn,
+			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val,
 			metric_s, metric_u, metrics_val, hparams_mm
 		)
+
 	if "rmm" in args.run:
 		hparams_rmm = default_remixmatch_hparams()
 		hparams_rmm.update(hparams)
 		train_remixmatch(
-			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val, weak_augm_fn, strong_augm_fn,
+			model_factory(), acti_fn, loader_train_s, loader_train_u, loader_val,
 			metric_s, metric_u, metric_u1, metric_r, metrics_val, hparams_rmm
 		)
 
@@ -194,6 +201,7 @@ def main():
 			model_factory(), acti_fn, loader_train_full, loader_val, metric_s, metrics_val,
 			hparams_sf, suffix="full_100"
 		)
+
 	if "sp" in args.run:
 		hparams_sp = default_supervised_hparams()
 		hparams_sp.update(hparams)

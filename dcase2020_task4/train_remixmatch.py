@@ -1,3 +1,4 @@
+import numpy as np
 
 from easydict import EasyDict as edict
 from torch.nn import Module
@@ -22,8 +23,6 @@ def train_remixmatch(
 	loader_train_s: DataLoader,
 	loader_train_u: DataLoader,
 	loader_val: DataLoader,
-	weak_augm_fn: Callable,
-	strong_augm_fn: Callable,
 	metric_s: Metrics,
 	metric_u: Metrics,
 	metric_u1: Metrics,
@@ -35,6 +34,7 @@ def train_remixmatch(
 		raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 			loader_train_s.batch_size, loader_train_u.batch_size))
 
+	rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
 	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 
 	hparams.train_name = "ReMixMatch"
@@ -42,13 +42,11 @@ def train_remixmatch(
 
 	criterion = ReMixMatchLoss.from_edict(hparams)
 	distributions = ModelDistributions(
-		history_size=128, nb_classes=hparams.nb_classes, names=["labeled", "unlabeled"], mode=hparams.mode
+		history_size=hparams.history_size, nb_classes=hparams.nb_classes, names=["labeled", "unlabeled"], mode=hparams.mode
 	)
 	mixer = ReMixMatchMixer(
 		model,
 		acti_fn,
-		weak_augm_fn,
-		strong_augm_fn,
 		distributions,
 		hparams.nb_augms_strong,
 		hparams.sharpen_temp,
@@ -56,8 +54,8 @@ def train_remixmatch(
 		hparams.mode
 	)
 	trainer = ReMixMatchTrainer(
-		model, acti_fn, optim, loader_train_s, loader_train_u, weak_augm_fn, strong_augm_fn, metric_s, metric_u,
-		metric_u1, metric_r, writer, criterion, mixer, distributions
+		model, acti_fn, optim, loader_train_s, loader_train_u, metric_s, metric_u,
+		metric_u1, metric_r, writer, criterion, mixer, distributions, rot_angles
 	)
 	validator = DefaultValidator(
 		model, acti_fn, loader_val, metrics_val, writer
@@ -71,7 +69,7 @@ def train_remixmatch(
 
 def default_remixmatch_hparams() -> edict:
 	hparams = edict()
-	hparams.nb_augms_strong = 2  # In paper : 8
+	# hparams.nb_augms_strong = 2  # In paper : 8
 	hparams.sharpen_temp = 0.5
 	hparams.mixup_alpha = 0.75
 	hparams.lambda_u = 1.0  # In paper : 1.5
@@ -79,4 +77,5 @@ def default_remixmatch_hparams() -> edict:
 	hparams.lambda_r = 0.5
 	hparams.lr = 1e-2  # In paper 2e-3
 	hparams.weight_decay = 1e-3  # In paper 0.02
+	hparams.history_size = 128
 	return hparams

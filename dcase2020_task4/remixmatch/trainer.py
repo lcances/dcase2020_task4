@@ -15,7 +15,7 @@ from dcase2020.pytorch_metrics.metrics import Metrics
 
 from dcase2020_task4.remixmatch.model_distributions import ModelDistributions
 from dcase2020_task4.trainer import SSTrainer
-from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
+from dcase2020_task4.util.ZipLongestCycle import ZipLongestCycle
 from dcase2020_task4.util.utils_match import get_lr
 
 
@@ -27,8 +27,6 @@ class ReMixMatchTrainer(SSTrainer):
 		optim: Optimizer,
 		loader_train_s: DataLoader,
 		loader_train_u: DataLoader,
-		weak_augm_fn: Callable,
-		strong_augm_fn: Callable,
 		metric_s: Metrics,
 		metric_u: Metrics,
 		metric_u1: Metrics,
@@ -37,6 +35,7 @@ class ReMixMatchTrainer(SSTrainer):
 		criterion: Callable,
 		mixer: Callable,
 		distributions: ModelDistributions,
+		rot_angles: np.array,
 	):
 		"""
 			TODO : doc
@@ -47,8 +46,6 @@ class ReMixMatchTrainer(SSTrainer):
 		self.optim = optim
 		self.loader_train_s = loader_train_s
 		self.loader_train_u = loader_train_u
-		self.weak_augm_fn = weak_augm_fn
-		self.strong_augm_fn = strong_augm_fn
 		self.metric_s = metric_s
 		self.metric_u = metric_u
 		self.metric_u1 = metric_u1
@@ -57,6 +54,7 @@ class ReMixMatchTrainer(SSTrainer):
 		self.criterion = criterion
 		self.mixer = mixer
 		self.distributions = distributions
+		self.rot_angles = rot_angles
 
 		self.acti_fn_rot = lambda batch, dim: batch.softmax(dim=dim)
 
@@ -68,24 +66,23 @@ class ReMixMatchTrainer(SSTrainer):
 		self.metric_r.reset()
 		self.model.train()
 
-		angles_allowed = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
 		losses, acc_train_s, acc_train_u, acc_train_u1, acc_train_r = [], [], [], [], []
-		loader_merged = MergeDataLoader([self.loader_train_s, self.loader_train_u])
-		iter_train = iter(loader_merged)
+		zip_cycle = ZipLongestCycle([self.loader_train_s, self.loader_train_u])
 
-		for i, (batch_s, labels_s, batch_u) in enumerate(iter_train):
-			batch_s = batch_s.cuda().float()
+		for i, ((batch_s_strong, labels_s), (batch_u_weak, batch_u_strongs)) in enumerate(zip_cycle):
+			batch_s_strong = batch_s_strong.cuda().float()
 			labels_s = labels_s.cuda().float()
-			batch_u = batch_u.cuda().float()
+			batch_u_weak = batch_u_weak.cuda().float()
+			batch_u_strongs = torch.stack(batch_u_strongs).cuda().float()
 
 			with torch.no_grad():
 				self.distributions.add_batch_pred(labels_s, "labeled")
-				pred_u = self.acti_fn(self.model(batch_u), dim=1)
+				pred_u = self.acti_fn(self.model(batch_u_weak), dim=1)
 				self.distributions.add_batch_pred(pred_u, "unlabeled")
 
 			# Apply mix
 			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed, batch_u1, labels_u1 = \
-				self.mixer(batch_s, labels_s, batch_u)
+				self.mixer(batch_s_strong, labels_s, batch_u_weak, batch_u_strongs)
 
 			# Predict labels for x (mixed), u (mixed) and u1 (strong augment)
 			logits_s = self.model(batch_s_mixed)
@@ -93,16 +90,16 @@ class ReMixMatchTrainer(SSTrainer):
 			logits_u1 = self.model(batch_u1)
 
 			# Rotate images and predict rotation for strong augment u1
-			batch_u1_rotated, labels_r = apply_random_rot(batch_u1, angles_allowed)
-			labels_r = one_hot(labels_r, len(angles_allowed)).float().cuda()
+			batch_u1_rotated, labels_r = apply_random_rot(batch_u1, self.rot_angles)
+			labels_r = one_hot(labels_r, len(self.rot_angles)).float().cuda()
 			logits_r = self.model.forward_rot(batch_u1_rotated)
 
-			# Compute accuracies
 			pred_s = self.acti_fn(logits_s, dim=1)
 			pred_u = self.acti_fn(logits_u, dim=1)
 			pred_u1 = self.acti_fn(logits_u1, dim=1)
 			pred_r = self.acti_fn_rot(logits_r, dim=1)
 
+			# Compute accuracies
 			mean_acc_s = self.metric_s(pred_s, labels_s_mixed)
 			mean_acc_u = self.metric_u(pred_u, labels_u_mixed)
 			mean_acc_u1 = self.metric_u1(pred_u1, labels_u1)
@@ -130,7 +127,7 @@ class ReMixMatchTrainer(SSTrainer):
 			print(
 				"Epoch {}, {:d}% \t loss: {:.4e} - acc_s: {:.4e} - acc_u: {:.4e} - acc_u1: {:.4e} - acc_r: {:.4e} - took {:.2f}s".format(
 					epoch + 1,
-					int(100 * (i + 1) / len(loader_merged)),
+					int(100 * (i + 1) / len(zip_cycle)),
 					loss.item(),
 					mean_acc_s,
 					mean_acc_u,

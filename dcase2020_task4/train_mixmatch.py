@@ -22,7 +22,6 @@ def train_mixmatch(
 	loader_train_s: DataLoader,
 	loader_train_u: DataLoader,
 	loader_val: DataLoader,
-	augm_fn: Callable,
 	metric_s: Metrics,
 	metric_u: Metrics,
 	metrics_val: Dict[str, Metrics],
@@ -40,11 +39,11 @@ def train_mixmatch(
 	nb_rampup_steps = hparams.nb_epochs * len(loader_train_u)
 
 	criterion = MixMatchLoss.from_edict(hparams)
-	mixer = MixMatchMixer(model, acti_fn, augm_fn, hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha)
+	mixer = MixMatchMixer(model, acti_fn, hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha)
 	lambda_u_rampup = RampUp(hparams.lambda_u_max, nb_rampup_steps)
 
 	trainer = MixMatchTrainer(
-		model, acti_fn, optim, loader_train_s, loader_train_u, augm_fn, metric_s, metric_u,
+		model, acti_fn, optim, loader_train_s, loader_train_u, metric_s, metric_u,
 		writer, criterion, mixer, lambda_u_rampup
 	)
 	validator = DefaultValidator(
@@ -59,7 +58,7 @@ def train_mixmatch(
 
 def default_mixmatch_hparams() -> edict:
 	hparams = edict()
-	hparams.nb_augms = 2
+	# hparams.nb_augms = 2
 	hparams.sharpen_temp = 0.5
 	hparams.mixup_alpha = 0.75
 	hparams.lambda_u_max = 10.0  # In paper : 75

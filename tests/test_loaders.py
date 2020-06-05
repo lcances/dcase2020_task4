@@ -1,13 +1,16 @@
 from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
 
 from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, split_classes_idx
-from dcase2020_task4.util.MergeDataLoader import MergeDataLoader
-from dcase2020_task4.util.NoLabelDataLoader import NoLabelDataLoader
+from dcase2020_task4.util.ZipLongestCycle import ZipLongestCycle
+from dcase2020_task4.util.MultipleDataset import MultipleDataset
 
 
 class DummyDataset(Dataset):
+	def __init__(self, label: int = 0):
+		self.label = label
+
 	def __getitem__(self, item):
-		return item, 0
+		return item, self.label
 
 	def __len__(self):
 		return 10
@@ -24,21 +27,23 @@ def test_1():
 
 	loader_0 = DataLoader(ds, batch_size=2, drop_last=True, sampler=SubsetRandomSampler(idx_train[0]))
 	loader_1 = DataLoader(ds, batch_size=3, drop_last=False, sampler=SubsetRandomSampler(idx_train[1]))
-	loader = MergeDataLoader([loader_0, loader_1])
+	loader = ZipLongestCycle([loader_0, loader_1])
 
 	for items in loader:
 		print("Items: ", items)
 
 
 def test_2():
-	ds = DummyDataset()
+	ds1 = DummyDataset()
+	ds2 = DummyDataset(-1)
+	ds3 = MultipleDataset([ds1, ds1])
+	ds = MultipleDataset([ds3, ds2])
 
-	loader = NoLabelDataLoader(ds)
+	loader = DataLoader(ds, batch_size=4)
 	for items in loader:
 		print("Items: ", items)
-		break
 
 
 if __name__ == "__main__":
-	test_1()
+	# test_1()
 	test_2()
