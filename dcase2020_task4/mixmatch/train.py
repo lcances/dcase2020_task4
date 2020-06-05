@@ -34,7 +34,7 @@ def train_mixmatch(
 	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 
 	hparams.train_name = "MixMatch"
-	writer = build_writer(hparams, suffix=hparams.criterion_unsupervised)
+	writer = build_writer(hparams, suffix=hparams.criterion_name_u)
 
 	nb_rampup_steps = hparams.nb_epochs * len(loader_train_u_augms)
 
@@ -54,15 +54,3 @@ def train_mixmatch(
 
 	writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 	writer.close()
-
-
-def default_mixmatch_hparams() -> edict:
-	hparams = edict()
-	# hparams.nb_augms = 2
-	hparams.sharpen_temp = 0.5
-	hparams.mixup_alpha = 0.75
-	hparams.lambda_u_max = 10.0  # In paper : 75
-	hparams.lr = 1e-2
-	hparams.weight_decay = 8e-4
-	hparams.criterion_unsupervised = "sqdiff"  # In paper : sqdiff
-	return hparams

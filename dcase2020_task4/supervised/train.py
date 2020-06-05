@@ -3,7 +3,7 @@ from easydict import EasyDict as edict
 from torch.nn import Module
 from torch.optim import SGD
 from torch.nn.functional import binary_cross_entropy
-from torch.utils.data import DataLoader, Dataset
+from torch.utils.data import DataLoader
 from typing import Callable, Dict
 
 from metric_utils.metrics import Metrics
@@ -46,10 +46,3 @@ def train_supervised(
 
 	writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 	writer.close()
-
-
-def default_supervised_hparams() -> edict:
-	hparams = edict()
-	hparams.lr = 1e-2
-	hparams.weight_decay = 1e-4
-	return hparams

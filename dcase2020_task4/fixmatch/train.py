@@ -45,15 +45,3 @@ def train_fixmatch(
 
 	writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 	writer.close()
-
-
-def default_fixmatch_hparams() -> edict:
-	hparams = edict()
-	hparams.lambda_u = 1.0
-	hparams.momentum = 0.9  # beta, was 0
-	hparams.threshold_mask = 0.95  # tau
-	hparams.threshold_multihot = 0.5  # tau
-	# hparams.batch_size = 16  # in paper: 64
-	hparams.lr = 0.03  # learning rate, eta
-	hparams.weight_decay = 1e-4
-	return hparams

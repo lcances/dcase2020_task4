@@ -9,7 +9,7 @@ from typing import Callable
 
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.util.ZipLongestCycle import ZipLongestCycle
+from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.utils_match import binarize_onehot_labels, get_lr
 from dcase2020_task4.trainer import SSTrainer
 
@@ -48,9 +48,10 @@ class FixMatchTrainer(SSTrainer):
 		self.model.train()
 
 		losses, acc_train_s, acc_train_u = [], [], []
-		zip_cycle = ZipLongestCycle([self.loader_train_s_weak, self.loader_train_u_weak_strong])
+		zip_cycle = ZipCycle([self.loader_train_s_weak, self.loader_train_u_weak_strong])
+		iter_train = iter(zip_cycle)
 
-		for i, ((batch_s_weak, labels_s), (batch_u_weak, batch_u_strong)) in enumerate(zip_cycle):
+		for i, ((batch_s_weak, labels_s), (batch_u_weak, batch_u_strong)) in enumerate(iter_train):
 			batch_s_weak = batch_s_weak.cuda().float()
 			labels_s = labels_s.cuda().float()
 			batch_u_weak = batch_u_weak.cuda().float()

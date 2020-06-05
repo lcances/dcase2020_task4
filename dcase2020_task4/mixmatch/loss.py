@@ -10,18 +10,18 @@ class MixMatchLoss(Callable):
 	""" MixMatch loss component. """
 
 	def __init__(
-		self, lambda_u: float = 1.0, mode: str = "onehot", criterion_unsupervised: str = "sqdiff"
+		self, lambda_u: float = 1.0, mode: str = "onehot", criterion_name_u: str = "sqdiff"
 	):
 		self.lambda_u = lambda_u
 		self.mode = mode
-		self.unsupervised_loss_mode = criterion_unsupervised
+		self.unsupervised_loss_mode = criterion_name_u
 
 		if self.mode == "onehot":
 			self.criterion_s = cross_entropy
 
-			if criterion_unsupervised == "sqdiff":
+			if criterion_name_u == "sqdiff":
 				self.criterion_u = lambda pred_u, targets_u: (pred_u - targets_u) ** 2
-			elif criterion_unsupervised == "crossentropy":
+			elif criterion_name_u == "crossentropy":
 				self.criterion_u = cross_entropy
 			else:
 				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("sqdiff", "crossentropy"))))
@@ -35,7 +35,7 @@ class MixMatchLoss(Callable):
 
 	@staticmethod
 	def from_edict(hparams) -> 'MixMatchLoss':
-		return MixMatchLoss(hparams.lambda_u_max, hparams.mode, hparams.criterion_unsupervised)
+		return MixMatchLoss(hparams.lambda_u_max, hparams.mode, hparams.criterion_name_u)
 
 	def __call__(self, pred_s: Tensor, targets_x: Tensor, pred_u: Tensor, targets_u: Tensor) -> Tensor:
 		loss_s = self.criterion_s(pred_s, targets_x)

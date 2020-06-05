@@ -12,7 +12,7 @@ from metric_utils.metrics import Metrics
 
 from dcase2020_task4.mixmatch.rampup import RampUp
 from dcase2020_task4.trainer import SSTrainer
-from dcase2020_task4.util.ZipLongestCycle import ZipLongestCycle
+from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.utils_match import get_lr
 
 
@@ -50,9 +50,10 @@ class MixMatchTrainer(SSTrainer):
 		self.model.train()
 
 		losses, acc_train_s, acc_train_u = [], [], []
-		zip_cycle = ZipLongestCycle([self.loader_train_s_augm, self.loader_train_u_augms])
+		zip_cycle = ZipCycle([self.loader_train_s_augm, self.loader_train_u_augms])
+		iter_train = iter(zip_cycle)
 
-		for i, ((batch_s_augm, labels_s), batch_u_augms) in enumerate(zip_cycle):
+		for i, ((batch_s_augm, labels_s), batch_u_augms) in enumerate(iter_train):
 			batch_s_augm = batch_s_augm.cuda().float()
 			labels_s = labels_s.cuda().float()
 			batch_u_augms = torch.stack(batch_u_augms).cuda().float()

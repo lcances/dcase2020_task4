@@ -28,10 +28,14 @@ from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, Ma
 from dcase2020_task4.util.utils_match import cross_entropy
 
 from dcase2020_task4.resnet import ResNet18
-from dcase2020_task4.train_fixmatch import train_fixmatch, default_fixmatch_hparams
-from dcase2020_task4.train_mixmatch import train_mixmatch, default_mixmatch_hparams
-from dcase2020_task4.train_remixmatch import train_remixmatch, default_remixmatch_hparams
-from dcase2020_task4.train_supervised import train_supervised, default_supervised_hparams
+from dcase2020_task4.fixmatch.train import train_fixmatch
+from dcase2020_task4.mixmatch.train import train_mixmatch
+from dcase2020_task4.remixmatch.train import train_remixmatch
+from dcase2020_task4.supervised.train import train_supervised
+from dcase2020_task4.fixmatch.hparams import default_fixmatch_hparams
+from dcase2020_task4.mixmatch.hparams import default_mixmatch_hparams
+from dcase2020_task4.remixmatch.hparams import default_remixmatch_hparams
+from dcase2020_task4.supervised.hparams import default_supervised_hparams
 from dcase2020_task4.vgg import VGG
 
 
@@ -42,7 +46,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
 	parser.add_argument("--dataset", type=str, default="../../dataset/CIFAR10")
 	parser.add_argument("--mode", type=str, default="onehot")
-	parser.add_argument("--seed", type=int, default=123)
+	parser.add_argument("--seed", type=int, default=1234)
 	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--dataset_ratio", type=float, default=1.0)
@@ -50,6 +54,9 @@ def create_args() -> Namespace:
 	parser.add_argument("--batch_size", type=int, default=64)
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.3)
+
+	parser.add_argument("--num_workers_s", type=int, default=1)
+	parser.add_argument("--num_workers_u", type=int, default=1)
 
 	parser.add_argument("--nb_augms", type=int, default=2, help="Nb of augmentations used in MixMatch.")
 	parser.add_argument("--nb_augms_strong", type=int, default=2, help="Nb of strong augmentations used in ReMixMatch.")
@@ -103,15 +110,16 @@ def main():
 		]),
 	])
 	# Augmentation used by MixMatch
+	mm_ratio = 0.5
 	augment_fn = RandomChoice([
-		HorizontalFlip(0.5),
-		VerticalFlip(0.5),
-		Transform(0.5, scale=(0.75, 1.25)),
-		Transform(0.5, rotation=(-np.pi, np.pi)),
-		Gray(0.5),
-		RandCrop(0.5, rect_max_scale=(0.2, 0.2)),
-		UniColor(0.5),
-		Inversion(0.5),
+		HorizontalFlip(mm_ratio),
+		VerticalFlip(mm_ratio),
+		Transform(mm_ratio, scale=(0.75, 1.25)),
+		Transform(mm_ratio, rotation=(-np.pi, np.pi)),
+		Gray(mm_ratio),
+		RandCrop(mm_ratio, rect_max_scale=(0.2, 0.2)),
+		UniColor(mm_ratio),
+		Inversion(mm_ratio),
 	])
 
 	# Add preprocessing before each augmentation
@@ -123,9 +131,9 @@ def main():
 	metric_r = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_val = {
 		"acc": CategoricalConfidenceAccuracy(hparams.confidence),
+		"ce": FnMetric(cross_entropy),
+		"eq": EqConfidenceMetric(hparams.confidence),
 		"max": MaxMetric(),
-		"loss": FnMetric(cross_entropy),
-		"eq": EqConfidenceMetric(hparams.confidence)
 	}
 
 	# Prepare data
@@ -139,14 +147,6 @@ def main():
 	dataset_train_augm = CIFAR10(
 		hparams.dataset, train=True, download=True, transform=Compose([preprocess_fn, augment_fn]))
 
-	label_one_hot = lambda item: (item[0], one_hot(torch.as_tensor(item[1])))
-	dataset_train = FnDataset(dataset_train, label_one_hot)
-	dataset_val = FnDataset(dataset_val, label_one_hot)
-
-	dataset_train_weak = FnDataset(dataset_train_weak, label_one_hot)
-	dataset_train_strong = FnDataset(dataset_train_strong, label_one_hot)
-	dataset_train_augm = FnDataset(dataset_train_augm, label_one_hot)
-
 	# Compute sub-indexes for split CIFAR train dataset
 	sub_loaders_ratios = [hparams.supervised_ratio, 1.0 - hparams.supervised_ratio]
 
@@ -157,6 +157,14 @@ def main():
 
 	idx_train_s, idx_train_u = idx_train
 	idx_val = list(range(int(len(dataset_val) * hparams.dataset_ratio)))
+
+	label_one_hot = lambda item: (item[0], one_hot(torch.as_tensor(item[1]), hparams.nb_classes).numpy())
+	dataset_train = FnDataset(dataset_train, label_one_hot)
+	dataset_val = FnDataset(dataset_val, label_one_hot)
+
+	dataset_train_weak = FnDataset(dataset_train_weak, label_one_hot)
+	dataset_train_strong = FnDataset(dataset_train_strong, label_one_hot)
+	dataset_train_augm = FnDataset(dataset_train_augm, label_one_hot)
 
 	dataset_val = Subset(dataset_val, idx_val)
 	loader_val = DataLoader(dataset_val, batch_size=hparams.batch_size, shuffle=False, drop_last=True)
@@ -195,18 +203,19 @@ def main():
 		dataset_train_u_augm = Subset(dataset_train_augm, idx_train_u)
 
 		dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm)
-		dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * hparams.nb_augms)
+		dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * hparams_mm.nb_augms)
 
 		loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm, **args_loader_train_s)
 		loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
 
 		# Train MixMatch with sqdiff for loss_u
+		hparams_mm.criterion_name_u = "sqdiff"
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
 			metric_s, metric_u, metrics_val, hparams_mm
 		)
 		# Train MixMatch with crossentropy for loss_u
-		hparams_mm.criterion_unsupervised = "crossentropy"
+		hparams_mm.criterion_name_u = "crossentropy"
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
 			metric_s, metric_u, metrics_val, hparams_mm
@@ -223,7 +232,7 @@ def main():
 		dataset_train_u_weak = NoLabelDataset(dataset_train_u_weak)
 		dataset_train_u_strong = NoLabelDataset(dataset_train_u_strong)
 
-		dataset_train_u_strongs = MultipleDataset([dataset_train_u_strong] * hparams.nb_strong_augms)
+		dataset_train_u_strongs = MultipleDataset([dataset_train_u_strong] * hparams_rmm.nb_strong_augms)
 		dataset_train_u_weak_strongs = MultipleDataset([dataset_train_u_weak, dataset_train_u_strongs])
 
 		loader_train_s_strong = DataLoader(dataset_train_s_strong, **args_loader_train_s)

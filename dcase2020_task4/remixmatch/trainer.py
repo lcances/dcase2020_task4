@@ -15,7 +15,7 @@ from metric_utils.metrics import Metrics
 
 from dcase2020_task4.remixmatch.model_distributions import ModelDistributions
 from dcase2020_task4.trainer import SSTrainer
-from dcase2020_task4.util.ZipLongestCycle import ZipLongestCycle
+from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.utils_match import get_lr
 
 
@@ -67,9 +67,10 @@ class ReMixMatchTrainer(SSTrainer):
 		self.model.train()
 
 		losses, acc_train_s, acc_train_u, acc_train_u1, acc_train_r = [], [], [], [], []
-		zip_cycle = ZipLongestCycle([self.loader_train_s, self.loader_train_u])
+		zip_cycle = ZipCycle([self.loader_train_s, self.loader_train_u])
+		iter_train = iter(zip_cycle)
 
-		for i, ((batch_s_strong, labels_s), (batch_u_weak, batch_u_strongs)) in enumerate(zip_cycle):
+		for i, ((batch_s_strong, labels_s), (batch_u_weak, batch_u_strongs)) in enumerate(iter_train):
 			batch_s_strong = batch_s_strong.cuda().float()
 			labels_s = labels_s.cuda().float()
 			batch_u_weak = batch_u_weak.cuda().float()

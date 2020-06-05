@@ -99,7 +99,7 @@ def set_lr(optim: Optimizer, new_lr: float):
 
 
 def build_writer(hparams: edict, suffix: str = "") -> SummaryWriter:
-	dirname = "%s_%s_%s_%s" % (hparams.train_name, hparams.model_name, suffix, hparams.begin_date)
+	dirname = "%s_%s_%s_%s_%s" % (hparams.dataset_name, hparams.train_name, hparams.model_name, suffix, hparams.begin_date)
 	dirpath = osp.join(hparams.logdir, dirname)
 	writer = SummaryWriter(log_dir=dirpath, comment=hparams.train_name)
 	return writer
@@ -114,6 +114,7 @@ def multi_hot(labels_nums: List[List[int]], nb_classes: int) -> Tensor:
 
 
 def multilabel_to_num(labels: Tensor) -> List[List[int]]:
+	""" TODO : test this fn """
 	res = [[] for _ in range(len(labels))]
 	for i, label in enumerate(labels):
 		for j, bin in enumerate(label):

@@ -2,7 +2,7 @@
 from typing import Iterable, Sized
 
 
-class ZipLongestCycle(Iterable, Sized):
+class ZipCycle(Iterable, Sized):
 	"""
 		Zip through a list of iterables and sized object of different lengths.
 		When a iterable smaller than the longest is over, this iterator is reset to the beginning.
@@ -10,7 +10,7 @@ class ZipLongestCycle(Iterable, Sized):
 		Example :
 		r1 = range(1, 4)
 		r2 = range(1, 6)
-		iters = ZipLongestCycle([r1, r2])
+		iters = ZipCycle([r1, r2])
 		for v1, v2 in iters:
 			print(v1, v2)
 

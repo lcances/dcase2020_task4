@@ -10,7 +10,7 @@ class FnDataset(Dataset):
 		self.fn = fn
 
 	def __getitem__(self, idx: int):
-		return self.fn(self.dataset[idx])
+		return self.fn(self.dataset.__getitem__(idx))
 
 	def __len__(self) -> int:
 		return len(self.dataset)

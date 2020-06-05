@@ -1,7 +1,7 @@
 from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
 
 from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, split_classes_idx
-from dcase2020_task4.util.ZipLongestCycle import ZipLongestCycle
+from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 
 
@@ -27,7 +27,7 @@ def test_1():
 
 	loader_0 = DataLoader(ds, batch_size=2, drop_last=True, sampler=SubsetRandomSampler(idx_train[0]))
 	loader_1 = DataLoader(ds, batch_size=3, drop_last=False, sampler=SubsetRandomSampler(idx_train[1]))
-	loader = ZipLongestCycle([loader_0, loader_1])
+	loader = ZipCycle([loader_0, loader_1])
 
 	for items in loader:
 		print("Items: ", items)

@@ -16,13 +16,20 @@ from torchvision.transforms import RandomChoice, Compose
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Noise, Occlusion
 
+from metric_utils.metrics import FScore
+
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
-from dcase2020_task4.train_fixmatch import train_fixmatch, default_fixmatch_hparams
-from dcase2020_task4.train_mixmatch import train_mixmatch, default_mixmatch_hparams
-from dcase2020_task4.train_remixmatch import train_remixmatch, default_remixmatch_hparams
-from dcase2020_task4.train_supervised import train_supervised, default_supervised_hparams
+from dcase2020_task4.fixmatch.train import train_fixmatch
+from dcase2020_task4.mixmatch.train import train_mixmatch
+from dcase2020_task4.remixmatch.train import train_remixmatch
+from dcase2020_task4.supervised.train import train_supervised
+from dcase2020_task4.fixmatch.hparams import default_fixmatch_hparams
+from dcase2020_task4.mixmatch.hparams import default_mixmatch_hparams
+from dcase2020_task4.remixmatch.hparams import default_remixmatch_hparams
+from dcase2020_task4.supervised.hparams import default_supervised_hparams
+
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
@@ -46,9 +53,10 @@ def create_args() -> Namespace:
 	parser.add_argument("--confidence", type=float, default=0.5)
 	parser.add_argument("--from_disk", type=bool, default=True,
 						help="Select False if you want ot load all data into RAM.")
-	parser.add_argument("--num_workers_s", type=int, default=4)
-	parser.add_argument("--num_workers_u", type=int, default=4)
+	parser.add_argument("--num_workers_s", type=int, default=1)
+	parser.add_argument("--num_workers_u", type=int, default=1)
 
+	parser.add_argument("--lambda_u_max", type=float, default=10.0, help="MixMatch \"lambda_u\" hyperparameter.")
 	parser.add_argument("--nb_augms", type=int, default=2, help="Nb of augmentations used in MixMatch.")
 	parser.add_argument("--nb_augms_strong", type=int, default=2, help="Nb of strong augmentations used in ReMixMatch.")
 	return parser.parse_args()
@@ -117,11 +125,14 @@ def main():
 		]),
 	])
 	# Augmentation used by MixMatch
+	mm_ratio = 0.5
 	augment_fn = RandomChoice([
-		Transform(0.5, scale=(0.75, 1.25)),
-		Transform(0.5, rotation=(-np.pi, np.pi)),
-		PitchShiftRandom(0.5),
-		Occlusion(0.5),
+		Transform(mm_ratio, scale=(0.75, 1.25)),
+		Transform(mm_ratio, rotation=(-np.pi, np.pi)),
+		TimeStretch(mm_ratio),
+		PitchShiftRandom(mm_ratio),
+		Noise(mm_ratio),
+		Occlusion(mm_ratio),
 	])
 
 	metric_s = BinaryConfidenceAccuracy(hparams.confidence)
@@ -130,9 +141,10 @@ def main():
 	metric_r = BinaryConfidenceAccuracy(hparams.confidence)
 	metrics_val = {
 		"acc": BinaryConfidenceAccuracy(hparams.confidence),
+		"bce": FnMetric(binary_cross_entropy),
+		"eq": EqConfidenceMetric(hparams.confidence),
 		"max": MaxMetric(),
-		"loss": FnMetric(binary_cross_entropy),
-		"eq": EqConfidenceMetric(hparams.confidence)
+		"fscore": FScore(),
 	}
 
 	manager_s, manager_u = get_desed_managers(hparams)
@@ -190,12 +202,13 @@ def main():
 		loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
 
 		# Train MixMatch with sqdiff for loss_u
+		hparams_mm.criterion_name_u = "sqdiff"
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
 			metric_s, metric_u, metrics_val, hparams_mm
 		)
 		# Train MixMatch with crossentropy for loss_u
-		hparams_mm.criterion_unsupervised = "crossentropy"
+		hparams_mm.criterion_name_u = "crossentropy"
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
 			metric_s, metric_u, metrics_val, hparams_mm
