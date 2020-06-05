@@ -16,8 +16,6 @@ from torchvision.transforms import RandomChoice, Compose
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Noise, Occlusion
 
-from metric_utils.metrics import FScore
-
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
@@ -33,7 +31,7 @@ from dcase2020_task4.supervised.hparams import default_supervised_hparams
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
-from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, FnMetric, MaxMetric, EqConfidenceMetric
+from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, FnMetric, MaxMetric, EqConfidenceMetric, FScore
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.weak_baseline_rot import WeakBaselineRot
 

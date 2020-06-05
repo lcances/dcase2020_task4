@@ -1,7 +1,9 @@
+import numpy as np
+import torch
 
 from torch import Tensor
 from typing import Callable
-from metric_utils.metrics import CategoricalAccuracy, Metrics
+from metric_utils.metrics import CategoricalAccuracy, Metrics, Recall, Precision
 
 
 class CategoricalConfidenceAccuracy(CategoricalAccuracy):
@@ -66,3 +68,26 @@ class BinaryConfidenceAccuracy(Metrics):
 
 		self.accumulate_value += self.value
 		return self.accumulate_value / self.count
+
+
+class FScore(Metrics):
+	def __init__(self, epsilon=np.spacing(1)):
+		Metrics.__init__(self, epsilon)
+		self.precision_func = Precision(epsilon)
+		self.recall_func = Recall(epsilon)
+
+	def __call__(self, y_pred, y_true):
+		super().__call__(y_pred, y_true)
+
+		self.precision = self.precision_func(y_pred, y_true)
+		self.recall = self.recall_func(y_pred, y_true)
+
+		with torch.no_grad():
+			if self.precision == 0.0 and self.recall == 0.0:
+				self.value = 0.0
+			else:
+				self.value = 2.0 * ((self.precision_func.value * self.recall_func.value) / (
+							self.precision_func.value + self.recall_func.value + self.epsilon))
+
+			self.accumulate_value += self.value
+			return self.accumulate_value / self.count
