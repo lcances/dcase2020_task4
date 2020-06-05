@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from typing import Callable
 
-from dcase2020.pytorch_metrics.metrics import Metrics
+from metric_utils.metrics import Metrics
 
 from dcase2020_task4.mixmatch.rampup import RampUp
 from dcase2020_task4.trainer import SSTrainer

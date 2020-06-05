@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from typing import Callable, Dict
 
-from dcase2020.pytorch_metrics.metrics import Metrics
+from metric_utils.metrics import Metrics
 
 
 class Validator(ABC):

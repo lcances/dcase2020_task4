@@ -10,8 +10,8 @@ from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from typing import Callable
 
-from dcase2020.augmentation_utils.img_augmentations import Transform
-from dcase2020.pytorch_metrics.metrics import Metrics
+from augmentation_utils.img_augmentations import Transform
+from metric_utils.metrics import Metrics
 
 from dcase2020_task4.remixmatch.model_distributions import ModelDistributions
 from dcase2020_task4.trainer import SSTrainer

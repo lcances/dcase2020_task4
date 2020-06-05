@@ -1,7 +1,7 @@
 import numpy as np
 
 from abc import ABC
-from dcase2020.augmentation_utils.augmentations import ImgAugmentation
+from augmentation_utils.augmentations import ImgAugmentation
 
 
 class ImgRGBAugmentation(ABC, ImgAugmentation):

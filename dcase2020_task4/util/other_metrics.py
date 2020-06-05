@@ -1,7 +1,7 @@
 
 from torch import Tensor
 from typing import Callable
-from dcase2020_task4.pytorch_metrics.metrics import CategoricalAccuracy, Metrics
+from metric_utils.metrics import CategoricalAccuracy, Metrics
 
 
 class CategoricalConfidenceAccuracy(CategoricalAccuracy):

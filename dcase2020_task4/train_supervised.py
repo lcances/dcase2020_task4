@@ -6,7 +6,7 @@ from torch.nn.functional import binary_cross_entropy
 from torch.utils.data import DataLoader, Dataset
 from typing import Callable, Dict
 
-from dcase2020.pytorch_metrics.metrics import Metrics
+from metric_utils.metrics import Metrics
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.util.utils_match import build_writer, cross_entropy
