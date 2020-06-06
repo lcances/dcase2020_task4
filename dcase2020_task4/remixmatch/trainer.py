@@ -70,7 +70,9 @@ class ReMixMatchTrainer(SSTrainer):
 		zip_cycle = ZipCycle([self.loader_train_s, self.loader_train_u])
 		iter_train = iter(zip_cycle)
 
-		for i, ((batch_s_strong, labels_s), (batch_u_weak, batch_u_strongs)) in enumerate(iter_train):
+		for i, item in enumerate(iter_train):
+			(batch_s_strong, labels_s), (batch_u_weak, batch_u_strongs) = item
+
 			batch_s_strong = batch_s_strong.cuda().float()
 			labels_s = labels_s.cuda().float()
 			batch_u_weak = batch_u_weak.cuda().float()

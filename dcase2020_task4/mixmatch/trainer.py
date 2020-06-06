@@ -53,7 +53,9 @@ class MixMatchTrainer(SSTrainer):
 		zip_cycle = ZipCycle([self.loader_train_s_augm, self.loader_train_u_augms])
 		iter_train = iter(zip_cycle)
 
-		for i, ((batch_s_augm, labels_s), batch_u_augms) in enumerate(iter_train):
+		for i, item in enumerate(iter_train):
+			(batch_s_augm, labels_s), batch_u_augms = item
+
 			batch_s_augm = batch_s_augm.cuda().float()
 			labels_s = labels_s.cuda().float()
 			batch_u_augms = torch.stack(batch_u_augms).cuda().float()

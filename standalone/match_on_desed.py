@@ -31,7 +31,7 @@ from dcase2020_task4.supervised.hparams import default_supervised_hparams
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
-from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, FnMetric, MaxMetric, EqConfidenceMetric, FScore
+from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, FnMetric, MaxMetric, EqConfidenceMetric, FScore, CategoricalConfidenceAccuracy
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.weak_baseline_rot import WeakBaselineRot
 
@@ -72,7 +72,7 @@ def get_desed_managers(hparams: edict) -> (DESEDManager, DESEDManager):
 		verbose=1
 	)
 	manager_s.add_subset("weak")
-	# manager_s.add_subset("synthetic20")
+	manager_s.add_subset("synthetic20")
 	manager_s.split_train_validation()
 
 	manager_u = DESEDManager(
@@ -136,7 +136,7 @@ def main():
 	metric_s = BinaryConfidenceAccuracy(hparams.confidence)
 	metric_u = BinaryConfidenceAccuracy(hparams.confidence)
 	metric_u1 = BinaryConfidenceAccuracy(hparams.confidence)
-	metric_r = BinaryConfidenceAccuracy(hparams.confidence)
+	metric_r = CategoricalConfidenceAccuracy(hparams.confidence)
 	metrics_val = {
 		"acc": BinaryConfidenceAccuracy(hparams.confidence),
 		"bce": FnMetric(binary_cross_entropy),
@@ -225,7 +225,7 @@ def main():
 		dataset_train_u_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_u_augm)
 		dataset_train_u_strong = NoLabelDataset(dataset_train_u_strong)
 
-		dataset_train_u_strongs = MultipleDataset([dataset_train_u_strong] * hparams.nb_augms_strong)
+		dataset_train_u_strongs = MultipleDataset([dataset_train_u_strong] * hparams_rmm.nb_augms_strong)
 		dataset_train_u_weak_strongs = MultipleDataset([dataset_train_u_weak, dataset_train_u_strongs])
 
 		loader_train_s_strong = DataLoader(dataset=dataset_train_s_strong, **args_loader_train_s)

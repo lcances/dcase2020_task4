@@ -44,20 +44,21 @@ def create_args() -> Namespace:
 	# TODO : help for acronyms
 	parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "sf", "sp"])
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
-	parser.add_argument("--dataset", type=str, default="../../dataset/CIFAR10")
+	parser.add_argument("--dataset", type=str, default="../dataset/CIFAR10")
 	parser.add_argument("--mode", type=str, default="onehot")
 	parser.add_argument("--seed", type=int, default=1234)
 	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--dataset_ratio", type=float, default=1.0)
 	parser.add_argument("--supervised_ratio", type=float, default=0.1)
-	parser.add_argument("--batch_size", type=int, default=64)
+	parser.add_argument("--batch_size", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.3)
 
 	parser.add_argument("--num_workers_s", type=int, default=1)
 	parser.add_argument("--num_workers_u", type=int, default=1)
 
+	parser.add_argument("--lambda_u_max", type=float, default=10.0, help="MixMatch \"lambda_u\" hyperparameter.")
 	parser.add_argument("--nb_augms", type=int, default=2, help="Nb of augmentations used in MixMatch.")
 	parser.add_argument("--nb_augms_strong", type=int, default=2, help="Nb of strong augmentations used in ReMixMatch.")
 	return parser.parse_args()

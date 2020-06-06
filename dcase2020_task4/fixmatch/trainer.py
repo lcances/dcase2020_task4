@@ -51,7 +51,9 @@ class FixMatchTrainer(SSTrainer):
 		zip_cycle = ZipCycle([self.loader_train_s_weak, self.loader_train_u_weak_strong])
 		iter_train = iter(zip_cycle)
 
-		for i, ((batch_s_weak, labels_s), (batch_u_weak, batch_u_strong)) in enumerate(iter_train):
+		for i, item in enumerate(iter_train):
+			(batch_s_weak, labels_s), (batch_u_weak, batch_u_strong) = item
+
 			batch_s_weak = batch_s_weak.cuda().float()
 			labels_s = labels_s.cuda().float()
 			batch_u_weak = batch_u_weak.cuda().float()
