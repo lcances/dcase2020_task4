@@ -45,7 +45,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline"])
-	parser.add_argument("--nb_epochs", type=int, default=100)
+	parser.add_argument("--nb_epochs", type=int, default=10)
 	parser.add_argument("--batch_size", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.5)
