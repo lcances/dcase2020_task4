@@ -13,7 +13,7 @@ from dcase2020.datasets import DESEDDataset
 import dcase2020_task4.augmentation_utils.signal_augmentations as signal_augmentations
 import dcase2020_task4.augmentation_utils.spec_augmentations as spec_augmentations
 import dcase2020_task4.augmentation_utils.img_augmentations as img_augmentations
-from dcase2020_task4.pytorch_metrics.metrics import FScore, BinaryAccuracy
+from metric_utils.metrics import FScore, BinaryAccuracy
 from dcase2020_task4.util.utils import get_datetime, reset_seed
 
 # models

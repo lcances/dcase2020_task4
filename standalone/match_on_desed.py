@@ -19,14 +19,15 @@ from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRando
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
-from dcase2020_task4.fixmatch.train import train_fixmatch
-from dcase2020_task4.mixmatch.train import train_mixmatch
-from dcase2020_task4.remixmatch.train import train_remixmatch
-from dcase2020_task4.supervised.train import train_supervised
+from dcase2020_task4.dcase2019.models import dcase2019_model as RCNN
 from dcase2020_task4.fixmatch.hparams import default_fixmatch_hparams
+from dcase2020_task4.fixmatch.train import train_fixmatch
 from dcase2020_task4.mixmatch.hparams import default_mixmatch_hparams
+from dcase2020_task4.mixmatch.train import train_mixmatch
 from dcase2020_task4.remixmatch.hparams import default_remixmatch_hparams
+from dcase2020_task4.remixmatch.train import train_remixmatch
 from dcase2020_task4.supervised.hparams import default_supervised_hparams
+from dcase2020_task4.supervised.train import train_supervised
 
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
@@ -46,7 +47,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED")
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--seed", type=int, default=123)
-	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline"])
+	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline", "RCNN"])
 	parser.add_argument("--nb_epochs", type=int, default=10)
 	parser.add_argument("--batch_size", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)
@@ -71,38 +72,16 @@ def create_args() -> Namespace:
 	return parser.parse_args()
 
 
-def get_desed_managers(hparams: edict) -> (DESEDManager, DESEDManager):
-	desed_metadata_root = osp.join(hparams.dataset, osp.join("dataset", "metadata"))
-	desed_audio_root = osp.join(hparams.dataset, osp.join("dataset", "audio"))
-
-	manager_s = DESEDManager(
-		desed_metadata_root, desed_audio_root,
-		from_disk=hparams.from_disk,
-		sampling_rate=22050,
-		validation_ratio=0.2,
-		verbose=1
-	)
-	manager_s.add_subset("weak")
-	manager_s.add_subset("synthetic20")
-	manager_s.split_train_validation()
-
-	manager_u = DESEDManager(
-		desed_metadata_root, desed_audio_root,
-		from_disk=hparams.from_disk,
-		sampling_rate=22050,
-		validation_ratio=0.0,
-		verbose=1
-	)
-	manager_u.add_subset("unlabel_in_domain")
-	manager_u.split_train_validation()
-
-	return manager_s, manager_u
+def check_args(args: Namespace):
+	if args.model_name == "RCNN" and ("mm" in args.run or "rmm" in args.run):
+		raise NotImplementedError("RCNN cannot be run with MixMatch or ReMixMatch.")
 
 
 def main():
 	prog_start = time()
 
 	args = create_args()
+	check_args(args)
 	print("Start match_on_desed.")
 	print("- from_disk:", args.from_disk)
 
@@ -115,7 +94,12 @@ def main():
 
 	reset_seed(hparams.seed)
 
-	model_factory = lambda: WeakBaselineRot().cuda()
+	if hparams.model_name == "WeakBaseline":
+		model_factory = lambda: WeakBaselineRot().cuda()
+	elif hparams.model_name == "RCNN":
+		model_factory = lambda: RCNN().cuda()
+	else:
+		raise RuntimeError("Invalid model %s" % hparams.model_name)
 	acti_fn = lambda batch, dim: batch.sigmoid()
 
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
@@ -267,6 +251,34 @@ def main():
 	print("")
 	print("Program started at \"%s\" and terminated at \"%s\"." % (hparams.begin_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)
+
+
+def get_desed_managers(hparams: edict) -> (DESEDManager, DESEDManager):
+	desed_metadata_root = osp.join(hparams.dataset, osp.join("dataset", "metadata"))
+	desed_audio_root = osp.join(hparams.dataset, osp.join("dataset", "audio"))
+
+	manager_s = DESEDManager(
+		desed_metadata_root, desed_audio_root,
+		from_disk=hparams.from_disk,
+		sampling_rate=22050,
+		validation_ratio=0.2,
+		verbose=1
+	)
+	manager_s.add_subset("weak")
+	manager_s.add_subset("synthetic20")
+	manager_s.split_train_validation()
+
+	manager_u = DESEDManager(
+		desed_metadata_root, desed_audio_root,
+		from_disk=hparams.from_disk,
+		sampling_rate=22050,
+		validation_ratio=0.0,
+		verbose=1
+	)
+	manager_u.add_subset("unlabel_in_domain")
+	manager_u.split_train_validation()
+
+	return manager_s, manager_u
 
 
 if __name__ == "__main__":
