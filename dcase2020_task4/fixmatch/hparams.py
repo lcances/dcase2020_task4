@@ -9,5 +9,13 @@ def default_fixmatch_hparams() -> edict:
 	hparams.threshold_mask = 0.95  # tau
 	hparams.lr = 0.03  # learning rate, eta
 	hparams.weight_decay = 1e-4
+	hparams.mode = "onehot"
 	hparams.threshold_multihot = 0.5
+
+	# Other param defined for running methods
+	hparams.nb_epochs = 100
+	hparams.begin_date = ""
+	hparams.dataset_name = ""
+	hparams.model_name = ""
+	hparams.logdir = ""
 	return hparams

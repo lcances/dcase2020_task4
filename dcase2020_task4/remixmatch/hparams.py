@@ -13,4 +13,11 @@ def default_remixmatch_hparams() -> edict:
 	hparams.lr = 1e-2  # In paper 2e-3
 	hparams.weight_decay = 1e-3  # In paper 0.02
 	hparams.history_size = 128
+
+	# Other param defined for running methods
+	hparams.nb_epochs = 100
+	hparams.begin_date = ""
+	hparams.dataset_name = ""
+	hparams.model_name = ""
+	hparams.logdir = ""
 	return hparams

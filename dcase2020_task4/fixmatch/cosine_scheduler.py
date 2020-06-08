@@ -1,7 +1,7 @@
 import numpy as np
 
 from torch.optim.optimizer import Optimizer
-from dcase2020_task4.util.utils_match import set_lr
+from dcase2020_task4.util.utils_match import set_lr, get_lr
 
 
 class CosineLRScheduler:
@@ -12,8 +12,15 @@ class CosineLRScheduler:
 		self.epoch = 0
 
 	def step(self):
-		new_lr = self.lr0 * np.cos(7.0 * np.pi * self.epoch / (16.0 * self.nb_epochs))
-		set_lr(self.optim, new_lr)
+		self.epoch += 1
+		set_lr(self.optim, self.get_cur_lr())
 
 	def reset(self):
 		self.epoch = 0
+		set_lr(self.optim, self.get_cur_lr())
+
+	def get_cur_lr(self) -> float:
+		return self.lr0 * np.cos(7.0 * np.pi * self.epoch / (16.0 * self.nb_epochs))
+
+	def get_optim_lr(self) -> float:
+		return get_lr(self.optim)

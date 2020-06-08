@@ -90,12 +90,17 @@ def cross_entropy(pred_x: Tensor, targets: Tensor) -> Tensor:
 	return -torch.sum(torch.log(pred_x) * targets, dim=1)
 
 
-def get_lr(optim: Optimizer) -> float:
-	return optim.param_groups[0]["lr"]
+def get_lrs(optim: Optimizer) -> List[float]:
+	return [group["lr"] for group in optim.param_groups]
+
+
+def get_lr(optim: Optimizer, idx: int = 0) -> float:
+	return get_lrs(optim)[idx]
 
 
 def set_lr(optim: Optimizer, new_lr: float):
-	optim.param_groups[0]["lr"] = new_lr
+	for group in optim.param_groups:
+		group["lr"] = new_lr
 
 
 def build_writer(hparams: edict, suffix: str = "") -> SummaryWriter:
@@ -121,7 +126,3 @@ def multilabel_to_num(labels: Tensor) -> List[List[int]]:
 			if bin == 1.0:
 				res[i].append(j)
 	return res
-
-
-def to_batch_fn(x_fn: Callable) -> Callable:
-	return lambda batch: torch.stack([x_fn(x).cuda() for x in batch])

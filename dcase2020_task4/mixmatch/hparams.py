@@ -11,4 +11,11 @@ def default_mixmatch_hparams() -> edict:
 	hparams.lr = 1e-2
 	hparams.weight_decay = 8e-4
 	hparams.criterion_name_u = "sqdiff"  # In paper : sqdiff, can use crossentropy
+
+	# Other param defined for running methods
+	hparams.nb_epochs = 100
+	hparams.begin_date = ""
+	hparams.dataset_name = ""
+	hparams.model_name = ""
+	hparams.logdir = ""
 	return hparams

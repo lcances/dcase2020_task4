@@ -34,13 +34,15 @@ class ReMixMatchLoss(Callable):
 		pred_r: Tensor, targets_r: Tensor,
 	) -> Tensor:
 		loss_s = self.criterion(pred_s, targets_x)
-		loss_u = self.criterion(pred_u, targets_u)
-		loss_u1 = self.criterion(pred_u1, targets_u1)
-		loss_r = self.criterion_r(pred_r, targets_r)
-
 		loss_s = loss_s.mean()
+
+		loss_u = self.criterion(pred_u, targets_u)
 		loss_u = loss_u.mean()
+
+		loss_u1 = self.criterion(pred_u1, targets_u1)
 		loss_u1 = loss_u1.mean()
+
+		loss_r = self.criterion_r(pred_r, targets_r)
 		loss_r = loss_r.mean()
 
 		loss = loss_s + self.lambda_u * loss_u + self.lambda_u1 * loss_u1 + self.lambda_r * loss_r

@@ -55,7 +55,4 @@ class FixMatchLoss(Callable):
 
 		loss = loss_s + self.lambda_u * loss_u
 
-		import torch
-		if torch.isnan(loss):
-			breakpoint()
 		return loss

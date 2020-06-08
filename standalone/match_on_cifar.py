@@ -60,9 +60,18 @@ def create_args() -> Namespace:
 	parser.add_argument("--num_workers_s", type=int, default=1)
 	parser.add_argument("--num_workers_u", type=int, default=1)
 
-	parser.add_argument("--lambda_u_max", type=float, default=10.0, help="MixMatch \"lambda_u\" hyperparameter.")
-	parser.add_argument("--nb_augms", type=int, default=2, help="Nb of augmentations used in MixMatch.")
-	parser.add_argument("--nb_augms_strong", type=int, default=2, help="Nb of strong augmentations used in ReMixMatch.")
+	parser.add_argument("--lambda_u_max", type=float, default=10.0,
+						help="MixMatch \"lambda_u\" hyperparameter.")
+	parser.add_argument("--nb_augms", type=int, default=2,
+						help="Nb of augmentations used in MixMatch.")
+	parser.add_argument("--nb_augms_strong", type=int, default=2,
+						help="Nb of strong augmentations used in ReMixMatch.")
+
+	parser.add_argument("--threshold_mask", type=float, default=0.95,
+						help="FixMatch threshold for compute mask.")
+	parser.add_argument("--threshold_multihot", type=float, default=0.5,
+						help="FixMatch threshold use to replace argmax() in multihot mode.")
+
 	return parser.parse_args()
 
 
