@@ -37,6 +37,8 @@ from dcase2020_task4.weak_baseline_rot import WeakBaselineRot
 
 
 def create_args() -> Namespace:
+	bool_fn = lambda x: str(x).lower() in ['true', '1', 'yes']
+
 	parser = ArgumentParser()
 	# TODO : help for acronyms
 	parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "sf"], choices=["fm", "mm", "rmm", "sf"])
@@ -49,7 +51,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--batch_size", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.5)
-	parser.add_argument("--from_disk", type=bool, default=True,
+	parser.add_argument("--from_disk", type=bool_fn, default=True,
 						help="Select False if you want ot load all data into RAM.")
 	parser.add_argument("--num_workers_s", type=int, default=1)
 	parser.add_argument("--num_workers_u", type=int, default=1)

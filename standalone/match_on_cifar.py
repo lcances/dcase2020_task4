@@ -40,6 +40,8 @@ from dcase2020_task4.vgg import VGG
 
 
 def create_args() -> Namespace:
+	# bool_fn = lambda x: str(x).lower() in ['true', '1', 'yes']  # TODO
+
 	parser = ArgumentParser()
 	# TODO : help for acronyms
 	parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "sf", "sp"])
