@@ -94,6 +94,8 @@ def main():
 	prog_start = time()
 
 	args = create_args()
+	print("Start match_on_desed.")
+	print("- from_disk:", args.from_disk)
 
 	hparams = edict()
 	args_filtered = {k: (" ".join(v) if isinstance(v, list) else v) for k, v in args.__dict__.items()}
