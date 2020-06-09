@@ -1,7 +1,7 @@
 
 from easydict import EasyDict as edict
 from torch.nn import Module
-from torch.optim import SGD
+from torch.optim import Adam
 from torch.utils.data import DataLoader
 from typing import Callable, Dict
 
@@ -31,7 +31,7 @@ def train_mixmatch(
 		raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 			loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
 
-	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
+	optim = Adam(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 
 	hparams.train_name = "MixMatch"
 	writer = build_writer(hparams, suffix=hparams.criterion_name_u)

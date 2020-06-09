@@ -2,8 +2,10 @@ from easydict import EasyDict as edict
 
 
 def default_supervised_hparams() -> edict:
+	# TODO : clean
 	hparams = edict()
 	hparams.batch_size = 16
+
 	hparams.lr = 3e-3
 	hparams.weight_decay = 0.0
 

@@ -2,7 +2,7 @@ import numpy as np
 
 from easydict import EasyDict as edict
 from torch.nn import Module
-from torch.optim import SGD
+from torch.optim import Adam
 from torch.utils.data import DataLoader
 from typing import Callable, Dict
 
@@ -35,7 +35,7 @@ def train_remixmatch(
 			loader_train_s_strong.batch_size, loader_train_u_weak_strongs.batch_size))
 
 	rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
-	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
+	optim = Adam(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 
 	hparams.train_name = "ReMixMatch"
 	writer = build_writer(hparams)

@@ -244,7 +244,7 @@ def main():
 		dataset_train_u_weak = NoLabelDataset(dataset_train_u_weak)
 		dataset_train_u_strong = NoLabelDataset(dataset_train_u_strong)
 
-		dataset_train_u_strongs = MultipleDataset([dataset_train_u_strong] * hparams_rmm.nb_strong_augms)
+		dataset_train_u_strongs = MultipleDataset([dataset_train_u_strong] * hparams_rmm.nb_augms_strong)
 		dataset_train_u_weak_strongs = MultipleDataset([dataset_train_u_weak, dataset_train_u_strongs])
 
 		loader_train_s_strong = DataLoader(dataset_train_s_strong, **args_loader_train_s)

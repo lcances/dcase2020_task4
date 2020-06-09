@@ -5,8 +5,10 @@ from easydict import EasyDict as edict
 from torch import Tensor
 from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
+from torch.optim.adam import Adam
+from torch.optim.sgd import SGD
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, List
+from typing import List
 
 
 def sharpen(batch: Tensor, temperature: float, dim: int) -> Tensor:
@@ -126,3 +128,12 @@ def multilabel_to_num(labels: Tensor) -> List[List[int]]:
 			if bin == 1.0:
 				res[i].append(j)
 	return res
+
+
+def optim_from_str(name: str, *args, **kwargs):
+	if name.lower() == "adam":
+		return Adam(*args, **kwargs)
+	elif name.lower() == "sgd":
+		return SGD(*args, **kwargs)
+	else:
+		raise RuntimeError("Unknown optimizer %s" % name)

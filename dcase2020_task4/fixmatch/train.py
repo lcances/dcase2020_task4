@@ -1,7 +1,7 @@
 
 from easydict import EasyDict as edict
 from torch.nn import Module
-from torch.optim import SGD
+from torch.optim import Adam
 from torch.utils.data import DataLoader
 from typing import Callable, Dict
 
@@ -26,7 +26,7 @@ def train_fixmatch(
 	metrics_val: Dict[str, Metrics],
 	hparams: edict,
 ):
-	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay, momentum=hparams.momentum)
+	optim = Adam(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 	scheduler = CosineLRScheduler(optim, nb_epochs=hparams.nb_epochs, lr0=hparams.lr)
 
 	hparams.train_name = "FixMatch"
