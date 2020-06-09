@@ -4,8 +4,8 @@ from easydict import EasyDict as edict
 def default_supervised_hparams() -> edict:
 	hparams = edict()
 	hparams.batch_size = 16
-	hparams.lr = 1e-2
-	hparams.weight_decay = 1e-4
+	hparams.lr = 3e-3
+	hparams.weight_decay = 0.0
 
 	# Other param defined for running methods
 	hparams.nb_epochs = 100

@@ -1,7 +1,7 @@
 
 from easydict import EasyDict as edict
 from torch.nn import Module
-from torch.optim import SGD
+from torch.optim import Adam
 from torch.nn.functional import binary_cross_entropy
 from torch.utils.data import DataLoader
 from typing import Callable, Dict
@@ -23,7 +23,7 @@ def train_supervised(
 	hparams: edict,
 	suffix: str
 ):
-	optim = SGD(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
+	optim = Adam(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
 
 	hparams.train_name = "Supervised"
 	writer = build_writer(hparams, suffix=suffix)
