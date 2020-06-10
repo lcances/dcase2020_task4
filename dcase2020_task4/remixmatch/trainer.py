@@ -8,7 +8,7 @@ from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable
+from typing import Callable, Dict
 
 from augmentation_utils.img_augmentations import Transform
 from metric_utils.metrics import Metrics
@@ -27,10 +27,10 @@ class ReMixMatchTrainer(SSTrainer):
 		optim: Optimizer,
 		loader_train_s: DataLoader,
 		loader_train_u: DataLoader,
-		metric_s: Metrics,
-		metric_u: Metrics,
-		metric_u1: Metrics,
-		metric_r: Metrics,
+		metrics_s: Dict[str, Metrics],
+		metrics_u: Dict[str, Metrics],
+		metrics_u1: Dict[str, Metrics],
+		metrics_r: Dict[str, Metrics],
 		writer: SummaryWriter,
 		criterion: Callable,
 		mixer: Callable,
@@ -46,10 +46,10 @@ class ReMixMatchTrainer(SSTrainer):
 		self.optim = optim
 		self.loader_train_s = loader_train_s
 		self.loader_train_u = loader_train_u
-		self.metric_s = metric_s
-		self.metric_u = metric_u
-		self.metric_u1 = metric_u1
-		self.metric_r = metric_r
+		self.metrics_s = metrics_s
+		self.metrics_u = metrics_u
+		self.metrics_u1 = metrics_u1
+		self.metrics_r = metrics_r
 		self.writer = writer
 		self.criterion = criterion
 		self.mixer = mixer
@@ -60,13 +60,15 @@ class ReMixMatchTrainer(SSTrainer):
 
 	def train(self, epoch: int):
 		train_start = time()
-		self.metric_s.reset()
-		self.metric_u.reset()
-		self.metric_u1.reset()
-		self.metric_r.reset()
 		self.model.train()
+		self.reset_metrics()
 
-		losses, acc_train_s, acc_train_u, acc_train_u1, acc_train_r = [], [], [], [], []
+		losses = []
+		metric_values = {metric_name: [] for metric_name in self.metrics_s.keys()}
+		metric_values_u = {metric_name: [] for metric_name in self.metrics_u.keys()}
+		metric_values_u1 = {metric_name: [] for metric_name in self.metrics_u1.keys()}
+		metric_values_r = {metric_name: [] for metric_name in self.metrics_r.keys()}
+
 		zip_cycle = ZipCycle([self.loader_train_s, self.loader_train_u])
 		iter_train = iter(zip_cycle)
 
@@ -80,38 +82,32 @@ class ReMixMatchTrainer(SSTrainer):
 
 			with torch.no_grad():
 				self.distributions.add_batch_pred(labels_s, "labeled")
-				pred_u = self.acti_fn(self.model(batch_u_weak), dim=1)
-				self.distributions.add_batch_pred(pred_u, "unlabeled")
+				pred_u_mixed = self.acti_fn(self.model(batch_u_weak), dim=1)
+				self.distributions.add_batch_pred(pred_u_mixed, "unlabeled")
 
 			# Apply mix
 			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed, batch_u1, labels_u1 = \
 				self.mixer(batch_s_strong, labels_s, batch_u_weak, batch_u_strongs)
 
 			# Predict labels for x (mixed), u (mixed) and u1 (strong augment)
-			logits_s = self.model(batch_s_mixed)
-			logits_u = self.model(batch_u_mixed)
+			logits_s_mixed = self.model(batch_s_mixed)
+			logits_u_mixed = self.model(batch_u_mixed)
 			logits_u1 = self.model(batch_u1)
+
+			pred_s_mixed = self.acti_fn(logits_s_mixed, dim=1)
+			pred_u_mixed = self.acti_fn(logits_u_mixed, dim=1)
+			pred_u1 = self.acti_fn(logits_u1, dim=1)
 
 			# Rotate images and predict rotation for strong augment u1
 			batch_u1_rotated, labels_r = apply_random_rot(batch_u1, self.rot_angles)
 			labels_r = one_hot(labels_r, len(self.rot_angles)).float().cuda()
 			logits_r = self.model.forward_rot(batch_u1_rotated)
-
-			pred_s = self.acti_fn(logits_s, dim=1)
-			pred_u = self.acti_fn(logits_u, dim=1)
-			pred_u1 = self.acti_fn(logits_u1, dim=1)
 			pred_r = self.acti_fn_rot(logits_r, dim=1)
-
-			# Compute accuracies
-			mean_acc_s = self.metric_s(pred_s, labels_s_mixed)
-			mean_acc_u = self.metric_u(pred_u, labels_u_mixed)
-			mean_acc_u1 = self.metric_u1(pred_u1, labels_u1)
-			mean_acc_r = self.metric_r(pred_r, labels_r)
 
 			# Update model
 			loss = self.criterion(
-				pred_s, labels_s_mixed,
-				pred_u, labels_u_mixed,
+				pred_s_mixed, labels_s_mixed,
+				pred_u_mixed, labels_u_mixed,
 				pred_u1, labels_u1,
 				pred_r, labels_r,
 			)
@@ -120,39 +116,48 @@ class ReMixMatchTrainer(SSTrainer):
 			loss.backward()
 			self.optim.step()
 
-			# Store data
+			# Compute accuracies
 			losses.append(loss.item())
-			acc_train_s.append(self.metric_s.value.item())
-			acc_train_u.append(self.metric_u.value.item())
-			acc_train_u1.append(self.metric_u1.value.item())
-			acc_train_r.append(self.metric_r.value.item())
+			buffer = ["{:s}: {:.4e}".format("loss", np.mean(losses))]
 
-			print(
-				"Epoch {}, {:d}% \t loss: {:.4e} - acc_s: {:.4e} - acc_u: {:.4e} - acc_u1: {:.4e} - acc_r: {:.4e} - took {:.2f}s".format(
-					epoch + 1,
-					int(100 * (i + 1) / len(zip_cycle)),
-					loss.item(),
-					mean_acc_s,
-					mean_acc_u,
-					mean_acc_u1,
-					mean_acc_r,
-					time() - train_start
-				), end="\r")
+			metric_pred_labels = [
+				(self.metrics_s, pred_s_mixed, labels_s_mixed),
+				(self.metrics_u, pred_u_mixed, labels_u_mixed),
+				(self.metrics_u1, pred_u1, labels_u1),
+				(self.metrics_r, pred_r, labels_r),
+			]
+			for metrics, pred, labels in metric_pred_labels:
+				for metric_name, metric in metrics.items():
+					mean_s = metric(pred, labels)
+					buffer.append("%s: %.4e" % (metric_name, mean_s))
+					metric_values[metric_name].append(metric.value.item())
+
+			buffer.append("took: %.2fs" % (time() - train_start))
+
+			print("Epoch {:d}, {:d}% \t {:s}".format(
+				epoch + 1,
+				int(100 * (i + 1) / len(zip_cycle)),
+				" - ".join(buffer),
+			), end="\r")
 
 		print("")
 
-		self.writer.add_scalar("train/loss", float(np.mean(losses)), epoch)
-		self.writer.add_scalar("train/acc_s", float(np.mean(acc_train_s)), epoch)
-		self.writer.add_scalar("train/acc_u", float(np.mean(acc_train_u)), epoch)
-		self.writer.add_scalar("train/acc_u1", float(np.mean(acc_train_u1)), epoch)
-		self.writer.add_scalar("train/acc_rot", float(np.mean(acc_train_r)), epoch)
+		self.writer.add_scalar("train/loss", np.mean(losses), epoch)
 		self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
+		for metric_name, values in metric_values.items():
+			self.writer.add_scalar("train/%s" % metric_name, np.mean(values), epoch)
 
 	def nb_examples_supervised(self) -> int:
 		return len(self.loader_train_s) * self.loader_train_s.batch_size
 
 	def nb_examples_unsupervised(self) -> int:
 		return len(self.loader_train_u) * self.loader_train_u.batch_size
+
+	def reset_metrics(self):
+		metrics_lst = [self.metrics_s, self.metrics_u, self.metrics_u1, self.metrics_r]
+		for metrics in metrics_lst:
+			for metric in metrics.values():
+				metric.reset()
 
 
 def apply_random_rot(batch: Tensor, angles_allowed) -> (Tensor, Tensor):

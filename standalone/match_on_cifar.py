@@ -137,10 +137,10 @@ def main():
 	# Add preprocessing before each augmentation
 	preprocess_fn = lambda img: np.array(img).transpose()  # Transpose img [3, 32, 32] to [32, 32, 3]
 
-	metric_s = CategoricalConfidenceAccuracy(hparams.confidence)
-	metric_u = CategoricalConfidenceAccuracy(hparams.confidence)
-	metric_u1 = CategoricalConfidenceAccuracy(hparams.confidence)
-	metric_r = CategoricalConfidenceAccuracy(hparams.confidence)
+	metrics_s = {"acc_s": CategoricalConfidenceAccuracy(hparams.confidence)}
+	metrics_u = {"acc_u": CategoricalConfidenceAccuracy(hparams.confidence)}
+	metrics_u1 = {"acc_u1": CategoricalConfidenceAccuracy(hparams.confidence)}
+	metrics_r = {"acc_r": CategoricalConfidenceAccuracy(hparams.confidence)}
 	metrics_val = {
 		"acc": CategoricalConfidenceAccuracy(hparams.confidence),
 		"ce": FnMetric(cross_entropy),
@@ -204,7 +204,7 @@ def main():
 
 		train_fixmatch(
 			model_factory(), acti_fn, loader_train_s_weak, loader_train_u_weak_strong, loader_val,
-			metric_s, metric_u, metrics_val, hparams_fm
+			metrics_s, metrics_u, metrics_val, hparams_fm
 		)
 
 	if "mm" in args.run:
@@ -224,13 +224,13 @@ def main():
 		hparams_mm.criterion_name_u = "sqdiff"
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
-			metric_s, metric_u, metrics_val, hparams_mm
+			metrics_s, metrics_u, metrics_val, hparams_mm
 		)
 		# Train MixMatch with crossentropy for loss_u
 		hparams_mm.criterion_name_u = "crossentropy"
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
-			metric_s, metric_u, metrics_val, hparams_mm
+			metrics_s, metrics_u, metrics_val, hparams_mm
 		)
 
 	if "rmm" in args.run:
@@ -252,7 +252,7 @@ def main():
 
 		train_remixmatch(
 			model_factory(), acti_fn, loader_train_s_strong, loader_train_u_weak_strongs, loader_val,
-			metric_s, metric_u, metric_u1, metric_r, metrics_val, hparams_rmm
+			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val, hparams_rmm
 		)
 
 	if "sf" in args.run:
@@ -263,7 +263,7 @@ def main():
 		loader_train_full = DataLoader(dataset_train_full, **args_loader_train_s)
 
 		train_supervised(
-			model_factory(), acti_fn, loader_train_full, loader_val, metric_s, metrics_val,
+			model_factory(), acti_fn, loader_train_full, loader_val, metrics_s, metrics_val,
 			hparams_sf, suffix="full_100"
 		)
 
@@ -275,7 +275,7 @@ def main():
 		loader_train_s = DataLoader(dataset_train_s, **args_loader_train_s)
 
 		train_supervised(
-			model_factory(), acti_fn, loader_train_s, loader_val, metric_s, metrics_val,
+			model_factory(), acti_fn, loader_train_s, loader_val, metrics_s, metrics_val,
 			hparams_sp, suffix="part_%d" % int(100 * hparams_sp.supervised_ratio)
 		)
 

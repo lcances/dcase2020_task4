@@ -30,14 +30,16 @@ class ModelDistributions:
 		}
 
 	def add_batch_pred(self, batch: Tensor, name: str):
-		for pred in batch:
-			self.add_pred(pred, name)
+		with torch.no_grad():
+			for pred in batch:
+				self.add_pred(pred, name)
 
 	def add_pred(self, pred: Tensor, name: str):
-		distributions, index = self.data[name]
-		distributions[index] = pred
-		index = (index + 1) % len(distributions)
-		self.data[name][1] = index
+		with torch.no_grad():
+			distributions, index = self.data[name]
+			distributions[index] = pred
+			index = (index + 1) % len(distributions)
+			self.data[name][1] = index
 
 	def get_mean_pred(self, name: str) -> Tensor:
 		distributions, _ = self.data[name]

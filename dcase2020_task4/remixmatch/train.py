@@ -23,10 +23,10 @@ def train_remixmatch(
 	loader_train_s_strong: DataLoader,
 	loader_train_u_weak_strongs: DataLoader,
 	loader_val: DataLoader,
-	metric_s: Metrics,
-	metric_u: Metrics,
-	metric_u1: Metrics,
-	metric_r: Metrics,
+	metrics_s: Dict[str, Metrics],
+	metrics_u: Dict[str, Metrics],
+	metrics_u1: Dict[str, Metrics],
+	metrics_r: Dict[str, Metrics],
 	metrics_val: Dict[str, Metrics],
 	hparams: edict,
 ):
@@ -54,8 +54,8 @@ def train_remixmatch(
 		hparams.mode
 	)
 	trainer = ReMixMatchTrainer(
-		model, acti_fn, optim, loader_train_s_strong, loader_train_u_weak_strongs, metric_s, metric_u,
-		metric_u1, metric_r, writer, criterion, mixer, distributions, rot_angles
+		model, acti_fn, optim, loader_train_s_strong, loader_train_u_weak_strongs, metrics_s, metrics_u,
+		metrics_u1, metrics_r, writer, criterion, mixer, distributions, rot_angles
 	)
 	validator = DefaultValidator(
 		model, acti_fn, loader_val, metrics_val, writer

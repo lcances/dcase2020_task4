@@ -8,6 +8,9 @@ class Trainer(ABC):
 	def nb_examples(self) -> int:
 		raise NotImplementedError("Abstract method")
 
+	def reset_metrics(self):
+		raise NotImplementedError("Abstract method")
+
 
 class SSTrainer(Trainer, ABC):
 	def nb_examples_supervised(self) -> int:

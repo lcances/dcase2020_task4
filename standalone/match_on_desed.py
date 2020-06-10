@@ -3,7 +3,6 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
-import numpy as np
 import os.path as osp
 
 from argparse import ArgumentParser, Namespace
@@ -32,9 +31,11 @@ from dcase2020_task4.supervised.train import train_supervised
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
-from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, FnMetric, MaxMetric, EqConfidenceMetric, FScore, CategoricalConfidenceAccuracy
+from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, FnMetric, MaxMetric, EqConfidenceMetric, CategoricalConfidenceAccuracy
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.weak_baseline_rot import WeakBaselineRot
+
+from metric_utils.metrics import FScore
 
 
 def create_args() -> Namespace:
@@ -109,13 +110,11 @@ def main():
 
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	weak_augm_fn = RandomChoice([
-		Transform(0.5, scale=(0.75, 1.25)),
-		Transform(0.5, rotation=(-np.pi, np.pi)),
+		Transform(0.5, scale=(0.9, 1.1)),
 	])
 	strong_augm_fn = Compose([
 		RandomChoice([
 			Transform(1.0, scale=(0.5, 1.5)),
-			Transform(1.0, rotation=(-np.pi, np.pi)),
 		]),
 		RandomChoice([
 			TimeStretch(1.0),
@@ -125,20 +124,19 @@ def main():
 		]),
 	])
 	# Augmentation used by MixMatch
-	mm_ratio = 0.5
+	ratio = 0.5
 	augment_fn = RandomChoice([
-		Transform(mm_ratio, scale=(0.75, 1.25)),
-		Transform(mm_ratio, rotation=(-np.pi, np.pi)),
-		TimeStretch(mm_ratio),
-		PitchShiftRandom(mm_ratio),
-		Noise(mm_ratio),
-		Occlusion(mm_ratio),
+		Transform(ratio, scale=(0.75, 1.25)),
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio),
+		Noise(ratio),
+		Occlusion(ratio),
 	])
 
-	metric_s = BinaryConfidenceAccuracy(hparams.confidence)
-	metric_u = BinaryConfidenceAccuracy(hparams.confidence)
-	metric_u1 = BinaryConfidenceAccuracy(hparams.confidence)
-	metric_r = CategoricalConfidenceAccuracy(hparams.confidence)
+	metrics_s = {"acc_s": BinaryConfidenceAccuracy(hparams.confidence)}
+	metrics_u = {"acc_u": BinaryConfidenceAccuracy(hparams.confidence)}
+	metrics_u1 = {"acc_u1": BinaryConfidenceAccuracy(hparams.confidence)}
+	metrics_r = {"acc_r": CategoricalConfidenceAccuracy(hparams.confidence)}
 	metrics_val = {
 		"acc": BinaryConfidenceAccuracy(hparams.confidence),
 		"bce": FnMetric(binary_cross_entropy),
@@ -155,9 +153,12 @@ def main():
 	dataset_val = FnDataset(dataset_val, get_batch_label)
 	loader_val = DataLoader(dataset_val, batch_size=hparams.batch_size, shuffle=False)
 
-	args_dataset_train_s = dict(manager=manager_s, train=True, val=False, cached=True, weak=True, strong=False)
-	args_dataset_train_s_augm = dict(manager=manager_s, train=True, val=False, cached=False, weak=True, strong=False)
-	args_dataset_train_u_augm = dict(manager=manager_u, train=True, val=False, cached=False, weak=False, strong=False)
+	args_dataset_train_s = dict(
+		manager=manager_s, train=True, val=False, cached=True, weak=True, strong=False)
+	args_dataset_train_s_augm = dict(
+		manager=manager_s, train=True, val=False, cached=False, weak=True, strong=False)
+	args_dataset_train_u_augm = dict(
+		manager=manager_u, train=True, val=False, cached=False, weak=False, strong=False)
 	args_loader_train_s = dict(
 		batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_s, drop_last=True)
 	args_loader_train_u = dict(
@@ -183,7 +184,7 @@ def main():
 
 		train_fixmatch(
 			model_factory(), acti_fn, loader_train_s_weak, loader_train_u_weak_strong, loader_val,
-			metric_s, metric_u, metrics_val, hparams_fm
+			metrics_s, metrics_u, metrics_val, hparams_fm
 		)
 
 	if "mm" in args.run:
@@ -205,13 +206,13 @@ def main():
 		hparams_mm.criterion_name_u = "sqdiff"
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
-			metric_s, metric_u, metrics_val, hparams_mm
+			metrics_s, metrics_u, metrics_val, hparams_mm
 		)
 		# Train MixMatch with crossentropy for loss_u
 		hparams_mm.criterion_name_u = "crossentropy"
 		train_mixmatch(
 			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
-			metric_s, metric_u, metrics_val, hparams_mm
+			metrics_s, metrics_u, metrics_val, hparams_mm
 		)
 
 	if "rmm" in args.run:
@@ -235,7 +236,7 @@ def main():
 
 		train_remixmatch(
 			model_factory(), acti_fn, loader_train_s_strong, loader_train_u_weak_strongs, loader_val,
-			metric_s, metric_u, metric_u1, metric_r, metrics_val, hparams_rmm
+			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val, hparams_rmm
 		)
 
 	if "sf" in args.run:
@@ -248,7 +249,7 @@ def main():
 		loader_train_s = DataLoader(dataset=dataset_train_s, **args_loader_train_s)
 
 		train_supervised(
-			model_factory(), acti_fn, loader_train_s, loader_val, metric_s, metrics_val,
+			model_factory(), acti_fn, loader_train_s, loader_val, metrics_s, metrics_val,
 			hparams_sf, suffix="full_100"
 		)
 
@@ -259,8 +260,8 @@ def main():
 
 
 def get_desed_managers(hparams: edict) -> (DESEDManager, DESEDManager):
-	desed_metadata_root = osp.join(hparams.dataset, osp.join("dataset", "metadata"))
-	desed_audio_root = osp.join(hparams.dataset, osp.join("dataset", "audio"))
+	desed_metadata_root = osp.join(hparams.dataset, "dataset", "metadata")
+	desed_audio_root = osp.join(hparams.dataset, "dataset", "audio")
 
 	manager_s = DESEDManager(
 		desed_metadata_root, desed_audio_root,

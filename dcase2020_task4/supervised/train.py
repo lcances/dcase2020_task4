@@ -18,7 +18,7 @@ def train_supervised(
 	acti_fn: Callable,
 	loader_train_s: DataLoader,
 	loader_val: DataLoader,
-	metric_s: Metrics,
+	metrics_s: Dict[str, Metrics],
 	metrics_val: Dict[str, Metrics],
 	hparams: edict,
 	suffix: str
@@ -36,7 +36,7 @@ def train_supervised(
 		raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (hparams.mode, " or ".join(("onehot", "multihot"))))
 
 	trainer = SupervisedTrainer(
-		model, acti_fn, optim, loader_train_s, criterion, metric_s, writer
+		model, acti_fn, optim, loader_train_s, criterion, metrics_s, writer
 	)
 	validator = DefaultValidator(
 		model, acti_fn, loader_val, metrics_val, writer

@@ -21,8 +21,8 @@ def train_fixmatch(
 	loader_train_s_weak: DataLoader,
 	loader_train_u_weak_strong: DataLoader,
 	loader_val: DataLoader,
-	metric_s: Metrics,
-	metric_u: Metrics,
+	metrics_s: Dict[str, Metrics],
+	metrics_u: Dict[str, Metrics],
 	metrics_val: Dict[str, Metrics],
 	hparams: edict,
 ):
@@ -34,7 +34,7 @@ def train_fixmatch(
 
 	criterion = FixMatchLoss.from_edict(hparams)
 	trainer = FixMatchTrainer(
-		model, acti_fn, optim, loader_train_s_weak, loader_train_u_weak_strong, metric_s, metric_u,
+		model, acti_fn, optim, loader_train_s_weak, loader_train_u_weak_strong, metrics_s, metrics_u,
 		writer, criterion, hparams.mode, hparams.threshold_multihot
 	)
 	validator = DefaultValidator(

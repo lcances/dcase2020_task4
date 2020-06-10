@@ -1,13 +1,11 @@
 import numpy as np
 
-from easydict import EasyDict as edict
 from time import time
-from torch import Tensor
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable
+from typing import Callable, Dict
 
 from metric_utils.metrics import Metrics
 from dcase2020_task4.util.utils_match import get_lr
@@ -22,7 +20,7 @@ class SupervisedTrainer(Trainer):
 		optim: Optimizer,
 		loader: DataLoader,
 		criterion: Callable,
-		metrics: Metrics,
+		metrics: Dict[str, Metrics],
 		writer: SummaryWriter,
 	):
 		self.model = model
@@ -35,10 +33,12 @@ class SupervisedTrainer(Trainer):
 
 	def train(self, epoch: int):
 		train_start = time()
-		self.metrics.reset()
 		self.model.train()
+		self.reset_metrics()
 
-		losses, acc_train = [], []
+		losses = []
+		metric_values = {metric_name: [] for metric_name in self.metrics.keys()}
+
 		iter_train = iter(self.loader)
 
 		for i, (x, y) in enumerate(iter_train):
@@ -49,33 +49,45 @@ class SupervisedTrainer(Trainer):
 			logits = self.model(x)
 			pred = self.acti_fn(logits, dim=1)
 
-			# Compute accuracy
-			accuracy = self.metrics(pred, y)
-
 			# Update model
 			loss = self.criterion(pred, y).mean()
 			self.optim.zero_grad()
 			loss.backward()
 			self.optim.step()
 
-			# Store data
+			# Compute accuracies
 			losses.append(loss.item())
-			acc_train.append(self.metrics.value.item())
+			buffer = ["{:s}: {:.4e}".format("loss", np.mean(losses))]
 
-			# logs
-			print("Epoch {}, {:d}% \t loss: {:.4e} - acc: {:.4e} - took {:.2f}s".format(
+			metric_pred_labels = [
+				(self.metrics, pred, y),
+			]
+			for metrics, pred, labels in metric_pred_labels:
+				for metric_name, metric in metrics.items():
+					mean_s = metric(pred, labels)
+					buffer.append("%s: %.4e" % (metric_name, mean_s))
+					metric_values[metric_name].append(metric.value.item())
+
+			buffer.append("took: %.2fs" % (time() - train_start))
+
+			print("Epoch {:d}, {:d}% \t {:s}".format(
 				epoch + 1,
 				int(100 * (i + 1) / len(self.loader)),
-				loss.item(),
-				accuracy,
-				time() - train_start
+				" - ".join(buffer),
 			), end="\r")
 
 		print("")
 
 		self.writer.add_scalar("train/loss", float(np.mean(losses)), epoch)
-		self.writer.add_scalar("train/acc", float(np.mean(acc_train)), epoch)
 		self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
+		for metric_name, values in metric_values.items():
+			self.writer.add_scalar("train/%s" % metric_name, float(np.mean(values)), epoch)
 
 	def nb_examples(self) -> int:
 		return len(self.loader) * self.loader.batch_size
+
+	def reset_metrics(self):
+		metrics_lst = [self.metrics]
+		for metrics in metrics_lst:
+			for metric in metrics.values():
+				metric.reset()

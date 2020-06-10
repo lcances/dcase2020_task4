@@ -22,8 +22,8 @@ def train_mixmatch(
 	loader_train_s_augm: DataLoader,
 	loader_train_u_augms: DataLoader,
 	loader_val: DataLoader,
-	metric_s: Metrics,
-	metric_u: Metrics,
+	metrics_s: Dict[str, Metrics],
+	metrics_u: Dict[str, Metrics],
 	metrics_val: Dict[str, Metrics],
 	hparams: edict,
 ):
@@ -43,7 +43,7 @@ def train_mixmatch(
 	lambda_u_rampup = RampUp(hparams.lambda_u_max, nb_rampup_steps)
 
 	trainer = MixMatchTrainer(
-		model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metric_s, metric_u,
+		model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
 		writer, criterion, mixer, lambda_u_rampup
 	)
 	validator = DefaultValidator(
