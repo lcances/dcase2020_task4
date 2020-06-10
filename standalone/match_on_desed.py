@@ -43,8 +43,8 @@ def create_args() -> Namespace:
 	parser = ArgumentParser()
 	# TODO : help for acronyms
 	parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "sf"], choices=["fm", "mm", "rmm", "sf"])
-	parser.add_argument("--logdir", type=str, default="../../tensorboard")
-	parser.add_argument("--dataset", type=str, default="../dataset/DESED")
+	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
+	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline", "RCNN"])
@@ -57,6 +57,11 @@ def create_args() -> Namespace:
 	parser.add_argument("--num_workers_s", type=int, default=1)
 	parser.add_argument("--num_workers_u", type=int, default=1)
 
+	parser.add_argument("--lr", type=float, default=1e-3,
+						help="Learning rate used.")
+
+	parser.add_argument("--lambda_u", type=float, default=1.0,
+						help="FixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
 	parser.add_argument("--lambda_u_max", type=float, default=10.0,
 						help="MixMatch \"lambda_u\" hyperparameter.")
 	parser.add_argument("--nb_augms", type=int, default=2,
