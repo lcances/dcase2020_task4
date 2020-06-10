@@ -266,22 +266,19 @@ def get_desed_managers(hparams: edict) -> (DESEDManager, DESEDManager):
 		desed_metadata_root, desed_audio_root,
 		from_disk=hparams.from_disk,
 		sampling_rate=22050,
-		validation_ratio=0.2,
 		verbose=1
 	)
 	manager_s.add_subset("weak")
 	manager_s.add_subset("synthetic20")
-	manager_s.split_train_validation()
+	manager_s.add_subset("validation")
 
 	manager_u = DESEDManager(
 		desed_metadata_root, desed_audio_root,
 		from_disk=hparams.from_disk,
 		sampling_rate=22050,
-		validation_ratio=0.0,
 		verbose=1
 	)
 	manager_u.add_subset("unlabel_in_domain")
-	manager_u.split_train_validation()
 
 	return manager_s, manager_u
 

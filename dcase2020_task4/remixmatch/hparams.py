@@ -4,7 +4,7 @@ from easydict import EasyDict as edict
 def default_remixmatch_hparams() -> edict:
 	# TODO : clean
 	hparams = edict()
-	hparams.batch_size = 16
+	hparams.batch_size = 64
 	hparams.nb_augms_strong = 8  # In paper : 8
 	hparams.sharpen_temp = 0.5
 	hparams.mixup_alpha = 0.75
