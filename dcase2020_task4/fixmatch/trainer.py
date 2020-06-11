@@ -1,5 +1,4 @@
 import numpy as np
-import torch
 
 from time import time
 from torch.nn import Module
@@ -10,6 +9,7 @@ from typing import Callable, Dict, Optional
 
 from metric_utils.metrics import Metrics
 
+from dcase2020_task4.fixmatch.losses.abc import FixMatchLossABC
 from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.utils_match import binarize_onehot_labels, get_lr
 from dcase2020_task4.trainer import SSTrainer
@@ -25,7 +25,7 @@ class FixMatchTrainer(SSTrainer):
 		loader_train_u_augms_weak_strong: DataLoader,
 		metrics_s: Dict[str, Metrics],
 		metrics_u: Dict[str, Metrics],
-		criterion: Callable,
+		criterion: FixMatchLossABC,
 		writer: Optional[SummaryWriter],
 		mode: str = "onehot",
 		threshold_multihot: float = 0.5,
@@ -52,8 +52,8 @@ class FixMatchTrainer(SSTrainer):
 			metric_name: [] for metric_name in (list(self.metrics_s.keys()) + list(self.metrics_u.keys()))
 		}
 
-		zip_cycle = ZipCycle([self.loader_train_s_augm_weak, self.loader_train_u_augms_weak_strong])
-		iter_train = iter(zip_cycle)
+		loaders_zip = ZipCycle([self.loader_train_s_augm_weak, self.loader_train_u_augms_weak_strong])
+		iter_train = iter(loaders_zip)
 
 		for i, item in enumerate(iter_train):
 			(s_batch_augm_weak, s_labels_weak), (u_batch_augm_weak, u_batch_augm_strong) = item
@@ -73,14 +73,14 @@ class FixMatchTrainer(SSTrainer):
 			u_pred_augm_weak = self.acti_fn(u_logits_augm_weak, dim=1)
 			u_pred_augm_strong = self.acti_fn(u_logits_augm_strong, dim=1)
 
-			with torch.no_grad():
-				# Use guess u label with prediction of weak augmentation of u
-				if self.mode == "onehot":
-					u_labels_weak_guessed = binarize_onehot_labels(u_pred_augm_weak)
-				elif self.mode == "multihot":
-					u_labels_weak_guessed = (u_pred_augm_weak > self.threshold_multihot).float()
-				else:
-					raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
+			# Use guess u label with prediction of weak augmentation of u
+			u_pred_augm_weak.detach_()
+			if self.mode == "onehot":
+				u_labels_weak_guessed = binarize_onehot_labels(u_pred_augm_weak)
+			elif self.mode == "multihot":
+				u_labels_weak_guessed = (u_pred_augm_weak > self.threshold_multihot).float()
+			else:
+				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
 
 			# Update model
 			loss = self.criterion(s_pred_augm_weak, s_labels_weak, u_pred_augm_weak, u_pred_augm_strong, u_labels_weak_guessed)
@@ -105,7 +105,7 @@ class FixMatchTrainer(SSTrainer):
 
 			print("Epoch {:d}, {:d}% \t {:s}".format(
 				epoch + 1,
-				int(100 * (i + 1) / len(zip_cycle)),
+				int(100 * (i + 1) / len(loaders_zip)),
 				" - ".join(buffer)
 			), end="\r")
 

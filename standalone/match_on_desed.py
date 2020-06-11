@@ -19,7 +19,7 @@ from augmentation_utils.spec_augmentations import Noise, RandomTimeDropout, Rand
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
-from dcase2020_task4.dcase2019.models import dcase2019_model as RCNN
+from dcase2020_task4.dcase2019.models import dcase2019_model
 from dcase2020_task4.fixmatch.hparams import default_fixmatch_hparams
 from dcase2020_task4.fixmatch.train import train_fixmatch
 from dcase2020_task4.mixmatch.hparams import default_mixmatch_hparams
@@ -32,7 +32,7 @@ from dcase2020_task4.supervised.train import train_supervised
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
-from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, FnMetric, MaxMetric, EqConfidenceMetric, CategoricalConfidenceAccuracy
+from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, CategoricalConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.weak_baseline_rot import WeakBaselineRot
 
@@ -50,7 +50,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--seed", type=int, default=123)
-	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline", "RCNN"])
+	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline", "dcase2019"])
 	parser.add_argument("--nb_epochs", type=int, default=10)
 	parser.add_argument("--batch_size", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)
@@ -104,8 +104,8 @@ def main():
 
 	if hparams.model_name == "WeakBaseline":
 		model_factory = lambda: WeakBaselineRot().cuda()
-	elif hparams.model_name == "RCNN":
-		model_factory = lambda: RCNN().cuda()
+	elif hparams.model_name == "dcase2019":
+		model_factory = lambda: dcase2019_model().cuda()
 	else:
 		raise RuntimeError("Invalid model %s" % hparams.model_name)
 	acti_fn = lambda batch, dim: batch.sigmoid()
@@ -138,7 +138,7 @@ def main():
 
 	metrics_s = {
 		"acc_s": BinaryConfidenceAccuracy(hparams.confidence),
-		"fscore": FScore(),
+		"fscore_s": FScore(),
 	}
 	metrics_u = {"acc_u": BinaryConfidenceAccuracy(hparams.confidence)}
 	metrics_u1 = {"acc_u1": BinaryConfidenceAccuracy(hparams.confidence)}
@@ -147,6 +147,7 @@ def main():
 		"acc": BinaryConfidenceAccuracy(hparams.confidence),
 		"bce": FnMetric(binary_cross_entropy),
 		"eq": EqConfidenceMetric(hparams.confidence),
+		"mean": MeanMetric(),
 		"max": MaxMetric(),
 		"fscore": FScore(),
 	}
@@ -183,10 +184,10 @@ def main():
 		dataset_train_u_augm_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_u_augm)
 		dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
 
-		dataset_train_u_weak_strong = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augm_strong])
+		dataset_train_u_augms_weak_strong = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augm_strong])
 
 		loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
-		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_weak_strong, **args_loader_train_u)
+		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
 		train_fixmatch(
 			model_factory(), acti_fn, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, loader_val,

@@ -8,7 +8,7 @@ class FixMatchLossMultiHot(FixMatchLossABC):
 	def __init__(
 		self,
 		lambda_u: float = 1.0,
-		threshold_mask: float = 0.95,
+		threshold_mask: float = 0.5,
 	):
 		self.lambda_u = lambda_u
 		self.threshold_mask = threshold_mask

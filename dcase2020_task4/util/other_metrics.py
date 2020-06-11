@@ -1,4 +1,3 @@
-import numpy as np
 import torch
 
 from torch import Tensor
@@ -38,6 +37,11 @@ class FnMetric(Metrics):
 class MaxMetric(FnMetric):
 	def __init__(self):
 		super().__init__(lambda y_pred, y_true: y_pred.max(dim=1)[0])
+
+
+class MeanMetric(FnMetric):
+	def __init__(self):
+		super().__init__(lambda y_pred, y_true: y_pred.mean(dim=1)[0])
 
 
 class EqConfidenceMetric(Metrics):

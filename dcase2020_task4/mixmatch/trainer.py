@@ -53,8 +53,8 @@ class MixMatchTrainer(SSTrainer):
 			metric_name: [] for metric_name in (list(self.metrics_s.keys()) + list(self.metrics_u.keys()))
 		}
 
-		zip_cycle = ZipCycle([self.loader_train_s_augm, self.loader_train_u_augms])
-		iter_train = iter(zip_cycle)
+		loaders_zip = ZipCycle([self.loader_train_s_augm, self.loader_train_u_augms])
+		iter_train = iter(loaders_zip)
 
 		for i, item in enumerate(iter_train):
 			(s_batch_augm, s_labels_weak), u_batch_augms = item
@@ -103,7 +103,7 @@ class MixMatchTrainer(SSTrainer):
 
 			print("Epoch {:d}, {:d}% \t {:s}".format(
 				epoch + 1,
-				int(100 * (i + 1) / len(zip_cycle)),
+				int(100 * (i + 1) / len(loaders_zip)),
 				" - ".join(buffer),
 			), end="\r")
 

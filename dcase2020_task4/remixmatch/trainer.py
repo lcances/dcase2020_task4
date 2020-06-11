@@ -64,10 +64,14 @@ class ReMixMatchTrainer(SSTrainer):
 		self.reset_metrics()
 
 		losses = []
-		metric_values = {metric_name: [] for metric_name in self.metrics_s.keys()}
+		metric_values = {
+			metric_name: [] for metric_name in (
+				list(self.metrics_s.keys()) + list(self.metrics_u.keys()) + list(self.metrics_u1.keys()) + list(self.metrics_r.keys())
+			)
+		}
 
-		zip_cycle = ZipCycle([self.loader_train_s, self.loader_train_u])
-		iter_train = iter(zip_cycle)
+		loaders_zip = ZipCycle([self.loader_train_s, self.loader_train_u])
+		iter_train = iter(loaders_zip)
 
 		for i, item in enumerate(iter_train):
 			(s_batch_augm_strong, s_labels_weak), (u_batch_augm_weak, u_batch_augm_strongs) = item
@@ -132,7 +136,7 @@ class ReMixMatchTrainer(SSTrainer):
 
 			print("Epoch {:d}, {:d}% \t {:s}".format(
 				epoch + 1,
-				int(100 * (i + 1) / len(zip_cycle)),
+				int(100 * (i + 1) / len(loaders_zip)),
 				" - ".join(buffer),
 			), end="\r")
 
