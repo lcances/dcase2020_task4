@@ -60,7 +60,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--num_workers_s", type=int, default=1)
 	parser.add_argument("--num_workers_u", type=int, default=1)
 
-	parser.add_argument("--lambda_u_max", type=float, default=10.0,
+	parser.add_argument("--lambda_u", type=float, default=10.0,
 						help="MixMatch \"lambda_u\" hyperparameter.")
 	parser.add_argument("--nb_augms", type=int, default=2,
 						help="Nb of augmentations used in MixMatch.")
@@ -190,7 +190,7 @@ def main():
 		hparams_fm = default_fixmatch_hparams()
 		hparams_fm.update(hparams)
 
-		dataset_train_s_weak = Subset(dataset_train_weak, idx_train_s)
+		dataset_train_s_augm_weak = Subset(dataset_train_weak, idx_train_s)
 		dataset_train_u_weak = Subset(dataset_train_weak, idx_train_u)
 		dataset_train_u_strong = Subset(dataset_train_strong, idx_train_u)
 
@@ -199,11 +199,11 @@ def main():
 
 		dataset_train_u_weak_strong = MultipleDataset([dataset_train_u_weak, dataset_train_u_strong])
 
-		loader_train_s_weak = DataLoader(dataset=dataset_train_s_weak, **args_loader_train_s)
-		loader_train_u_weak_strong = DataLoader(dataset=dataset_train_u_weak_strong, **args_loader_train_u)
+		loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
+		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_weak_strong, **args_loader_train_u)
 
 		train_fixmatch(
-			model_factory(), acti_fn, loader_train_s_weak, loader_train_u_weak_strong, loader_val,
+			model_factory(), acti_fn, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, loader_val,
 			metrics_s, metrics_u, metrics_val, hparams_fm
 		)
 
@@ -237,7 +237,7 @@ def main():
 		hparams_rmm = default_remixmatch_hparams()
 		hparams_rmm.update(hparams)
 
-		dataset_train_s_strong = Subset(dataset_train_strong, idx_train_s)
+		dataset_train_s_augm_strong = Subset(dataset_train_strong, idx_train_s)
 		dataset_train_u_weak = Subset(dataset_train_weak, idx_train_u)
 		dataset_train_u_strong = Subset(dataset_train_strong, idx_train_u)
 
@@ -247,11 +247,11 @@ def main():
 		dataset_train_u_strongs = MultipleDataset([dataset_train_u_strong] * hparams_rmm.nb_augms_strong)
 		dataset_train_u_weak_strongs = MultipleDataset([dataset_train_u_weak, dataset_train_u_strongs])
 
-		loader_train_s_strong = DataLoader(dataset_train_s_strong, **args_loader_train_s)
-		loader_train_u_weak_strongs = DataLoader(dataset_train_u_weak_strongs, **args_loader_train_u)
+		loader_train_s_strong = DataLoader(dataset_train_s_augm_strong, **args_loader_train_s)
+		loader_train_u_augms_weak_strongs = DataLoader(dataset_train_u_weak_strongs, **args_loader_train_u)
 
 		train_remixmatch(
-			model_factory(), acti_fn, loader_train_s_strong, loader_train_u_weak_strongs, loader_val,
+			model_factory(), acti_fn, loader_train_s_strong, loader_train_u_augms_weak_strongs, loader_val,
 			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val, hparams_rmm
 		)
 

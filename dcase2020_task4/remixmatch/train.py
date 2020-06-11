@@ -21,7 +21,7 @@ def train_remixmatch(
 	model: Module,
 	acti_fn: Callable,
 	loader_train_s_strong: DataLoader,
-	loader_train_u_weak_strongs: DataLoader,
+	loader_train_u_augms_weak_strongs: DataLoader,
 	loader_val: DataLoader,
 	metrics_s: Dict[str, Metrics],
 	metrics_u: Dict[str, Metrics],
@@ -30,9 +30,9 @@ def train_remixmatch(
 	metrics_val: Dict[str, Metrics],
 	hparams: edict,
 ):
-	if loader_train_s_strong.batch_size != loader_train_u_weak_strongs.batch_size:
+	if loader_train_s_strong.batch_size != loader_train_u_augms_weak_strongs.batch_size:
 		raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
-			loader_train_s_strong.batch_size, loader_train_u_weak_strongs.batch_size))
+			loader_train_s_strong.batch_size, loader_train_u_augms_weak_strongs.batch_size))
 
 	rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
 	optim = Adam(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
@@ -54,8 +54,8 @@ def train_remixmatch(
 		hparams.mode
 	)
 	trainer = ReMixMatchTrainer(
-		model, acti_fn, optim, loader_train_s_strong, loader_train_u_weak_strongs, metrics_s, metrics_u,
-		metrics_u1, metrics_r, writer, criterion, mixer, distributions, rot_angles
+		model, acti_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs, metrics_s, metrics_u,
+		metrics_u1, metrics_r, criterion, writer, mixer, distributions, rot_angles
 	)
 	validator = DefaultValidator(
 		model, acti_fn, loader_val, metrics_val, writer

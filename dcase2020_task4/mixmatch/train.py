@@ -40,11 +40,11 @@ def train_mixmatch(
 
 	criterion = MixMatchLoss.from_edict(hparams)
 	mixer = MixMatchMixer(model, acti_fn, hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha)
-	lambda_u_rampup = RampUp(hparams.lambda_u_max, nb_rampup_steps)
+	lambda_u_rampup = RampUp(hparams.lambda_u, nb_rampup_steps)
 
 	trainer = MixMatchTrainer(
 		model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-		writer, criterion, mixer, lambda_u_rampup
+		criterion, writer, mixer, lambda_u_rampup
 	)
 	validator = DefaultValidator(
 		model, acti_fn, loader_val, metrics_val, writer

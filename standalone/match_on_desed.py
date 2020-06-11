@@ -41,6 +41,7 @@ from metric_utils.metrics import FScore
 
 def create_args() -> Namespace:
 	bool_fn = lambda x: str(x).lower() in ['true', '1', 'yes']
+	optional_str = lambda x: None if str(x).lower() == "none" else str(x)
 
 	parser = ArgumentParser()
 	# TODO : help for acronyms
@@ -61,15 +62,15 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--lr", type=float, default=1e-3,
 						help="Learning rate used.")
+	parser.add_argument("--scheduler", "--sched", type=optional_str, default="CosineLRScheduler",
+						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 
 	parser.add_argument("--lambda_u", type=float, default=1.0,
-						help="FixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
-	parser.add_argument("--lambda_u_max", type=float, default=10.0,
-						help="MixMatch \"lambda_u\" hyperparameter.")
+						help="FixMatch, MixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
 	parser.add_argument("--nb_augms", type=int, default=2,
-						help="Nb of augmentations used in MixMatch.")
+						help="MixMatch nb of augmentations used.")
 	parser.add_argument("--nb_augms_strong", type=int, default=2,
-						help="Nb of strong augmentations used in ReMixMatch.")
+						help="ReMixMatch nb of strong augmentations used.")
 
 	parser.add_argument("--threshold_mask", type=float, default=0.5,
 						help="FixMatch threshold for compute mask.")
@@ -173,22 +174,22 @@ def main():
 		hparams_fm = default_fixmatch_hparams()
 		hparams_fm.update(hparams)
 
-		dataset_train_s_weak = DESEDDataset(augments=[weak_augm_fn], **args_dataset_train_s_augm)
-		dataset_train_s_weak = FnDataset(dataset_train_s_weak, get_batch_label)
+		dataset_train_s_augm_weak = DESEDDataset(augments=[weak_augm_fn], **args_dataset_train_s_augm)
+		dataset_train_s_augm_weak = FnDataset(dataset_train_s_augm_weak, get_batch_label)
 
-		dataset_train_u_weak = DESEDDataset(augments=[weak_augm_fn], **args_dataset_train_u_augm)
-		dataset_train_u_weak = NoLabelDataset(dataset_train_u_weak)
+		dataset_train_u_augm_weak = DESEDDataset(augments=[weak_augm_fn], **args_dataset_train_u_augm)
+		dataset_train_u_augm_weak = NoLabelDataset(dataset_train_u_augm_weak)
 
-		dataset_train_u_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_u_augm)
-		dataset_train_u_strong = NoLabelDataset(dataset_train_u_strong)
+		dataset_train_u_augm_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_u_augm)
+		dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
 
-		dataset_train_u_weak_strong = MultipleDataset([dataset_train_u_weak, dataset_train_u_strong])
+		dataset_train_u_weak_strong = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augm_strong])
 
-		loader_train_s_weak = DataLoader(dataset=dataset_train_s_weak, **args_loader_train_s)
-		loader_train_u_weak_strong = DataLoader(dataset=dataset_train_u_weak_strong, **args_loader_train_u)
+		loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
+		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_weak_strong, **args_loader_train_u)
 
 		train_fixmatch(
-			model_factory(), acti_fn, loader_train_s_weak, loader_train_u_weak_strong, loader_val,
+			model_factory(), acti_fn, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, loader_val,
 			metrics_s, metrics_u, metrics_val, hparams_fm
 		)
 
@@ -224,23 +225,23 @@ def main():
 		hparams_rmm = default_remixmatch_hparams()
 		hparams_rmm.update(hparams)
 
-		dataset_train_s_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_s_augm)
-		dataset_train_s_strong = FnDataset(dataset_train_s_strong, get_batch_label)
+		dataset_train_s_augm_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_s_augm)
+		dataset_train_s_augm_strong = FnDataset(dataset_train_s_augm_strong, get_batch_label)
 
-		dataset_train_u_weak = DESEDDataset(augments=[weak_augm_fn], **args_dataset_train_u_augm)
-		dataset_train_u_weak = NoLabelDataset(dataset_train_u_weak)
+		dataset_train_u_augm_weak = DESEDDataset(augments=[weak_augm_fn], **args_dataset_train_u_augm)
+		dataset_train_u_augm_weak = NoLabelDataset(dataset_train_u_augm_weak)
 
-		dataset_train_u_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_u_augm)
-		dataset_train_u_strong = NoLabelDataset(dataset_train_u_strong)
+		dataset_train_u_augm_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_u_augm)
+		dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
 
-		dataset_train_u_strongs = MultipleDataset([dataset_train_u_strong] * hparams_rmm.nb_augms_strong)
-		dataset_train_u_weak_strongs = MultipleDataset([dataset_train_u_weak, dataset_train_u_strongs])
+		dataset_train_u_augms_strongs = MultipleDataset([dataset_train_u_augm_strong] * hparams_rmm.nb_augms_strong)
+		dataset_train_u_augms_weak_strongs = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augms_strongs])
 
-		loader_train_s_strong = DataLoader(dataset=dataset_train_s_strong, **args_loader_train_s)
-		loader_train_u_weak_strongs = DataLoader(dataset=dataset_train_u_weak_strongs, **args_loader_train_u)
+		loader_train_s_augm_strong = DataLoader(dataset=dataset_train_s_augm_strong, **args_loader_train_s)
+		loader_train_u_augms_weak_strongs = DataLoader(dataset=dataset_train_u_augms_weak_strongs, **args_loader_train_u)
 
 		train_remixmatch(
-			model_factory(), acti_fn, loader_train_s_strong, loader_train_u_weak_strongs, loader_val,
+			model_factory(), acti_fn, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs, loader_val,
 			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val, hparams_rmm
 		)
 

@@ -20,8 +20,8 @@ class FixMatchTrainer(SSTrainer):
 		model: Module,
 		acti_fn: Callable,
 		optim: Optimizer,
-		loader_train_s_weak: DataLoader,
-		loader_train_u_weak_strong: DataLoader,
+		loader_train_s_augm_weak: DataLoader,
+		loader_train_u_augms_weak_strong: DataLoader,
 		metric_s_at: Metrics,
 		metric_s_loc: Metrics,
 		metric_u_at: Metrics,
@@ -33,8 +33,8 @@ class FixMatchTrainer(SSTrainer):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.optim = optim
-		self.loader_train_s_weak = loader_train_s_weak
-		self.loader_train_u_weak_strong = loader_train_u_weak_strong
+		self.loader_train_s_augm_weak = loader_train_s_augm_weak
+		self.loader_train_u_augms_weak_strong = loader_train_u_augms_weak_strong
 		self.metric_s_at = metric_s_at
 		self.metric_s_loc = metric_s_loc
 		self.metric_u_at = metric_u_at
@@ -47,14 +47,11 @@ class FixMatchTrainer(SSTrainer):
 
 	def train(self, epoch: int):
 		train_start = time()
-		self.metric_s_at.reset()
-		self.metric_s_loc.reset()
-		self.metric_u_at.reset()
-		self.metric_u_loc.reset()
 		self.model.train()
+		self.reset_metrics()
 
 		losses, acc_train_s_at, acc_train_s_loc, acc_train_u_at, acc_train_u_loc = [], [], [], [], []
-		zip_cycle = ZipCycle([self.loader_train_s_weak, self.loader_train_u_weak_strong])
+		zip_cycle = ZipCycle([self.loader_train_s_augm_weak, self.loader_train_u_augms_weak_strong])
 		iter_train = iter(zip_cycle)
 
 		for i, item in enumerate(iter_train):
@@ -135,7 +132,13 @@ class FixMatchTrainer(SSTrainer):
 		self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
 
 	def nb_examples_supervised(self) -> int:
-		return len(self.loader_train_s_weak) * self.loader_train_s_weak.batch_size
+		return len(self.loader_train_s_augm_weak) * self.loader_train_s_augm_weak.batch_size
 
 	def nb_examples_unsupervised(self) -> int:
-		return len(self.loader_train_u_weak_strong) * self.loader_train_u_weak_strong.batch_size
+		return len(self.loader_train_u_augms_weak_strong) * self.loader_train_u_augms_weak_strong.batch_size
+
+	def reset_metrics(self):
+		self.metric_s_at.reset()
+		self.metric_s_loc.reset()
+		self.metric_u_at.reset()
+		self.metric_u_loc.reset()

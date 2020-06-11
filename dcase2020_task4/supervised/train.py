@@ -36,7 +36,7 @@ def train_supervised(
 		raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (hparams.mode, " or ".join(("onehot", "multihot"))))
 
 	trainer = SupervisedTrainer(
-		model, acti_fn, optim, loader_train_s, criterion, metrics_s, writer
+		model, acti_fn, optim, loader_train_s, metrics_s, criterion, writer
 	)
 	validator = DefaultValidator(
 		model, acti_fn, loader_val, metrics_val, writer

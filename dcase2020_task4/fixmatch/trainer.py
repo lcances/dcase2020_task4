@@ -6,7 +6,7 @@ from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 from metric_utils.metrics import Metrics
 
@@ -21,24 +21,24 @@ class FixMatchTrainer(SSTrainer):
 		model: Module,
 		acti_fn: Callable,
 		optim: Optimizer,
-		loader_train_s_weak: DataLoader,
-		loader_train_u_weak_strong: DataLoader,
+		loader_train_s_augm_weak: DataLoader,
+		loader_train_u_augms_weak_strong: DataLoader,
 		metrics_s: Dict[str, Metrics],
 		metrics_u: Dict[str, Metrics],
-		writer: SummaryWriter,
 		criterion: Callable,
+		writer: Optional[SummaryWriter],
 		mode: str = "onehot",
 		threshold_multihot: float = 0.5,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.optim = optim
-		self.loader_train_s_weak = loader_train_s_weak
-		self.loader_train_u_weak_strong = loader_train_u_weak_strong
+		self.loader_train_s_augm_weak = loader_train_s_augm_weak
+		self.loader_train_u_augms_weak_strong = loader_train_u_augms_weak_strong
 		self.metrics_s = metrics_s
 		self.metrics_u = metrics_u
-		self.writer = writer
 		self.criterion = criterion
+		self.writer = writer
 		self.mode = mode
 		self.threshold_multihot = threshold_multihot
 
@@ -52,7 +52,7 @@ class FixMatchTrainer(SSTrainer):
 			metric_name: [] for metric_name in (list(self.metrics_s.keys()) + list(self.metrics_u.keys()))
 		}
 
-		zip_cycle = ZipCycle([self.loader_train_s_weak, self.loader_train_u_weak_strong])
+		zip_cycle = ZipCycle([self.loader_train_s_augm_weak, self.loader_train_u_augms_weak_strong])
 		iter_train = iter(zip_cycle)
 
 		for i, item in enumerate(iter_train):
@@ -73,7 +73,6 @@ class FixMatchTrainer(SSTrainer):
 			u_pred_augm_weak = self.acti_fn(u_logits_augm_weak, dim=1)
 			u_pred_augm_strong = self.acti_fn(u_logits_augm_strong, dim=1)
 
-			# TODO : rem no_grad() ?
 			with torch.no_grad():
 				# Use guess u label with prediction of weak augmentation of u
 				if self.mode == "onehot":
@@ -99,10 +98,10 @@ class FixMatchTrainer(SSTrainer):
 			for metrics, pred, labels in metric_pred_labels:
 				for metric_name, metric in metrics.items():
 					mean_s = metric(pred, labels)
-					buffer.append("%s: %.4e" % (metric_name, mean_s))
+					buffer.append("{:s}: {:.4e}".format(metric_name, mean_s))
 					metric_values[metric_name].append(metric.value.item())
 
-			buffer.append("took: %.2fs" % (time() - train_start))
+			buffer.append("took: {:.2f}s".format(time() - train_start))
 
 			print("Epoch {:d}, {:d}% \t {:s}".format(
 				epoch + 1,
@@ -112,16 +111,17 @@ class FixMatchTrainer(SSTrainer):
 
 		print("")
 
-		self.writer.add_scalar("train/loss", float(np.mean(losses)), epoch)
-		self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
-		for metric_name, values in metric_values.items():
-			self.writer.add_scalar("train/%s" % metric_name, float(np.mean(values)), epoch)
+		if self.writer is not None:
+			self.writer.add_scalar("train/loss", float(np.mean(losses)), epoch)
+			self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
+			for metric_name, values in metric_values.items():
+				self.writer.add_scalar("train/%s" % metric_name, float(np.mean(values)), epoch)
 
 	def nb_examples_supervised(self) -> int:
-		return len(self.loader_train_s_weak) * self.loader_train_s_weak.batch_size
+		return len(self.loader_train_s_augm_weak) * self.loader_train_s_augm_weak.batch_size
 
 	def nb_examples_unsupervised(self) -> int:
-		return len(self.loader_train_u_weak_strong) * self.loader_train_u_weak_strong.batch_size
+		return len(self.loader_train_u_augms_weak_strong) * self.loader_train_u_augms_weak_strong.batch_size
 
 	def reset_metrics(self):
 		metrics_lst = [self.metrics_s, self.metrics_u]

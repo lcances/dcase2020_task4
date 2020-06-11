@@ -19,8 +19,8 @@ from metric_utils.metrics import Metrics
 def train_fixmatch(
 	model: Module,
 	acti_fn: Callable,
-	loader_train_s_weak: DataLoader,
-	loader_train_u_weak_strong: DataLoader,
+	loader_train_s_augm_weak: DataLoader,
+	loader_train_u_augms_weak_strong: DataLoader,
 	loader_val: DataLoader,
 	metrics_s: Dict[str, Metrics],
 	metrics_u: Dict[str, Metrics],
@@ -28,7 +28,10 @@ def train_fixmatch(
 	hparams: edict,
 ):
 	optim = Adam(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
-	scheduler = CosineLRScheduler(optim, nb_epochs=hparams.nb_epochs, lr0=hparams.lr)
+	if hparams.scheduler == "CosineLRScheduler":
+		scheduler = CosineLRScheduler(optim, nb_epochs=hparams.nb_epochs, lr0=hparams.lr)
+	else:
+		scheduler = None
 
 	hparams.train_name = "FixMatch"
 	writer = build_writer(hparams)
@@ -41,8 +44,8 @@ def train_fixmatch(
 		raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (hparams.mode, " or ".join(("onehot", "multihot"))))
 
 	trainer = FixMatchTrainer(
-		model, acti_fn, optim, loader_train_s_weak, loader_train_u_weak_strong, metrics_s, metrics_u,
-		writer, criterion, hparams.mode, hparams.threshold_multihot
+		model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
+		criterion, writer, hparams.mode, hparams.threshold_multihot
 	)
 	validator = DefaultValidator(
 		model, acti_fn, loader_val, metrics_val, writer

@@ -8,7 +8,7 @@ def default_mixmatch_hparams() -> edict:
 	hparams.nb_augms = 2
 	hparams.sharpen_temp = 0.5
 	hparams.mixup_alpha = 0.75
-	hparams.lambda_u_max = 10.0  # In paper : 75
+	hparams.lambda_u = 10.0  # In paper : 75
 	hparams.criterion_name_u = "sqdiff"  # In paper : sqdiff, can use crossentropy
 
 	hparams.lr = 1e-2

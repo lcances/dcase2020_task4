@@ -26,8 +26,8 @@ class MixMatchTrainer(SSTrainer):
 		loader_train_u_augms: DataLoader,
 		metrics_s: Dict[str, Metrics],
 		metrics_u: Dict[str, Metrics],
-		writer: SummaryWriter,
 		criterion: Callable,
+		writer: SummaryWriter,
 		mixer: Callable,
 		lambda_u_rampup: RampUp
 	):
@@ -38,8 +38,8 @@ class MixMatchTrainer(SSTrainer):
 		self.loader_train_u_augms = loader_train_u_augms
 		self.metrics_s = metrics_s
 		self.metrics_u = metrics_u
-		self.writer = writer
 		self.criterion = criterion
+		self.writer = writer
 		self.mixer = mixer
 		self.lambda_u_rampup = lambda_u_rampup
 
@@ -57,26 +57,28 @@ class MixMatchTrainer(SSTrainer):
 		iter_train = iter(zip_cycle)
 
 		for i, item in enumerate(iter_train):
-			(batch_s_augm, labels_s), batch_u_augms = item
+			(s_batch_augm, s_labels_weak), u_batch_augms = item
 
-			batch_s_augm = batch_s_augm.cuda().float()
-			labels_s = labels_s.cuda().float()
-			batch_u_augms = torch.stack(batch_u_augms).cuda().float()
+			s_batch_augm = s_batch_augm.cuda().float()
+			s_labels_weak = s_labels_weak.cuda().float()
+			u_batch_augms = torch.stack(u_batch_augms).cuda().float()
 
 			# Apply mix
-			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed = self.mixer(batch_s_augm, labels_s, batch_u_augms)
+			s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed = self.mixer(
+				s_batch_augm, s_labels_weak, u_batch_augms
+			)
 
 			# Compute logits
-			logits_s_mixed = self.model(batch_s_mixed)
-			logits_u_mixed = self.model(batch_u_mixed)
+			s_logits_mixed = self.model(s_batch_mixed)
+			u_logits_mixed = self.model(u_batch_mixed)
 
 			# Compute accuracies
-			pred_s_mixed = self.acti_fn(logits_s_mixed, dim=1)
-			pred_u_mixed = self.acti_fn(logits_u_mixed, dim=1)
+			s_pred_mixed = self.acti_fn(s_logits_mixed, dim=1)
+			u_pred_mixed = self.acti_fn(u_logits_mixed, dim=1)
 
 			# Update model
 			self.criterion.lambda_u = self.lambda_u_rampup.value()
-			loss = self.criterion(pred_s_mixed, labels_s_mixed, pred_u_mixed, labels_u_mixed)
+			loss = self.criterion(s_pred_mixed, s_labels_mixed, u_pred_mixed, u_labels_mixed)
 			self.optim.zero_grad()
 			loss.backward()
 			self.optim.step()
@@ -88,16 +90,16 @@ class MixMatchTrainer(SSTrainer):
 			buffer = ["{:s}: {:.4e}".format("loss", np.mean(losses))]
 
 			metric_pred_labels = [
-				(self.metrics_s, pred_s_mixed, labels_s_mixed),
-				(self.metrics_u, pred_u_mixed, labels_u_mixed),
+				(self.metrics_s, s_pred_mixed, s_labels_mixed),
+				(self.metrics_u, u_pred_mixed, u_labels_mixed),
 			]
 			for metrics, pred, labels in metric_pred_labels:
 				for metric_name, metric in metrics.items():
 					mean_s = metric(pred, labels)
-					buffer.append("%s: %.4e" % (metric_name, mean_s))
+					buffer.append("{:s}: {:.4e}".format(metric_name, mean_s))
 					metric_values[metric_name].append(metric.value.item())
 
-			buffer.append("took: %.2fs" % (time() - train_start))
+			buffer.append("took: {:.2f}s".format(time() - train_start))
 
 			print("Epoch {:d}, {:d}% \t {:s}".format(
 				epoch + 1,

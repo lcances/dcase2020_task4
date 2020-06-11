@@ -19,16 +19,16 @@ class SupervisedTrainer(Trainer):
 		acti_fn: Callable,
 		optim: Optimizer,
 		loader: DataLoader,
-		criterion: Callable,
 		metrics: Dict[str, Metrics],
+		criterion: Callable,
 		writer: SummaryWriter,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.optim = optim
 		self.loader = loader
-		self.criterion = criterion
 		self.metrics = metrics
+		self.criterion = criterion
 		self.writer = writer
 
 	def train(self, epoch: int):
@@ -65,10 +65,10 @@ class SupervisedTrainer(Trainer):
 			for metrics, pred, labels in metric_pred_labels:
 				for metric_name, metric in metrics.items():
 					mean_s = metric(pred, labels)
-					buffer.append("%s: %.4e" % (metric_name, mean_s))
+					buffer.append("{:s}: {:.4e}".format(metric_name, mean_s))
 					metric_values[metric_name].append(metric.value.item())
 
-			buffer.append("took: %.2fs" % (time() - train_start))
+			buffer.append("took: {:.2f}s".format(time() - train_start))
 
 			print("Epoch {:d}, {:d}% \t {:s}".format(
 				epoch + 1,

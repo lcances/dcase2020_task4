@@ -31,8 +31,8 @@ class ReMixMatchTrainer(SSTrainer):
 		metrics_u: Dict[str, Metrics],
 		metrics_u1: Dict[str, Metrics],
 		metrics_r: Dict[str, Metrics],
-		writer: SummaryWriter,
 		criterion: Callable,
+		writer: SummaryWriter,
 		mixer: Callable,
 		distributions: ModelDistributions,
 		rot_angles: np.array,
@@ -50,8 +50,8 @@ class ReMixMatchTrainer(SSTrainer):
 		self.metrics_u = metrics_u
 		self.metrics_u1 = metrics_u1
 		self.metrics_r = metrics_r
-		self.writer = writer
 		self.criterion = criterion
+		self.writer = writer
 		self.mixer = mixer
 		self.distributions = distributions
 		self.rot_angles = rot_angles
@@ -65,53 +65,49 @@ class ReMixMatchTrainer(SSTrainer):
 
 		losses = []
 		metric_values = {metric_name: [] for metric_name in self.metrics_s.keys()}
-		metric_values_u = {metric_name: [] for metric_name in self.metrics_u.keys()}
-		metric_values_u1 = {metric_name: [] for metric_name in self.metrics_u1.keys()}
-		metric_values_r = {metric_name: [] for metric_name in self.metrics_r.keys()}
 
 		zip_cycle = ZipCycle([self.loader_train_s, self.loader_train_u])
 		iter_train = iter(zip_cycle)
 
 		for i, item in enumerate(iter_train):
-			(batch_s_strong, labels_s), (batch_u_weak, batch_u_strongs) = item
+			(s_batch_augm_strong, s_labels_weak), (u_batch_augm_weak, u_batch_augm_strongs) = item
 
-			batch_s_strong = batch_s_strong.cuda().float()
-			labels_s = labels_s.cuda().float()
-			batch_u_weak = batch_u_weak.cuda().float()
-			batch_u_strongs = torch.stack(batch_u_strongs).cuda().float()
+			s_batch_augm_strong = s_batch_augm_strong.cuda().float()
+			s_labels_weak = s_labels_weak.cuda().float()
+			u_batch_augm_weak = u_batch_augm_weak.cuda().float()
+			u_batch_augm_strongs = torch.stack(u_batch_augm_strongs).cuda().float()
 
 			with torch.no_grad():
-				self.distributions.add_batch_pred(labels_s, "labeled")
-				pred_u_mixed = self.acti_fn(self.model(batch_u_weak), dim=1)
-				self.distributions.add_batch_pred(pred_u_mixed, "unlabeled")
+				self.distributions.add_batch_pred(s_labels_weak, "labeled")
+				u_pred_augm_weak = self.acti_fn(self.model(u_batch_augm_weak), dim=1)
+				self.distributions.add_batch_pred(u_pred_augm_weak, "unlabeled")
 
 			# Apply mix
-			batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed, batch_u1, labels_u1 = \
-				self.mixer(batch_s_strong, labels_s, batch_u_weak, batch_u_strongs)
+			s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed, u1_batch, u1_labels = \
+				self.mixer(s_batch_augm_strong, s_labels_weak, u_batch_augm_weak, u_batch_augm_strongs)
 
 			# Predict labels for x (mixed), u (mixed) and u1 (strong augment)
-			logits_s_mixed = self.model(batch_s_mixed)
-			logits_u_mixed = self.model(batch_u_mixed)
-			logits_u1 = self.model(batch_u1)
+			s_logits_mixed = self.model(s_batch_mixed)
+			u_logits_mixed = self.model(u_batch_mixed)
+			u1_logits = self.model(u1_batch)
 
-			pred_s_mixed = self.acti_fn(logits_s_mixed, dim=1)
-			pred_u_mixed = self.acti_fn(logits_u_mixed, dim=1)
-			pred_u1 = self.acti_fn(logits_u1, dim=1)
+			s_pred_mixed = self.acti_fn(s_logits_mixed, dim=1)
+			u_pred_mixed = self.acti_fn(u_logits_mixed, dim=1)
+			u1_pred = self.acti_fn(u1_logits, dim=1)
 
 			# Rotate images and predict rotation for strong augment u1
-			batch_u1_rotated, labels_r = apply_random_rot(batch_u1, self.rot_angles)
-			labels_r = one_hot(labels_r, len(self.rot_angles)).float().cuda()
-			logits_r = self.model.forward_rot(batch_u1_rotated)
-			pred_r = self.acti_fn_rot(logits_r, dim=1)
+			u1_batch_rotated, r_labels = apply_random_rot(u1_batch, self.rot_angles)
+			r_labels = one_hot(r_labels, len(self.rot_angles)).float().cuda()
+			r_logits = self.model.forward_rot(u1_batch_rotated)
+			r_pred = self.acti_fn_rot(r_logits, dim=1)
 
 			# Update model
 			loss = self.criterion(
-				pred_s_mixed, labels_s_mixed,
-				pred_u_mixed, labels_u_mixed,
-				pred_u1, labels_u1,
-				pred_r, labels_r,
+				s_pred_mixed, s_labels_mixed,
+				u_pred_mixed, u_labels_mixed,
+				u1_pred, u1_labels,
+				r_pred, r_labels,
 			)
-
 			self.optim.zero_grad()
 			loss.backward()
 			self.optim.step()
@@ -121,18 +117,18 @@ class ReMixMatchTrainer(SSTrainer):
 			buffer = ["{:s}: {:.4e}".format("loss", np.mean(losses))]
 
 			metric_pred_labels = [
-				(self.metrics_s, pred_s_mixed, labels_s_mixed),
-				(self.metrics_u, pred_u_mixed, labels_u_mixed),
-				(self.metrics_u1, pred_u1, labels_u1),
-				(self.metrics_r, pred_r, labels_r),
+				(self.metrics_s, s_pred_mixed, s_labels_mixed),
+				(self.metrics_u, u_pred_augm_weak, u_labels_mixed),
+				(self.metrics_u1, u1_pred, u1_labels),
+				(self.metrics_r, r_pred, r_labels),
 			]
 			for metrics, pred, labels in metric_pred_labels:
 				for metric_name, metric in metrics.items():
 					mean_s = metric(pred, labels)
-					buffer.append("%s: %.4e" % (metric_name, mean_s))
+					buffer.append("{:s}: {:.4e}".format(metric_name, mean_s))
 					metric_values[metric_name].append(metric.value.item())
 
-			buffer.append("took: %.2fs" % (time() - train_start))
+			buffer.append("took: {:.2f}s".format(time() - train_start))
 
 			print("Epoch {:d}, {:d}% \t {:s}".format(
 				epoch + 1,
