@@ -34,7 +34,7 @@ def train_fixmatch(
 		scheduler = None
 
 	hparams.train_name = "FixMatch"
-	writer = build_writer(hparams)
+	writer = build_writer(hparams, suffix="%s_%s" % (str(hparams.scheduler), hparams.suffix))
 
 	if hparams.mode == "onehot":
 		criterion = FixMatchLossOneHot.from_edict(hparams)

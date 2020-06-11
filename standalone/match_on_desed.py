@@ -72,10 +72,13 @@ def create_args() -> Namespace:
 	parser.add_argument("--nb_augms_strong", type=int, default=2,
 						help="ReMixMatch nb of strong augmentations used.")
 
-	parser.add_argument("--threshold_mask", type=float, default=0.5,
-						help="FixMatch threshold for compute mask.")
 	parser.add_argument("--threshold_multihot", type=float, default=0.5,
-						help="FixMatch threshold use to replace argmax() in multihot mode.")
+						help="FixMatch threshold used to replace argmax() in multihot mode.")
+	parser.add_argument("--threshold_mask", type=float, default=0.9,
+						help="FixMatch threshold for compute mask in loss.")
+
+	parser.add_argument("--suffix", type=str, default="",
+						help="Suffix to Tensorboard log dir.")
 
 	return parser.parse_args()
 

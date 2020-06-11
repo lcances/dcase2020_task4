@@ -5,8 +5,6 @@ from easydict import EasyDict as edict
 from torch import Tensor
 from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
-from torch.optim.adam import Adam
-from torch.optim.sgd import SGD
 from torch.utils.tensorboard import SummaryWriter
 from typing import List
 
@@ -106,7 +104,7 @@ def set_lr(optim: Optimizer, new_lr: float):
 
 
 def build_writer(hparams: edict, suffix: str = "") -> SummaryWriter:
-	dirname = "%s_%s_%s_%s_%s" % (hparams.dataset_name, hparams.train_name, hparams.model_name, suffix, hparams.begin_date)
+	dirname = "%s_%s_%s_%s_%s" % (hparams.dataset_name, hparams.train_name, hparams.model_name, hparams.begin_date, suffix)
 	dirpath = osp.join(hparams.logdir, dirname)
 	writer = SummaryWriter(log_dir=dirpath, comment=hparams.train_name)
 	return writer
@@ -128,12 +126,3 @@ def multilabel_to_num(labels: Tensor) -> List[List[int]]:
 			if bin == 1.0:
 				res[i].append(j)
 	return res
-
-
-def optim_from_str(name: str, *args, **kwargs):
-	if name.lower() == "adam":
-		return Adam(*args, **kwargs)
-	elif name.lower() == "sgd":
-		return SGD(*args, **kwargs)
-	else:
-		raise RuntimeError("Unknown optimizer %s" % name)
