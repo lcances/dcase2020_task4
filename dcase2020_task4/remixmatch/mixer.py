@@ -38,7 +38,7 @@ class ReMixMatchMixer(Callable):
 	) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor):
 		"""
 			batch_s_strong of size (bsize, feat_size, ...)
-			labels_s of size (bsize, label_size)
+			s_labels_weak of size (bsize, label_size)
 			batch_u_weak of size (bsize, feat_size, ...)
 			batch_u_strongs of size (nb_augms, bsize, feat_size, ...)
 		"""

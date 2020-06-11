@@ -35,7 +35,7 @@ class MixMatchMixer(Callable):
 	def mix(self, batch_s_augm: Tensor, labels_s: Tensor, batch_u_augms: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
 		"""
 			batch_s_augm of size (bsize, feat_size, ...)
-			labels_s of size (bsize, label_size)
+			s_labels_weak of size (bsize, label_size)
 			batch_u_augms of size (nb_augms, bsize, feat_size, ...)
 		"""
 		with torch.no_grad():

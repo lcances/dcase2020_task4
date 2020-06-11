@@ -13,7 +13,8 @@ from torch.utils.data import DataLoader
 from torchvision.transforms import RandomChoice, Compose
 
 from augmentation_utils.img_augmentations import Transform
-from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Noise, Occlusion
+from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion
+from augmentation_utils.spec_augmentations import Noise, RandomTimeDropout, RandomFreqDropout
 
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
@@ -111,29 +112,33 @@ def main():
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	weak_augm_fn = RandomChoice([
 		Transform(0.5, scale=(0.9, 1.1)),
+		PitchShiftRandom(0.5, steps=(-2, 2)),
 	])
 	strong_augm_fn = Compose([
-		RandomChoice([
-			Transform(1.0, scale=(0.5, 1.5)),
-		]),
+		Transform(1.0, scale=(0.9, 1.1)),
 		RandomChoice([
 			TimeStretch(1.0),
 			PitchShiftRandom(1.0),
-			Noise(1.0),
-			Occlusion(1.0),
+			Occlusion(1.0, max_size=1.0),
+			Noise(ratio=1.0, snr=10.0),
+			RandomFreqDropout(1.0, dropout=0.5),
+			RandomTimeDropout(1.0, dropout=0.5),
 		]),
 	])
 	# Augmentation used by MixMatch
 	ratio = 0.5
 	augment_fn = RandomChoice([
-		Transform(ratio, scale=(0.75, 1.25)),
+		Transform(ratio, scale=(0.9, 1.1)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
-		Noise(ratio),
+		Noise(ratio, snr=10.0),
 		Occlusion(ratio),
 	])
 
-	metrics_s = {"acc_s": BinaryConfidenceAccuracy(hparams.confidence)}
+	metrics_s = {
+		"acc_s": BinaryConfidenceAccuracy(hparams.confidence),
+		"fscore": FScore(),
+	}
 	metrics_u = {"acc_u": BinaryConfidenceAccuracy(hparams.confidence)}
 	metrics_u1 = {"acc_u1": BinaryConfidenceAccuracy(hparams.confidence)}
 	metrics_r = {"acc_r": CategoricalConfidenceAccuracy(hparams.confidence)}

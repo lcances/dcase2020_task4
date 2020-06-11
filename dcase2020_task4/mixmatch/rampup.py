@@ -11,15 +11,17 @@ class RampUp:
 		self.nb_steps = nb_steps
 		self.min_value = min_value
 
-		self.current_value = min_value
+		self.step = 0
 
 	def reset(self):
-		self.current_value = self.min_value
+		self.step = 0
 
-	def step(self) -> float:
-		if self.current_value < self.max_value:
-			self.current_value += self.max_value / self.nb_steps
-		return self.current_value
+	def step(self):
+		if self.step < self.nb_steps:
+			self.step += 1
 
 	def value(self) -> float:
-		return self.current_value
+		return (self.max_value - self.min_value) * self.get_coef() + self.min_value
+
+	def get_coef(self) -> float:
+		return self.step / self.nb_steps
