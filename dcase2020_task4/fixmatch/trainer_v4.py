@@ -54,7 +54,7 @@ class FixMatchTrainerV4(SSTrainer):
 
 		metric_values = {
 			metric_name: [] for metric_name in (
-				list(self.metrics_s.keys()) + list(self.metrics_u.keys()) + ["loss", "loss_s", "loss_u"]
+				list(self.metrics_s.keys()) + list(self.metrics_u.keys()) + ["loss", "loss_s", "loss_u", "loss_sc", "loss_uc"]
 			)
 		}
 
@@ -89,8 +89,8 @@ class FixMatchTrainerV4(SSTrainer):
 			u_pred_count_augm_strong = self.acti_count_fn(u_logits_count_augm_strong, dim=1)
 
 			# Use guess u label with prediction of weak augmentation of u
-			u_pred_count_augm_weak.detach_()
 			u_pred_augm_weak.detach_()
+			u_pred_count_augm_weak.detach_()
 			if self.mode == "onehot":
 				u_labels_weak_guessed = binarize_onehot_labels(u_pred_augm_weak)
 			elif self.mode == "multihot":
@@ -99,7 +99,7 @@ class FixMatchTrainerV4(SSTrainer):
 				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
 
 			# Update model
-			loss, loss_s, loss_u = self.criterion(
+			loss, loss_s, loss_u, loss_sc, loss_uc = self.criterion(
 				s_pred_augm_weak, s_labels,
 				u_pred_augm_weak, u_pred_augm_strong, u_labels_weak_guessed,
 				s_pred_count_augm_weak, s_labels_count,
@@ -112,6 +112,8 @@ class FixMatchTrainerV4(SSTrainer):
 			metric_values["loss"].append(loss.item())
 			metric_values["loss_s"].append(loss_s.item())
 			metric_values["loss_u"].append(loss_u.item())
+			metric_values["loss_sc"].append(loss_sc.item())
+			metric_values["loss_uc"].append(loss_uc.item())
 
 			metric_pred_labels = [
 				(self.metrics_s, s_pred_augm_weak, s_labels),

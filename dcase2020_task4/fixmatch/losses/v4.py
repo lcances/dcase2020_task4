@@ -39,7 +39,7 @@ class FixMatchLossMultiHotV4(Callable):
 		s_labels_count: Tensor,
 		u_pred_count_augm_weak: Tensor,
 		u_pred_count_augm_strong: Tensor,
-	) -> (Tensor, Tensor, Tensor):
+	) -> (Tensor, Tensor, Tensor, Tensor, Tensor):
 		# Supervised loss
 		loss_s = self.criterion_s(s_pred_weak_augm_weak, s_labels_weak)
 		loss_s = loss_s.mean()
@@ -65,6 +65,6 @@ class FixMatchLossMultiHotV4(Callable):
 		loss_uc *= mask
 		loss_uc = loss_uc.mean()
 
-		loss = loss_s + self.lambda_u * loss_u + loss_sc + loss_uc
+		loss = loss_s + self.lambda_u * loss_u + loss_sc + 0.1 * loss_uc
 
-		return loss, loss_s, loss_u
+		return loss, loss_s, loss_u, loss_sc, loss_uc
