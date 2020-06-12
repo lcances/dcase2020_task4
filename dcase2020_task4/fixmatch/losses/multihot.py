@@ -133,4 +133,4 @@ class FixMatchLossMultiHotV3(FixMatchLossABC):
 		return loss, loss_s, loss_u
 
 
-FixMatchLossMultiHot = FixMatchLossMultiHotV1
+FixMatchLossMultiHot = FixMatchLossMultiHotV2

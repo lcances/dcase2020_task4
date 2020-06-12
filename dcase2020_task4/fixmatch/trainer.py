@@ -49,7 +49,9 @@ class FixMatchTrainer(SSTrainer):
 
 		losses, losses_s, losses_u = [], [], []
 		metric_values = {
-			metric_name: [] for metric_name in (list(self.metrics_s.keys()) + list(self.metrics_u.keys()))
+			metric_name: [] for metric_name in (
+				list(self.metrics_s.keys()) + list(self.metrics_u.keys()) + ["loss", "loss_s", "loss_u"]
+			)
 		}
 
 		loaders_zip = ZipCycle([self.loader_train_s_augm_weak, self.loader_train_u_augms_weak_strong])
@@ -88,13 +90,9 @@ class FixMatchTrainer(SSTrainer):
 			loss.backward()
 			self.optim.step()
 
-			losses.append(loss.item())
-			losses_s.append(loss_s.item())
-			losses_u.append(loss_u.item())
-			buffer = [
-				"{:s}: {:.4e}".format(name, np.mean(loss_lst))
-				for name, loss_lst in {"loss": losses, "loss_s": losses_s, "loss_u": losses_u}.items()
-			]
+			metric_values["loss"].append(loss.item())
+			metric_values["loss_s"].append(loss_s.item())
+			metric_values["loss_u"].append(loss_u.item())
 
 			metric_pred_labels = [
 				(self.metrics_s, s_pred_augm_weak, s_labels_weak),
@@ -102,10 +100,13 @@ class FixMatchTrainer(SSTrainer):
 			]
 			for metrics, pred, labels in metric_pred_labels:
 				for metric_name, metric in metrics.items():
-					mean_s = metric(pred, labels)
-					buffer.append("{:s}: {:.4e}".format(metric_name, mean_s))
+					_mean_s = metric(pred, labels)
 					metric_values[metric_name].append(metric.value.item())
 
+			buffer = [
+				"{:s}: {:.4e}".format(name, np.mean(values))
+				for name, values in metric_values.items()
+			]
 			buffer.append("took: {:.2f}s".format(time() - train_start))
 
 			print("Epoch {:d}, {:d}% \t {:s}".format(
