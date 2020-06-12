@@ -51,7 +51,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--seed", type=int, default=123)
-	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline", "dcase2019"])
+	parser.add_argument("--model_name", type=str, default="dcase2019", choices=["WeakBaseline", "dcase2019"])
 	parser.add_argument("--nb_epochs", type=int, default=10)
 	parser.add_argument("--batch_size", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)
@@ -81,7 +81,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
 
-	parser.add_argument("--debug_mode", action="store_true", default=False)
+	parser.add_argument("--debug_mode", type=bool_fn, default=False)
+	parser.add_argument("--use_label_strong", type=bool_fn, default=True)
 
 	return parser.parse_args()
 
@@ -89,6 +90,8 @@ def create_args() -> Namespace:
 def check_args(args: Namespace):
 	if args.model_name == "RCNN" and ("mm" in args.run or "rmm" in args.run):
 		raise NotImplementedError("RCNN cannot be run with MixMatch or ReMixMatch.")
+	if args.use_label_strong and args.run != ["fm"] and len(args.run) > 0:
+		raise NotImplementedError("Strong label cannot be used with another run than FixMatch.")
 
 
 def main():
@@ -167,12 +170,15 @@ def main():
 	dataset_val = FnDataset(dataset_val, get_batch_label)
 	loader_val = DataLoader(dataset_val, batch_size=hparams.batch_size, shuffle=False)
 
+	# Datasets args
 	args_dataset_train_s = dict(
-		manager=manager_s, train=True, val=False, cached=True, weak=True, strong=False)
+		manager=manager_s, train=True, val=False, cached=True, weak=True, strong=hparams.use_label_strong)
 	args_dataset_train_s_augm = dict(
-		manager=manager_s, train=True, val=False, cached=False, weak=True, strong=False)
+		manager=manager_s, train=True, val=False, cached=False, weak=True, strong=hparams.use_label_strong)
 	args_dataset_train_u_augm = dict(
-		manager=manager_u, train=True, val=False, cached=False, weak=False, strong=False)
+		manager=manager_u, train=True, val=False, cached=False, weak=False, strong=hparams.use_label_strong)
+
+	# Loaders args
 	args_loader_train_s = dict(
 		batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_s, drop_last=True)
 	args_loader_train_u = dict(
