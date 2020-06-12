@@ -118,6 +118,8 @@ class FixMatchTrainer(SSTrainer):
 
 		if self.writer is not None:
 			self.writer.add_scalar("train/loss", float(np.mean(losses)), epoch)
+			self.writer.add_scalar("train/loss_s", float(np.mean(losses_s)), epoch)
+			self.writer.add_scalar("train/loss_u", float(np.mean(losses_u)), epoch)
 			self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
 			for metric_name, values in metric_values.items():
 				self.writer.add_scalar("train/%s" % metric_name, float(np.mean(values)), epoch)
