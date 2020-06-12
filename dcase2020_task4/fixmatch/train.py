@@ -84,7 +84,7 @@ def train_fixmatch_v4(
 
 	trainer = FixMatchTrainerV4(
 		model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-		criterion, writer, hparams.mode, hparams.threshold_multihot
+		criterion, writer, hparams.mode, hparams.threshold_multihot, hparams.nb_classes
 	)
 	validator = DefaultValidator(
 		model, acti_fn, loader_val, metrics_val, writer
