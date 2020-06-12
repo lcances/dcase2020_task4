@@ -103,24 +103,21 @@ class FixMatchTrainer(SSTrainer):
 					_mean_s = metric(pred, labels)
 					metric_values[metric_name].append(metric.value.item())
 
-			buffer = [
+			prints_buffer = [
 				"{:s}: {:.4e}".format(name, np.mean(values))
 				for name, values in metric_values.items()
 			]
-			buffer.append("took: {:.2f}s".format(time() - train_start))
+			prints_buffer.append("took: {:.2f}s".format(time() - train_start))
 
 			print("Epoch {:d}, {:d}% \t {:s}".format(
 				epoch + 1,
 				int(100 * (i + 1) / len(loaders_zip)),
-				" - ".join(buffer)
+				" - ".join(prints_buffer)
 			), end="\r")
 
 		print("")
 
 		if self.writer is not None:
-			self.writer.add_scalar("train/loss", float(np.mean(losses)), epoch)
-			self.writer.add_scalar("train/loss_s", float(np.mean(losses_s)), epoch)
-			self.writer.add_scalar("train/loss_u", float(np.mean(losses_u)), epoch)
 			self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
 			for metric_name, values in metric_values.items():
 				self.writer.add_scalar("train/%s" % metric_name, float(np.mean(values)), epoch)
