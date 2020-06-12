@@ -45,6 +45,7 @@ class FixMatchLossMultiHotV4(Callable):
 		loss_s = loss_s.mean()
 
 		loss_sc = self.criterion_count(s_pred_count, s_labels_count)
+		loss_sc = loss_sc.mean()
 
 		# Unsupervised loss
 		u_counts = u_pred_count_augm_weak.argmax(dim=1)
