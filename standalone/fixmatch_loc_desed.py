@@ -9,7 +9,9 @@ import torch
 from argparse import ArgumentParser, Namespace
 from easydict import EasyDict as edict
 from time import time
+from torch.nn import Module
 from torch.nn.functional import binary_cross_entropy
+from torch.optim import Adam
 from torch.utils.data import DataLoader
 from torchvision.transforms import RandomChoice, Compose
 
@@ -21,21 +23,25 @@ from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
 from dcase2020_task4.dcase2019.models import dcase2019_model
+
 from dcase2020_task4.fixmatch.hparams import default_fixmatch_hparams
-from dcase2020_task4.fixmatch.train import train_fixmatch
-from dcase2020_task4.mixmatch.hparams import default_mixmatch_hparams
-from dcase2020_task4.mixmatch.train import train_mixmatch
-from dcase2020_task4.remixmatch.hparams import default_remixmatch_hparams
-from dcase2020_task4.remixmatch.train import train_remixmatch
+from dcase2020_task4.fixmatch.losses.multihot_loc import FixMatchLossMultiHotLoc
+from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
+from dcase2020_task4.fixmatch.trainer_loc import FixMatchTrainerLoc
+
+from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.supervised.hparams import default_supervised_hparams
-from dcase2020_task4.supervised.train import train_supervised
+from dcase2020_task4.supervised.loss import weak_synth_loss
+from dcase2020_task4.supervised.trainer_loc import SupervisedTrainerLoc
 
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
-from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, CategoricalConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
+from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
 from dcase2020_task4.util.utils import reset_seed, get_datetime
-from dcase2020_task4.weak_baseline_rot import WeakBaselineRot
+from dcase2020_task4.util.utils_match import build_writer
+
+from dcase2020_task4.validator import DefaultValidatorLoc
 
 from metric_utils.metrics import FScore
 
@@ -46,7 +52,7 @@ def create_args() -> Namespace:
 
 	parser = ArgumentParser()
 	# TODO : help for acronyms
-	parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "sf"], choices=["fm", "mm", "rmm", "sf"])
+	parser.add_argument("--run", type=str, nargs="*", default=["fm", "sf"], choices=["fm", "sf"])
 	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
 	parser.add_argument("--mode", type=str, default="multihot")
@@ -88,10 +94,7 @@ def create_args() -> Namespace:
 
 
 def check_args(args: Namespace):
-	if args.model_name == "RCNN" and ("mm" in args.run or "rmm" in args.run):
-		raise NotImplementedError("RCNN cannot be run with MixMatch or ReMixMatch.")
-	if args.use_label_strong and args.run != ["fm"] and len(args.run) > 0:
-		raise NotImplementedError("Strong label cannot be used with another run than FixMatch.")
+	pass
 
 
 def main():
@@ -99,8 +102,9 @@ def main():
 
 	args = create_args()
 	check_args(args)
-	print("Start match_on_desed.")
+	print("Start fixmatch_loc_desed.")
 	print("- from_disk:", args.from_disk)
+	print("- debug_mode:", args.debug_mode)
 
 	hparams = edict()
 	args_filtered = {k: (" ".join(v) if isinstance(v, list) else v) for k, v in args.__dict__.items()}
@@ -112,12 +116,7 @@ def main():
 	reset_seed(hparams.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
 
-	if hparams.model_name == "WeakBaseline":
-		model_factory = lambda: WeakBaselineRot().cuda()
-	elif hparams.model_name == "dcase2019":
-		model_factory = lambda: dcase2019_model().cuda()
-	else:
-		raise RuntimeError("Invalid model %s" % hparams.model_name)
+	model_factory = lambda: dcase2019_model().cuda()
 	acti_fn = lambda batch, dim: batch.sigmoid()
 
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
@@ -136,37 +135,39 @@ def main():
 			RandomTimeDropout(1.0, dropout=0.5),
 		]),
 	])
-	# Augmentation used by MixMatch
-	ratio = 0.5
-	augm_fn = RandomChoice([
-		Transform(ratio, scale=(0.9, 1.1)),
-		TimeStretch(ratio),
-		PitchShiftRandom(ratio),
-		Noise(ratio, snr=10.0),
-		Occlusion(ratio),
-	])
 
-	metrics_s = {
-		"acc_s": BinaryConfidenceAccuracy(hparams.confidence),
-		"fscore_s": FScore(),
+	metrics_s_weak = {
+		"s_acc_weak": BinaryConfidenceAccuracy(hparams.confidence),
+		"s_fscore_weak": FScore(),
 	}
-	metrics_u = {"acc_u": BinaryConfidenceAccuracy(hparams.confidence)}
-	metrics_u1 = {"acc_u1": BinaryConfidenceAccuracy(hparams.confidence)}
-	metrics_r = {"acc_r": CategoricalConfidenceAccuracy(hparams.confidence)}
-	metrics_val = {
-		"acc": BinaryConfidenceAccuracy(hparams.confidence),
-		"bce": FnMetric(binary_cross_entropy),
-		"eq": EqConfidenceMetric(hparams.confidence),
-		"mean": MeanMetric(),
-		"max": MaxMetric(),
-		"fscore": FScore(),
+	metrics_u_weak = {"acc_u_weak": BinaryConfidenceAccuracy(hparams.confidence)}
+	metrics_s_strong = {
+		"s_acc_strong": BinaryConfidenceAccuracy(hparams.confidence),
+		"s_fscore_strong": FScore(),
+	}
+	metrics_u_strong = {"acc_u_strong": BinaryConfidenceAccuracy(hparams.confidence)}
+	metrics_val_weak = {
+		"acc_weak": BinaryConfidenceAccuracy(hparams.confidence),
+		"bce_weak": FnMetric(binary_cross_entropy),
+		"eq_weak": EqConfidenceMetric(hparams.confidence),
+		"mean_weak": MeanMetric(),
+		"max_weak": MaxMetric(),
+		"fscore_weak": FScore(),
+	}
+	metrics_val_strong = {
+		"acc_strong": BinaryConfidenceAccuracy(hparams.confidence),
+		"bce_strong": FnMetric(binary_cross_entropy),
+		"eq_strong": EqConfidenceMetric(hparams.confidence),
+		"mean_strong": MeanMetric(),
+		"max_strong": MaxMetric(),
+		"fscore_strong": FScore(),
 	}
 
 	manager_s, manager_u = get_desed_managers(hparams)
 
 	# Validation
-	get_batch_label = lambda item: (item[0], item[1][0])
-	dataset_val = DESEDDataset(manager_s, train=False, val=True, augments=[], cached=True, weak=True, strong=False)
+	get_batch_label = lambda item: (item[0], item[1][0], item[1][1])
+	dataset_val = DESEDDataset(manager_s, train=False, val=True, augments=[], cached=True, weak=True, strong=hparams.use_label_strong)
 	dataset_val = FnDataset(dataset_val, get_batch_label)
 	loader_val = DataLoader(dataset_val, batch_size=hparams.batch_size, shuffle=False)
 
@@ -176,7 +177,7 @@ def main():
 	args_dataset_train_s_augm = dict(
 		manager=manager_s, train=True, val=False, cached=False, weak=True, strong=hparams.use_label_strong)
 	args_dataset_train_u_augm = dict(
-		manager=manager_u, train=True, val=False, cached=False, weak=False, strong=hparams.use_label_strong)
+		manager=manager_u, train=True, val=False, cached=False, weak=False, strong=False)
 
 	# Loaders args
 	args_loader_train_s = dict(
@@ -202,62 +203,32 @@ def main():
 		loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
-		train_fixmatch(
-			model_factory(), acti_fn, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, loader_val,
-			metrics_s, metrics_u, metrics_val, hparams_fm
+		model = model_factory()
+		optim = Adam(model.parameters(), lr=hparams_fm.lr, weight_decay=hparams_fm.weight_decay)
+		if hparams_fm.scheduler == "CosineLRScheduler":
+			scheduler = CosineLRScheduler(optim, nb_epochs=hparams_fm.nb_epochs, lr0=hparams_fm.lr)
+		else:
+			scheduler = None
+
+		hparams_fm.train_name = "FixMatch"
+		writer = build_writer(hparams_fm, suffix="%s_%s_%s" % ("STRONG", str(hparams_fm.scheduler), hparams_fm.suffix))
+
+		criterion = FixMatchLossMultiHotLoc.from_edict(hparams_fm)
+		trainer = FixMatchTrainerLoc(
+			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong,
+			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
+			criterion, writer, hparams_fm.threshold_multihot
 		)
 
-	if "mm" in args.run:
-		hparams_mm = default_mixmatch_hparams()
-		hparams_mm.update(hparams)
-
-		dataset_train_s_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_s_augm)
-		dataset_train_s_augm = FnDataset(dataset_train_s_augm, get_batch_label)
-
-		dataset_train_u_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_u_augm)
-		dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm)
-
-		dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * hparams.nb_augms)
-
-		loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm, **args_loader_train_s)
-		loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
-
-		# Train MixMatch with sqdiff for loss_u
-		hparams_mm.criterion_name_u = "sqdiff"
-		train_mixmatch(
-			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
-			metrics_s, metrics_u, metrics_val, hparams_mm
+		validator = DefaultValidatorLoc(
+			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer
 		)
-		# Train MixMatch with crossentropy for loss_u
-		hparams_mm.criterion_name_u = "crossentropy"
-		train_mixmatch(
-			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
-			metrics_s, metrics_u, metrics_val, hparams_mm
-		)
+		learner = DefaultLearner(hparams_fm.train_name, trainer, validator, hparams_fm.nb_epochs, scheduler)
+		learner.start()
 
-	if "rmm" in args.run:
-		hparams_rmm = default_remixmatch_hparams()
-		hparams_rmm.update(hparams)
-
-		dataset_train_s_augm_strong = DESEDDataset(augments=[augm_strong_fn], **args_dataset_train_s_augm)
-		dataset_train_s_augm_strong = FnDataset(dataset_train_s_augm_strong, get_batch_label)
-
-		dataset_train_u_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_u_augm)
-		dataset_train_u_augm_weak = NoLabelDataset(dataset_train_u_augm_weak)
-
-		dataset_train_u_augm_strong = DESEDDataset(augments=[augm_strong_fn], **args_dataset_train_u_augm)
-		dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
-
-		dataset_train_u_augms_strongs = MultipleDataset([dataset_train_u_augm_strong] * hparams_rmm.nb_augms_strong)
-		dataset_train_u_augms_weak_strongs = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augms_strongs])
-
-		loader_train_s_augm_strong = DataLoader(dataset=dataset_train_s_augm_strong, **args_loader_train_s)
-		loader_train_u_augms_weak_strongs = DataLoader(dataset=dataset_train_u_augms_weak_strongs, **args_loader_train_u)
-
-		train_remixmatch(
-			model_factory(), acti_fn, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs, loader_val,
-			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val, hparams_rmm
-		)
+		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams_fm.items()}
+		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.close()
 
 	if "sf" in args.run:
 		hparams_sf = default_supervised_hparams()
@@ -268,10 +239,26 @@ def main():
 
 		loader_train_s = DataLoader(dataset=dataset_train_s, **args_loader_train_s)
 
-		train_supervised(
-			model_factory(), acti_fn, loader_train_s, loader_val, metrics_s, metrics_val,
-			hparams_sf, suffix="full_100"
+		model = model_factory()
+		optim = Adam(model.parameters(), lr=hparams_sf.lr, weight_decay=hparams_sf.weight_decay)
+
+		hparams_sf.train_name = "Supervised"
+		writer = build_writer(hparams_sf, suffix="%s" % "STRONG")
+
+		criterion = weak_synth_loss
+
+		trainer = SupervisedTrainerLoc(
+			model, acti_fn, optim, loader_train_s, metrics_s_weak, metrics_s_strong, criterion, writer
 		)
+		validator = DefaultValidatorLoc(
+			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer
+		)
+		learner = DefaultLearner(hparams_sf.train_name, trainer, validator, hparams_sf.nb_epochs)
+		learner.start()
+
+		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams_sf.items()}
+		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.close()
 
 	exec_time = time() - prog_start
 	print("")
