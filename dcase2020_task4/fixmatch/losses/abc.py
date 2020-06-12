@@ -11,5 +11,5 @@ class FixMatchLossABC(ABC, Callable):
 		u_pred_weak_augm_weak: Tensor,
 		u_pred_weak_augm_strong: Tensor,
 		u_labels_weak_guessed: Tensor,
-	) -> Tensor:
+	) -> (Tensor, Tensor, Tensor):
 		raise NotImplementedError("Abstract method")

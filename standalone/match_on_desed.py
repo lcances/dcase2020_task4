@@ -114,11 +114,11 @@ def main():
 	acti_fn = lambda batch, dim: batch.sigmoid()
 
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	weak_augm_fn = RandomChoice([
+	augm_weak_fn = RandomChoice([
 		Transform(0.5, scale=(0.9, 1.1)),
 		PitchShiftRandom(0.5, steps=(-2, 2)),
 	])
-	strong_augm_fn = Compose([
+	augm_strong_fn = Compose([
 		Transform(1.0, scale=(0.9, 1.1)),
 		RandomChoice([
 			TimeStretch(1.0),
@@ -131,7 +131,7 @@ def main():
 	])
 	# Augmentation used by MixMatch
 	ratio = 0.5
-	augment_fn = RandomChoice([
+	augm_fn = RandomChoice([
 		Transform(ratio, scale=(0.9, 1.1)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
@@ -178,13 +178,13 @@ def main():
 		hparams_fm = default_fixmatch_hparams()
 		hparams_fm.update(hparams)
 
-		dataset_train_s_augm_weak = DESEDDataset(augments=[weak_augm_fn], **args_dataset_train_s_augm)
+		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_weak = FnDataset(dataset_train_s_augm_weak, get_batch_label)
 
-		dataset_train_u_augm_weak = DESEDDataset(augments=[weak_augm_fn], **args_dataset_train_u_augm)
+		dataset_train_u_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_u_augm)
 		dataset_train_u_augm_weak = NoLabelDataset(dataset_train_u_augm_weak)
 
-		dataset_train_u_augm_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_u_augm)
+		dataset_train_u_augm_strong = DESEDDataset(augments=[augm_strong_fn], **args_dataset_train_u_augm)
 		dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
 
 		dataset_train_u_augms_weak_strong = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augm_strong])
@@ -201,10 +201,10 @@ def main():
 		hparams_mm = default_mixmatch_hparams()
 		hparams_mm.update(hparams)
 
-		dataset_train_s_augm = DESEDDataset(augments=[augment_fn], **args_dataset_train_s_augm)
+		dataset_train_s_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm = FnDataset(dataset_train_s_augm, get_batch_label)
 
-		dataset_train_u_augm = DESEDDataset(augments=[augment_fn], **args_dataset_train_u_augm)
+		dataset_train_u_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_u_augm)
 		dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm)
 
 		dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * hparams.nb_augms)
@@ -229,13 +229,13 @@ def main():
 		hparams_rmm = default_remixmatch_hparams()
 		hparams_rmm.update(hparams)
 
-		dataset_train_s_augm_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_s_augm)
+		dataset_train_s_augm_strong = DESEDDataset(augments=[augm_strong_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_strong = FnDataset(dataset_train_s_augm_strong, get_batch_label)
 
-		dataset_train_u_augm_weak = DESEDDataset(augments=[weak_augm_fn], **args_dataset_train_u_augm)
+		dataset_train_u_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_u_augm)
 		dataset_train_u_augm_weak = NoLabelDataset(dataset_train_u_augm_weak)
 
-		dataset_train_u_augm_strong = DESEDDataset(augments=[strong_augm_fn], **args_dataset_train_u_augm)
+		dataset_train_u_augm_strong = DESEDDataset(augments=[augm_strong_fn], **args_dataset_train_u_augm)
 		dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
 
 		dataset_train_u_augms_strongs = MultipleDataset([dataset_train_u_augm_strong] * hparams_rmm.nb_augms_strong)

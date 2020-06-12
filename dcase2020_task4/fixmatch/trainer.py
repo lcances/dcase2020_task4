@@ -47,7 +47,7 @@ class FixMatchTrainer(SSTrainer):
 		self.model.train()
 		self.reset_metrics()
 
-		losses = []
+		losses, losses_s, losses_u = [], [], []
 		metric_values = {
 			metric_name: [] for metric_name in (list(self.metrics_s.keys()) + list(self.metrics_u.keys()))
 		}
@@ -83,13 +83,18 @@ class FixMatchTrainer(SSTrainer):
 				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
 
 			# Update model
-			loss = self.criterion(s_pred_augm_weak, s_labels_weak, u_pred_augm_weak, u_pred_augm_strong, u_labels_weak_guessed)
+			loss, loss_s, loss_u = self.criterion(s_pred_augm_weak, s_labels_weak, u_pred_augm_weak, u_pred_augm_strong, u_labels_weak_guessed)
 			self.optim.zero_grad()
 			loss.backward()
 			self.optim.step()
 
 			losses.append(loss.item())
-			buffer = ["{:s}: {:.4e}".format("loss", np.mean(losses))]
+			losses_s.append(loss_s.item())
+			losses_u.append(loss_u.item())
+			buffer = [
+				"{:s}: {:.4e}".format(name, np.mean(loss_lst))
+				for name, loss_lst in {"loss": losses, "loss_s": losses_s, "loss_u": losses_u}
+			]
 
 			metric_pred_labels = [
 				(self.metrics_s, s_pred_augm_weak, s_labels_weak),

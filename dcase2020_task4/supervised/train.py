@@ -44,5 +44,6 @@ def train_supervised(
 	learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 	learner.start()
 
-	writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+	hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
+	writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
 	writer.close()

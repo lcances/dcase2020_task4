@@ -26,7 +26,7 @@ class FixMatchLossMultiHotLoc(Callable):
 		pred_u_weak_loc: Tensor,
 		pred_u_strong_loc: Tensor,
 		labels_u_guessed_loc: Tensor,
-	) -> Tensor:
+	) -> (Tensor, Tensor, Tensor):
 		"""
 		loss_s_at = self.criterion(pred_s_weak_at, labels_s_at).mean()
 		loss_s_loc = self.criterion(pred_s_weak_loc, labels_s_loc).mean()

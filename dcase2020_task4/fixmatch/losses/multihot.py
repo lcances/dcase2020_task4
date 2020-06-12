@@ -30,7 +30,7 @@ class FixMatchLossMultiHotV1(FixMatchLossABC):
 		u_pred_weak_augm_weak: Tensor,
 		u_pred_weak_augm_strong: Tensor,
 		u_labels_weak_guessed: Tensor,
-	) -> Tensor:
+	) -> (Tensor, Tensor, Tensor):
 		# Supervised loss
 		loss_s = self.criterion_s(s_pred_weak_augm_weak, s_labels_weak)
 		loss_s = loss_s.mean()
@@ -44,7 +44,7 @@ class FixMatchLossMultiHotV1(FixMatchLossABC):
 
 		loss = loss_s + self.lambda_u * loss_u
 
-		return loss
+		return loss, loss_s, loss_u
 
 
 class FixMatchLossMultiHotV2(FixMatchLossABC):
@@ -73,7 +73,7 @@ class FixMatchLossMultiHotV2(FixMatchLossABC):
 		u_pred_weak_augm_weak: Tensor,
 		u_pred_weak_augm_strong: Tensor,
 		u_labels_weak_guessed: Tensor,
-	) -> Tensor:
+	) -> (Tensor, Tensor, Tensor):
 		# Supervised loss
 		loss_s = self.criterion_s(s_pred_weak_augm_weak, s_labels_weak)
 		loss_s = loss_s.mean()
@@ -87,7 +87,7 @@ class FixMatchLossMultiHotV2(FixMatchLossABC):
 
 		loss = loss_s + self.lambda_u * loss_u
 
-		return loss
+		return loss, loss_s, loss_u
 
 
 class FixMatchLossMultiHotV3(FixMatchLossABC):
@@ -116,7 +116,7 @@ class FixMatchLossMultiHotV3(FixMatchLossABC):
 		u_pred_weak_augm_weak: Tensor,
 		u_pred_weak_augm_strong: Tensor,
 		u_labels_weak_guessed: Tensor,
-	) -> Tensor:
+	) -> (Tensor, Tensor, Tensor):
 		# Supervised loss
 		loss_s = self.criterion_s(s_pred_weak_augm_weak, s_labels_weak)
 		loss_s = loss_s.mean()
@@ -130,7 +130,7 @@ class FixMatchLossMultiHotV3(FixMatchLossABC):
 
 		loss = loss_s + self.lambda_u * loss_u
 
-		return loss
+		return loss, loss_s, loss_u
 
 
-FixMatchLossMultiHot = FixMatchLossMultiHotV3
+FixMatchLossMultiHot = FixMatchLossMultiHotV1

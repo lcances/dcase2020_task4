@@ -43,8 +43,6 @@ class FixMatchTrainer(SSTrainer):
 		self.criterion = criterion
 		self.threshold_multihot = threshold_multihot
 
-		self.mode = "multihot"
-
 	def train(self, epoch: int):
 		train_start = time()
 		self.model.train()
