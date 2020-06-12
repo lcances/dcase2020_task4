@@ -49,9 +49,10 @@ class FixMatchLossMultiHotV4(Callable):
 		# Unsupervised loss
 		u_counts = u_pred_count_augm_weak.argmax(dim=1)
 		u_pred_sorted = u_pred_weak_augm_weak.sort(dim=1, descending=True)[0]
-		mean_values = []
-		for pred, count in zip(u_pred_sorted, u_counts):
-			mean_values.append(pred[:count].mean())
+		mean_values = [
+			pred[:count].mean() if count > 0 else 0.0
+			for pred, count in zip(u_pred_sorted, u_counts)
+		]
 		mean_values = torch.as_tensor(mean_values).cuda()
 
 		mask = (mean_values > self.threshold_mask).float()

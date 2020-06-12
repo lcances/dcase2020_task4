@@ -4,6 +4,7 @@ os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
 import os.path as osp
+import torch
 
 from argparse import ArgumentParser, Namespace
 from easydict import EasyDict as edict
@@ -80,6 +81,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
 
+	parser.add_argument("--debug_mode", type=bool, default=False, action="store_true")
+
 	return parser.parse_args()
 
 
@@ -104,6 +107,7 @@ def main():
 	hparams.dataset_name = "DESED"
 
 	reset_seed(hparams.seed)
+	torch.autograd.set_detect_anomaly(args.debug_mode)
 
 	if hparams.model_name == "WeakBaseline":
 		model_factory = lambda: WeakBaselineRot().cuda()

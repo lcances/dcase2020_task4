@@ -76,22 +76,21 @@ class FixMatchTrainerV4(SSTrainer):
 			u_logits_augm_weak = self.model(u_batch_augm_weak)
 			u_logits_augm_strong = self.model(u_batch_augm_strong)
 
-			s_logits_count_aw = self.model.forward_count(s_batch_augm_weak)
-			u_logits_count_aw = self.model.forward_count(u_batch_augm_weak)
-			u_logits_count_as = self.model.forward_count(u_batch_augm_strong)
-
-			s_pred_count_aw = self.acti_count_fn(s_logits_count_aw, dim=1)
-			u_pred_count_aw = self.acti_count_fn(u_logits_count_aw, dim=1)
-			u_pred_count_as = self.acti_count_fn(u_logits_count_as, dim=1)
-
-			# Compute accuracies
 			s_pred_augm_weak = self.acti_fn(s_logits_augm_weak, dim=1)
 			u_pred_augm_weak = self.acti_fn(u_logits_augm_weak, dim=1)
 			u_pred_augm_strong = self.acti_fn(u_logits_augm_strong, dim=1)
 
+			s_logits_count_augm_weak = self.model.forward_count(s_batch_augm_weak)
+			u_logits_count_augm_weak = self.model.forward_count(u_batch_augm_weak)
+			u_logits_count_augm_strong = self.model.forward_count(u_batch_augm_strong)
+
+			s_pred_count_augm_weak = self.acti_count_fn(s_logits_count_augm_weak, dim=1)
+			u_pred_count_augm_weak = self.acti_count_fn(u_logits_count_augm_weak, dim=1)
+			u_pred_count_augm_strong = self.acti_count_fn(u_logits_count_augm_strong, dim=1)
+
 			# Use guess u label with prediction of weak augmentation of u
+			u_pred_count_augm_weak.detach_()
 			u_pred_augm_weak.detach_()
-			u_pred_count_aw.detach_()
 			if self.mode == "onehot":
 				u_labels_weak_guessed = binarize_onehot_labels(u_pred_augm_weak)
 			elif self.mode == "multihot":
@@ -101,11 +100,10 @@ class FixMatchTrainerV4(SSTrainer):
 
 			# Update model
 			loss, loss_s, loss_u = self.criterion(
-				s_pred_augm_weak, s_labels, u_pred_augm_weak, u_pred_augm_strong, u_labels_weak_guessed,
-				s_pred_count_aw,
-				s_labels_count,
-				u_pred_count_aw,
-				u_pred_count_as,
+				s_pred_augm_weak, s_labels,
+				u_pred_augm_weak, u_pred_augm_strong, u_labels_weak_guessed,
+				s_pred_count_augm_weak, s_labels_count,
+				u_pred_count_augm_weak, u_pred_count_augm_strong,
 			)
 			self.optim.zero_grad()
 			loss.backward()
