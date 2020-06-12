@@ -25,7 +25,7 @@ class dcase2019_model(nn.Module):
             nn.Linear(64, 10) # (?, 431, 10)
         )
         
-        # (?, 431, 128) --> froward: avg_pool & max_pool + cat --> (?, 256)
+        # (?, 431, 128) --> forward: avg_pool & max_pool + cat --> (?, 256)
         self.g_avg_pool = nn.AdaptiveAvgPool1d(1)
         self.g_max_pool = nn.AdaptiveMaxPool1d(1)
         
