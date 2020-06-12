@@ -36,7 +36,7 @@ class FixMatchLossMultiHotV1(FixMatchLossABC):
 		loss_s = loss_s.mean()
 
 		# Unsupervised loss
-		max_values = u_pred_weak_augm_weak.max(dim=1)
+		max_values, _ = u_pred_weak_augm_weak.max(dim=1)
 		mask = (max_values > self.threshold_mask).float()
 		loss_u = self.criterion_u(u_pred_weak_augm_strong, u_labels_weak_guessed)
 		loss_u *= mask
