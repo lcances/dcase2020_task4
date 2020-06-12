@@ -52,7 +52,7 @@ class FixMatchLossMultiHotV4(Callable):
 		mean_values = []
 		for pred, count in zip(u_pred_sorted, u_counts):
 			mean_values.append(pred[:count].mean())
-		mean_values = torch.as_tensor(mean_values)
+		mean_values = torch.as_tensor(mean_values).cuda()
 
 		mask = (mean_values > self.threshold_mask).float()
 		loss_u = self.criterion_u(u_pred_weak_augm_strong, u_labels_weak_guessed)
