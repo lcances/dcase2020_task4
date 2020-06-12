@@ -93,7 +93,7 @@ class FixMatchTrainer(SSTrainer):
 			losses_u.append(loss_u.item())
 			buffer = [
 				"{:s}: {:.4e}".format(name, np.mean(loss_lst))
-				for name, loss_lst in {"loss": losses, "loss_s": losses_s, "loss_u": losses_u}
+				for name, loss_lst in {"loss": losses, "loss_s": losses_s, "loss_u": losses_u}.items()
 			]
 
 			metric_pred_labels = [
