@@ -81,7 +81,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
 
-	parser.add_argument("--debug_mode", type=bool, default=False, action="store_true")
+	parser.add_argument("--debug_mode", action="store_true", default=False)
 
 	return parser.parse_args()
 
