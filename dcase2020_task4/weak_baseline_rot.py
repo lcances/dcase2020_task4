@@ -6,6 +6,7 @@ from dcase2020_task4.baseline.models import WeakBaseline
 class WeakBaselineRot(WeakBaseline):
 	def __init__(self, nb_rot: int = 4):
 		super().__init__()
+		nb_classes = 10
 
 		self.classifier_rot = nn.Sequential(
 			nn.Flatten(),
@@ -13,7 +14,7 @@ class WeakBaselineRot(WeakBaseline):
 		)
 		self.classifier_count = nn.Sequential(
 			nn.Flatten(),
-			nn.Linear(1696, 10)
+			nn.Linear(1696, nb_classes + 1)
 		)
 
 	def forward_rot(self, x: Tensor) -> Tensor:

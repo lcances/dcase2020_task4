@@ -1,7 +1,9 @@
 import numpy as np
+import torch
 
 from time import time
 from torch.nn import Module
+from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -9,13 +11,12 @@ from typing import Callable, Dict, Optional
 
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.fixmatch.losses.abc import FixMatchLossABC
 from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.utils_match import binarize_onehot_labels, get_lr
 from dcase2020_task4.trainer import SSTrainer
 
 
-class FixMatchTrainer(SSTrainer):
+class FixMatchTrainerV4(SSTrainer):
 	def __init__(
 		self,
 		model: Module,
@@ -25,7 +26,7 @@ class FixMatchTrainer(SSTrainer):
 		loader_train_u_augms_weak_strong: DataLoader,
 		metrics_s: Dict[str, Metrics],
 		metrics_u: Dict[str, Metrics],
-		criterion: FixMatchLossABC,
+		criterion: Callable,
 		writer: Optional[SummaryWriter],
 		mode: str,
 		threshold_multihot: float,
@@ -41,6 +42,8 @@ class FixMatchTrainer(SSTrainer):
 		self.writer = writer
 		self.mode = mode
 		self.threshold_multihot = threshold_multihot
+
+		self.acti_count_fn = torch.softmax
 
 	def train(self, epoch: int):
 		train_start = time()
@@ -69,12 +72,22 @@ class FixMatchTrainer(SSTrainer):
 			u_logits_augm_weak = self.model(u_batch_augm_weak)
 			u_logits_augm_strong = self.model(u_batch_augm_strong)
 
+			s_logits_count_aw = self.model.forward_count(s_batch_augm_weak)
+			u_logits_count_aw = self.model.forward_count(u_batch_augm_weak)
+			u_logits_count_as = self.model.forward_count(u_batch_augm_strong)
+
+			s_pred_count_aw = self.acti_count_fn(s_logits_count_aw, dim=1)
+			u_pred_count_aw = self.acti_count_fn(u_logits_count_aw, dim=1)
+			u_pred_count_as = self.acti_count_fn(u_logits_count_as, dim=1)
+
+			# Compute accuracies
 			s_pred_weak_augm_weak = self.acti_fn(s_logits_augm_weak, dim=1)
 			u_pred_weak_augm_weak = self.acti_fn(u_logits_augm_weak, dim=1)
 			u_pred_weak_augm_strong = self.acti_fn(u_logits_augm_strong, dim=1)
 
 			# Use guess u label with prediction of weak augmentation of u
 			u_pred_weak_augm_weak.detach_()
+			u_pred_count_aw.detach_()
 			if self.mode == "onehot":
 				u_labels_weak_guessed = binarize_onehot_labels(u_pred_weak_augm_weak)
 			elif self.mode == "multihot":
@@ -83,8 +96,14 @@ class FixMatchTrainer(SSTrainer):
 				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
 
 			# Update model
+			s_labels_count = one_hot(s_labels_weak.sum(dim=1), 11)
 			loss, loss_s, loss_u = self.criterion(
-				s_pred_weak_augm_weak, s_labels_weak, u_pred_weak_augm_weak, u_pred_weak_augm_strong, u_labels_weak_guessed)
+				s_pred_weak_augm_weak, s_labels_weak, u_pred_weak_augm_weak, u_pred_weak_augm_strong, u_labels_weak_guessed,
+				s_pred_count_aw,
+				s_labels_count,
+				u_pred_count_aw,
+				u_pred_count_as,
+			)
 			self.optim.zero_grad()
 			loss.backward()
 			self.optim.step()
