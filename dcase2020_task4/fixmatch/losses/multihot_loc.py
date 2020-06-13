@@ -2,7 +2,7 @@ import torch
 
 from torch import Tensor
 from torch.nn import BCELoss
-from typing import Callable
+from typing import Callable, Union
 
 
 class FixMatchLossMultiHotLoc(Callable):
@@ -45,24 +45,25 @@ class FixMatchLossMultiHotLoc(Callable):
 		loss_s_weak = loss_s_weak.mean()
 
 		# Supervised strong loss
-		s_mask_strong = self.get_strong_mask(s_pred_strong_augm_weak)
+		s_mask_has_strong = self.get_has_strong_mask(s_labels_strong)
+
 		loss_s_strong = self.criterion_s_strong(s_pred_strong_augm_weak, s_labels_strong).mean(dim=(1, 2))
-		loss_s_strong = s_mask_strong * loss_s_strong
+		loss_s_strong = s_mask_has_strong * loss_s_strong
 		loss_s_strong = loss_s_strong.mean()
 
 		# Unsupervised weak loss
-		u_mean_pred_weak = u_pred_weak_augm_weak.mean(dim=1)
-		mask = (u_mean_pred_weak > self.threshold_mask).float()
+		u_mask_confidence_weak = self.get_confidence_mask(u_pred_weak_augm_weak, dim=1)
+
 		loss_u_weak = self.criterion_u_weak(u_pred_weak_augm_strong, u_labels_weak_guessed)
-		loss_u_weak *= mask
+		loss_u_weak *= u_mask_confidence_weak
 		loss_u_weak = loss_u_weak.mean()
 
 		# Unsupervised strong loss
-		u_strong_mask = self.get_strong_mask(u_labels_strong_guessed)
-		u_means_strong = u_pred_strong_augm_weak.mean(dim=(1, 2))
-		mask = (u_means_strong > self.threshold_mask).float()
+		u_mask_has_strong = self.get_has_strong_mask(u_labels_strong_guessed)
+		u_mask_confidence_strong = self.get_confidence_mask(u_pred_strong_augm_weak, dim=(1, 2))
+
 		loss_u_strong = self.criterion_u_strong(u_pred_strong_augm_strong, u_labels_strong_guessed).mean(dim=(1, 2))
-		loss_u_strong = u_strong_mask * mask * loss_u_strong
+		loss_u_strong = u_mask_has_strong * u_mask_confidence_strong * loss_u_strong
 		loss_u_strong = loss_u_strong.mean()
 
 		# Compute final loss
@@ -70,8 +71,12 @@ class FixMatchLossMultiHotLoc(Callable):
 
 		return loss, loss_s_weak, loss_u_weak, loss_s_strong, loss_u_strong
 
-	def get_strong_mask(self, pred_strong: Tensor) -> Tensor:
-		return torch.clamp(pred_strong.sum(dim=(1, 2)), 0, 1)
+	def get_has_strong_mask(self, labels_strong: Tensor) -> Tensor:
+		return torch.clamp(labels_strong.sum(dim=(1, 2)), 0, 1)
+
+	def get_confidence_mask(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
+		means = pred.mean(dim=dim)
+		return (means > self.threshold_mask).float()
 
 
 def test():
