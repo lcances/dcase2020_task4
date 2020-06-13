@@ -80,7 +80,7 @@ best_model.cpu()
 best_model.eval() # <-- for consistency in scoring (deactivate dropout and batchNorm)
 log.info("Model %s loaded" % args.model_name)
 
-checkpoint = torch.load(args.model_save)
+checkpoint = torch.load(args.model_save, map_location="cpu")
 best_model.load_state_dict(checkpoint["state_dict"])
 log.info("Best state reach at epoch %d with score %.2f" % (checkpoint["epoch"], checkpoint["best_metric"]))
 
