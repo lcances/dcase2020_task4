@@ -27,11 +27,11 @@ from aeseg.aeseg import eb_evaluator, sb_evaluator
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--model_save", default="../models/dcase2019_system.torch", help="Path to model save using checkpoint")
-parser.add_argument("--model_name", default="dcase2019_system", help="Name of the Class/function to use to construct the model")
-parser.add_argument("-a", "--audio_root", default="../../dataset/DESED/dataset/audio", type=str)
-parser.add_argument("-m", "--metadata_root", default="../../dataset/DESED/dataset/metadata", type=str)
-parser.add_argument("-w", "--num_workers", default=0, type=int, help="Choose number of worker to train the model")
+parser.add_argument("--model_save", default="../models/best_dcase2019.torch", help="Path to model save using checkpoint")
+parser.add_argument("--model_name", default="dcase2019_model", help="Name of the Class/function to use to construct the model")
+parser.add_argument("-a", "--audio_root", default="../dataset/DESED/dataset/audio", type=str)
+parser.add_argument("-m", "--metadata_root", default="../dataset/DESED/dataset/metadata", type=str)
+parser.add_argument("-w", "--num_workers", default=1, type=int, help="Choose number of worker to train the model")
 parser.add_argument("-o", "--output", default="submission.csv", type=str, help="submission file name")
 args = parser.parse_args()
 
@@ -281,8 +281,8 @@ optimizer = DichotomicOptimizer(
     },
     
     encoder = encoder,
-    step = 6,
-    nb_recurse = 8,
+    step = 3,
+    nb_recurse = 1,
     nb_process = args.num_workers
 )
 
@@ -335,6 +335,8 @@ with torch.set_grad_enabled(False):
         else:
             weak_y_pred = torch.cat((weak_y_pred, weak_pred.cpu()), dim=0)
             strong_y_pred = torch.cat((strong_y_pred, strong_pred.cpu()), dim=0)
+            
+pruned_strong_y_pred = pruned_strong_y_pred.permute(0, 2, 1)
 
 log.info("Pruning strong prediction using best audio tagging thresholds ...")
 best_weak_y_pred = weak_y_pred.clone().detach()
@@ -350,8 +352,6 @@ segments = encoder.encode(
     **best_parameters
 )
 to_evaluate = encoder.parse(segments, y_filenames)
-evaluator = eb_evaluator(val_csv_y_true, to_evaluate)
-print(evaluator)
 
 log.info("Create submission.csv file")
 with open("submission.csv", "w") as f:
