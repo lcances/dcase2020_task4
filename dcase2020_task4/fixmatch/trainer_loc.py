@@ -84,8 +84,9 @@ class FixMatchTrainerLoc(SSTrainer):
 			u_pred_strong_augm_strong = self.acti_fn(u_logits_strong_augm_strong, dim=(1, 2))
 
 			# Use guess u label with prediction of weak augmentation of u
-			u_pred_weak_augm_weak.detach_()
-			u_pred_strong_augm_weak.detach_()
+			u_logits_weak_augm_weak.detach_()
+			u_logits_strong_augm_weak.detach_()
+
 			u_labels_weak_guessed = (u_pred_weak_augm_weak > self.threshold_multihot).float()
 			u_labels_strong_guessed = (u_pred_strong_augm_weak > self.threshold_multihot).float()
 
