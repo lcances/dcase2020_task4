@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from time import time
 from torch.nn import Module
@@ -72,23 +73,22 @@ class FixMatchTrainerLoc(SSTrainer):
 
 			# Compute logits
 			s_logits_weak_augm_weak, s_logits_strong_augm_weak = self.model(s_batch_augm_weak)
-			u_logits_weak_augm_weak, u_logits_strong_augm_weak = self.model(u_batch_augm_weak)
 			u_logits_weak_augm_strong, u_logits_strong_augm_strong = self.model(u_batch_augm_strong)
 
-			u_logits_weak_augm_weak = u_logits_weak_augm_weak.detach()
-			u_logits_strong_augm_weak = u_logits_strong_augm_weak.detach()
-
 			s_pred_weak_augm_weak = self.acti_fn(s_logits_weak_augm_weak, dim=1)
-			u_pred_weak_augm_weak = self.acti_fn(u_logits_weak_augm_weak, dim=1)
 			u_pred_weak_augm_strong = self.acti_fn(u_logits_weak_augm_strong, dim=1)
 
 			s_pred_strong_augm_weak = self.acti_fn(s_logits_strong_augm_weak, dim=(1, 2))
-			u_pred_strong_augm_weak = self.acti_fn(u_logits_strong_augm_weak, dim=(1, 2))
 			u_pred_strong_augm_strong = self.acti_fn(u_logits_strong_augm_strong, dim=(1, 2))
 
-			# Use guess u label with prediction of weak augmentation of u
-			u_labels_weak_guessed = (u_pred_weak_augm_weak > self.threshold_multihot).float()
-			u_labels_strong_guessed = (u_pred_strong_augm_weak > self.threshold_multihot).float()
+			with torch.no_grad():
+				u_logits_weak_augm_weak, u_logits_strong_augm_weak = self.model(u_batch_augm_weak)
+				u_pred_weak_augm_weak = self.acti_fn(u_logits_weak_augm_weak, dim=1)
+				u_pred_strong_augm_weak = self.acti_fn(u_logits_strong_augm_weak, dim=(1, 2))
+
+				# Use guess u label with prediction of weak augmentation of u
+				u_labels_weak_guessed = (u_pred_weak_augm_weak > self.threshold_multihot).float()
+				u_labels_strong_guessed = (u_pred_strong_augm_weak > self.threshold_multihot).float()
 
 			# Update model
 			loss, loss_s_weak, loss_u_weak, loss_s_strong, loss_u_strong = self.criterion(
@@ -101,34 +101,35 @@ class FixMatchTrainerLoc(SSTrainer):
 			loss.backward()
 			self.optim.step()
 
-			metric_values["loss"].append(loss.item())
-			metric_values["loss_s_weak"].append(loss_s_weak.item())
-			metric_values["loss_u_weak"].append(loss_u_weak.item())
-			metric_values["loss_s_strong"].append(loss_s_strong.item())
-			metric_values["loss_u_strong"].append(loss_u_strong.item())
+			with torch.no_grad():
+				metric_values["loss"].append(loss.item())
+				metric_values["loss_s_weak"].append(loss_s_weak.item())
+				metric_values["loss_u_weak"].append(loss_u_weak.item())
+				metric_values["loss_s_strong"].append(loss_s_strong.item())
+				metric_values["loss_u_strong"].append(loss_u_strong.item())
 
-			metric_pred_labels = [
-				(self.metrics_s_weak, s_pred_weak_augm_weak, s_labels_weak),
-				(self.metrics_u_weak, u_pred_weak_augm_strong, u_labels_weak_guessed),
-				(self.metrics_s_strong, s_pred_strong_augm_weak, s_labels_strong),
-				(self.metrics_u_strong, u_pred_strong_augm_strong, u_labels_strong_guessed),
-			]
-			for metrics, pred, labels in metric_pred_labels:
-				for metric_name, metric in metrics.items():
-					_mean_s = metric(pred, labels)
-					metric_values[metric_name].append(metric.value.item())
+				metric_pred_labels = [
+					(self.metrics_s_weak, s_pred_weak_augm_weak, s_labels_weak),
+					(self.metrics_u_weak, u_pred_weak_augm_strong, u_labels_weak_guessed),
+					(self.metrics_s_strong, s_pred_strong_augm_weak, s_labels_strong),
+					(self.metrics_u_strong, u_pred_strong_augm_strong, u_labels_strong_guessed),
+				]
+				for metrics, pred, labels in metric_pred_labels:
+					for metric_name, metric in metrics.items():
+						_mean_s = metric(pred, labels)
+						metric_values[metric_name].append(metric.value.item())
 
-			prints_buffer = [
-				"{:s}: {:.4e}".format(name, np.mean(values))
-				for name, values in metric_values.items()
-			]
-			prints_buffer.append("took: {:.2f}s".format(time() - train_start))
+				prints_buffer = [
+					"{:s}: {:.4e}".format(name, np.mean(values))
+					for name, values in metric_values.items()
+				]
+				prints_buffer.append("took: {:.2f}s".format(time() - train_start))
 
-			print("Epoch {:d}, {:d}% \t {:s}".format(
-				epoch + 1,
-				int(100 * (i + 1) / len(loaders_zip)),
-				" - ".join(prints_buffer)
-			), end="\r")
+				print("Epoch {:d}, {:d}% \t {:s}".format(
+					epoch + 1,
+					int(100 * (i + 1) / len(loaders_zip)),
+					" - ".join(prints_buffer)
+				), end="\r")
 
 		print("")
 
