@@ -74,7 +74,12 @@ class FixMatchLossMultiHotLoc(Callable):
 		return (means > self.threshold_mask).float()
 
 	def get_confidence_mask(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
-		maxes, _ = pred.max(dim=dim)
+		if type(dim) == int:
+			maxes, _ = pred.max(dim=dim)
+		else:
+			maxes = pred.clone()
+			for d in reversed(dim):
+				maxes = maxes.max(dim=d)[0]
 		return (maxes > self.threshold_mask).float()
 
 
