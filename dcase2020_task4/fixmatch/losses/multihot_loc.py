@@ -68,9 +68,14 @@ class FixMatchLossMultiHotLoc(Callable):
 	def get_has_strong_mask(self, labels_strong: Tensor) -> Tensor:
 		return torch.clamp(labels_strong.sum(dim=(1, 2)), 0, 1)
 
-	def get_confidence_mask(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
+	# TODO
+	def get_confidence_mask_TMP(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
 		means = pred.mean(dim=dim)
 		return (means > self.threshold_mask).float()
+
+	def get_confidence_mask(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
+		maxes, _ = pred.max(dim=dim)
+		return (maxes > self.threshold_mask).float()
 
 
 def test():

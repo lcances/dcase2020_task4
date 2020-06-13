@@ -1,4 +1,5 @@
 import numpy as np
+import torch
 
 from time import time
 from torch.nn import Module
@@ -66,21 +67,21 @@ class FixMatchTrainer(SSTrainer):
 
 			# Compute logits
 			s_logits_augm_weak = self.model(s_batch_augm_weak)
-			u_logits_augm_weak = self.model(u_batch_augm_weak)
 			u_logits_augm_strong = self.model(u_batch_augm_strong)
 
 			s_pred_augm_weak = self.acti_fn(s_logits_augm_weak, dim=1)
-			u_pred_augm_weak = self.acti_fn(u_logits_augm_weak, dim=1)
 			u_pred_augm_strong = self.acti_fn(u_logits_augm_strong, dim=1)
 
 			# Use guess u label with prediction of weak augmentation of u
-			u_pred_augm_weak.detach_()
-			if self.mode == "onehot":
-				u_labels_weak_guessed = binarize_onehot_labels(u_pred_augm_weak)
-			elif self.mode == "multihot":
-				u_labels_weak_guessed = (u_pred_augm_weak > self.threshold_multihot).float()
-			else:
-				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
+			with torch.no_grad():
+				u_logits_augm_weak = self.model(u_batch_augm_weak)
+				u_pred_augm_weak = self.acti_fn(u_logits_augm_weak, dim=1)
+				if self.mode == "onehot":
+					u_labels_weak_guessed = binarize_onehot_labels(u_pred_augm_weak)
+				elif self.mode == "multihot":
+					u_labels_weak_guessed = (u_pred_augm_weak > self.threshold_multihot).float()
+				else:
+					raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
 
 			# Update model
 			loss, loss_s, loss_u = self.criterion(
@@ -89,30 +90,31 @@ class FixMatchTrainer(SSTrainer):
 			loss.backward()
 			self.optim.step()
 
-			metric_values["loss"].append(loss.item())
-			metric_values["loss_s"].append(loss_s.item())
-			metric_values["loss_u"].append(loss_u.item())
+			with torch.no_grad():
+				metric_values["loss"].append(loss.item())
+				metric_values["loss_s"].append(loss_s.item())
+				metric_values["loss_u"].append(loss_u.item())
 
-			metric_pred_labels = [
-				(self.metrics_s, s_pred_augm_weak, s_labels),
-				(self.metrics_u, u_pred_augm_strong, u_labels_weak_guessed),
-			]
-			for metrics, pred, labels in metric_pred_labels:
-				for metric_name, metric in metrics.items():
-					_mean_s = metric(pred, labels)
-					metric_values[metric_name].append(metric.value.item())
+				metric_pred_labels = [
+					(self.metrics_s, s_pred_augm_weak, s_labels),
+					(self.metrics_u, u_pred_augm_strong, u_labels_weak_guessed),
+				]
+				for metrics, pred, labels in metric_pred_labels:
+					for metric_name, metric in metrics.items():
+						_mean_s = metric(pred, labels)
+						metric_values[metric_name].append(metric.value.item())
 
-			prints_buffer = [
-				"{:s}: {:.4e}".format(name, np.mean(values))
-				for name, values in metric_values.items()
-			]
-			prints_buffer.append("took: {:.2f}s".format(time() - train_start))
+				prints_buffer = [
+					"{:s}: {:.4e}".format(name, np.mean(values))
+					for name, values in metric_values.items()
+				]
+				prints_buffer.append("took: {:.2f}s".format(time() - train_start))
 
-			print("Epoch {:d}, {:d}% \t {:s}".format(
-				epoch + 1,
-				int(100 * (i + 1) / len(loaders_zip)),
-				" - ".join(prints_buffer)
-			), end="\r")
+				print("Epoch {:d}, {:d}% \t {:s}".format(
+					epoch + 1,
+					int(100 * (i + 1) / len(loaders_zip)),
+					" - ".join(prints_buffer)
+				), end="\r")
 
 		print("")
 

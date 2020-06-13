@@ -1,5 +1,6 @@
 from torch import Tensor
 from torch.nn import BCELoss
+from typing import Union
 
 from dcase2020_task4.fixmatch.losses.abc import FixMatchLossABC
 
@@ -36,8 +37,7 @@ class FixMatchLossMultiHotV1(FixMatchLossABC):
 		loss_s = loss_s.mean()
 
 		# Unsupervised loss
-		max_values, _ = u_pred_weak_augm_weak.max(dim=1)
-		mask = (max_values > self.threshold_mask).float()
+		mask = self.get_confidence_mask(u_pred_weak_augm_weak, dim=1)
 		loss_u = self.criterion_u(u_pred_weak_augm_strong, u_labels_weak_guessed)
 		loss_u *= mask
 		loss_u = loss_u.mean()
@@ -45,6 +45,10 @@ class FixMatchLossMultiHotV1(FixMatchLossABC):
 		loss = loss_s + self.lambda_u * loss_u
 
 		return loss, loss_s, loss_u
+
+	def get_confidence_mask(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
+		means, _ = pred.max(dim=dim)
+		return (means > self.threshold_mask).float()
 
 
 class FixMatchLossMultiHotV2(FixMatchLossABC):
@@ -79,8 +83,7 @@ class FixMatchLossMultiHotV2(FixMatchLossABC):
 		loss_s = loss_s.mean()
 
 		# Unsupervised loss
-		mean_values = u_pred_weak_augm_weak.mean(dim=1)
-		mask = (mean_values > self.threshold_mask).float()
+		mask = self.get_confidence_mask(u_pred_weak_augm_weak, dim=1)
 		loss_u = self.criterion_u(u_pred_weak_augm_strong, u_labels_weak_guessed)
 		loss_u *= mask
 		loss_u = loss_u.mean()
@@ -88,6 +91,10 @@ class FixMatchLossMultiHotV2(FixMatchLossABC):
 		loss = loss_s + self.lambda_u * loss_u
 
 		return loss, loss_s, loss_u
+
+	def get_confidence_mask(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
+		means = pred.mean(dim=dim)
+		return (means > self.threshold_mask).float()
 
 
 class FixMatchLossMultiHotV3(FixMatchLossABC):
@@ -122,8 +129,7 @@ class FixMatchLossMultiHotV3(FixMatchLossABC):
 		loss_s = loss_s.mean()
 
 		# Unsupervised loss
-		mean_values = (u_pred_weak_augm_weak * u_labels_weak_guessed).sum(dim=1) / u_labels_weak_guessed.sum(dim=1)
-		mask = (mean_values > self.threshold_mask).float()
+		mask = self.get_confidence_mask(u_pred_weak_augm_weak, u_labels_weak_guessed, dim=1)
 		loss_u = self.criterion_u(u_pred_weak_augm_strong, u_labels_weak_guessed)
 		loss_u *= mask
 		loss_u = loss_u.mean()
@@ -131,6 +137,10 @@ class FixMatchLossMultiHotV3(FixMatchLossABC):
 		loss = loss_s + self.lambda_u * loss_u
 
 		return loss, loss_s, loss_u
+
+	def get_confidence_mask(self, pred: Tensor, labels: Tensor, dim: Union[int, tuple]) -> Tensor:
+		means = (pred * labels).sum(dim=dim) / labels.sum(dim=dim)
+		return (means > self.threshold_mask).float()
 
 
 FixMatchLossMultiHot = FixMatchLossMultiHotV2
