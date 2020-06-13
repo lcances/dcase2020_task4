@@ -281,8 +281,8 @@ optimizer = DichotomicOptimizer(
     },
     
     encoder = encoder,
-    step = 3,
-    nb_recurse = 1,
+    step = 6,
+    nb_recurse = 8,
     nb_process = args.num_workers
 )
 
