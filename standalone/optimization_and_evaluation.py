@@ -76,7 +76,7 @@ val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=Fal
 
 model_func = get_model_from_name(args.model_name)
 best_model = model_func()
-best_model.cuda()
+best_model.cpu()
 best_model.eval() # <-- for consistency in scoring (deactivate dropout and batchNorm)
 log.info("Model %s loaded" % args.model_name)
 
@@ -95,8 +95,8 @@ y_filenames = list(val_dataset.X.keys())
 with torch.set_grad_enabled(False):
     for i, (X, y) in tqdm(enumerate(val_loader)):
         weak_y, strong_y = y
-        weak_y, strong_y = weak_y.cuda(), strong_y.cuda()
-        X = X.cuda()
+        weak_y, strong_y = weak_y.cpu(), strong_y.cpu()
+        X = X.cpu()
         
         weak_logits, strong_logits = best_model(X)
         
@@ -320,7 +320,7 @@ y_filenames = list(eval_dataset.X.keys())
 
 with torch.set_grad_enabled(False):
     for i, (X, y) in tqdm(enumerate(eval_loader)):
-        X = X.cuda()
+        X = X.cpu()
 
         weak_logits, strong_logits = best_model(X)
 
