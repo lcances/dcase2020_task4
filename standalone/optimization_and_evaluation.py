@@ -32,6 +32,7 @@ parser.add_argument("--model_name", default="dcase2019_system", help="Name of th
 parser.add_argument("-a", "--audio_root", default="../../dataset/DESED/dataset/audio", type=str)
 parser.add_argument("-m", "--metadata_root", default="../../dataset/DESED/dataset/metadata", type=str)
 parser.add_argument("-w", "--num_workers", default=0, type=int, help="Choose number of worker to train the model")
+parser.add_argument("-o", "--output", default="submission.csv", type=str, help="submission file name")
 args = parser.parse_args()
 
 
@@ -51,6 +52,11 @@ reset_seed(1234)
 desed_metadata_root = args.metadata_root
 desed_audio_root = args.audio_root
 
+
+
+# ======================================================================================================================
+# PREPARE DATASET AND MODEL
+# ======================================================================================================================
 manager = DESEDManager(
     desed_metadata_root, desed_audio_root,
     sampling_rate = 22050,
@@ -58,13 +64,13 @@ manager = DESEDManager(
     nb_vector_bin=431, # there is no temporal reduction in this model
     verbose = 1
 )
-
-
-# ======================================================================================================================
-# PREPARE DATASET AND MODEL
-# ======================================================================================================================
+manager.add_subset("eval")
 manager.add_subset("validation")
+
+eval_dataset = DESEDDataset(manager, train=True, val=False, weak=False, strong=False, augments=[], cached=False)
 val_dataset = DESEDDataset(manager, train=False, val=True, weak=True, strong=True, augments=[], cached=True)
+
+eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=64, shuffle=False)
 val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=False)
 
 
@@ -188,6 +194,7 @@ best_weak_y_pred = weak_y_pred.clone().detach()
 best_weak_y_pred[best_weak_y_pred > best_at_thresholds] = 1
 best_weak_y_pred[best_weak_y_pred <= best_at_thresholds] = 0
 
+
 # Prune the result of fill the missing curve with 0 segments
 def prune_prediction(strong_y_pred, weak_y_pred):
     """ Prune the strong prediciton by zeroing all classes that are not predicted. """
@@ -203,15 +210,15 @@ def prune_prediction(strong_y_pred, weak_y_pred):
                 
     return pruned_strong_y_pred
 
+
 pruned_strong_y_pred = prune_prediction(strong_y_pred, best_weak_y_pred)
-
-
-
 
 
 # ======================================================================================================================
 # AUDIO LOC OPTIMIZATION
 # ======================================================================================================================
+
+
 def load_csv(path):
     with open(path, "r") as f:
         data = f.read().splitlines()[1:]
@@ -302,3 +309,50 @@ print(evaluator)
 
 
 # # ♫♪.ılılıll|̲̅̅●̲̅̅|̲̅̅=̲̅̅|̲̅̅●̲̅̅|llılılı.♫♪
+
+
+# ======================================================================================================================
+# EVALUATION DATASET
+# ======================================================================================================================
+log.info("Prediction of the evaluation dataset ...")
+weak_y_pred, strong_y_pred = None, None
+y_filenames = list(eval_dataset.X.keys())
+
+with torch.set_grad_enabled(False):
+    for i, (X, y) in tqdm(enumerate(eval_loader)):
+        X = X.cuda()
+
+        weak_logits, strong_logits = best_model(X)
+
+        weak_pred = torch.sigmoid(weak_logits)
+        strong_pred = torch.sigmoid(strong_logits)
+
+        # accumulate prediction and ground truth
+        if i == 0:
+            weak_y_pred = weak_pred.cpu()
+            strong_y_pred = strong_pred.cpu()
+
+        else:
+            weak_y_pred = torch.cat((weak_y_pred, weak_pred.cpu()), dim=0)
+            strong_y_pred = torch.cat((strong_y_pred, strong_pred.cpu()), dim=0)
+
+log.info("Pruning strong prediction using best audio tagging thresholds ...")
+best_weak_y_pred = weak_y_pred.clone().detach()
+best_weak_y_pred[best_weak_y_pred > best_at_thresholds] = 1
+best_weak_y_pred[best_weak_y_pred <= best_at_thresholds] = 0
+
+pruned_strong_y_pred = prune_prediction(strong_y_pred, best_weak_y_pred)
+
+log.info("Apply best segmentation algorithm")
+segments = encoder.encode(
+    pruned_strong_y_pred.numpy(),
+    method="hysteresis",
+    **best_parameters
+)
+to_evaluate = encoder.parse(segments, y_filenames)
+evaluator = eb_evaluator(val_csv_y_true, to_evaluate)
+print(evaluator)
+
+log.info("Create submission.csv file")
+with open("submission.csv", "w") as f:
+    f.write(to_evaluate)
