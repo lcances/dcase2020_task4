@@ -336,7 +336,6 @@ with torch.set_grad_enabled(False):
             weak_y_pred = torch.cat((weak_y_pred, weak_pred.cpu()), dim=0)
             strong_y_pred = torch.cat((strong_y_pred, strong_pred.cpu()), dim=0)
             
-pruned_strong_y_pred = pruned_strong_y_pred.permute(0, 2, 1)
 
 log.info("Pruning strong prediction using best audio tagging thresholds ...")
 best_weak_y_pred = weak_y_pred.clone().detach()
@@ -344,6 +343,9 @@ best_weak_y_pred[best_weak_y_pred > best_at_thresholds] = 1
 best_weak_y_pred[best_weak_y_pred <= best_at_thresholds] = 0
 
 pruned_strong_y_pred = prune_prediction(strong_y_pred, best_weak_y_pred)
+
+pruned_strong_y_pred = pruned_strong_y_pred.permute(0, 2, 1)
+print("best_parameters: ", best_parameters)
 
 log.info("Apply best segmentation algorithm")
 segments = encoder.encode(
