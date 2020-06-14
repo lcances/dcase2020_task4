@@ -89,7 +89,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
 	parser.add_argument("--use_label_strong", type=bool_fn, default=True)
-	parser.add_argument("--path_checkpoint", type=str, default="../models/dcase2019_supervised.torch")
+	parser.add_argument("--path_checkpoint", type=str, default="../models/")
 
 	return parser.parse_args()
 
@@ -221,7 +221,7 @@ def main():
 			criterion, writer, hparams_fm.threshold_multihot
 		)
 
-		checkpoint = CheckPoint(model, optim, name=hparams_fm.path_checkpoint)
+		checkpoint = CheckPoint(model, optim, name=osp.join(hparams_fm.path_checkpoint, "dcase2019_fixmatch.torch"))
 		validator = DefaultValidatorLoc(
 			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint
 		)
@@ -253,7 +253,7 @@ def main():
 			model, acti_fn, optim, loader_train_s, metrics_s_weak, metrics_s_strong, criterion, writer
 		)
 
-		checkpoint = CheckPoint(model, optim, name=hparams_sf.path_checkpoint)
+		checkpoint = CheckPoint(model, optim, name=osp.join(hparams_sf.path_checkpoint, "dcase2019_supervised.torch"))
 		validator = DefaultValidatorLoc(
 			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint
 		)
