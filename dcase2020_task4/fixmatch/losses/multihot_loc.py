@@ -46,7 +46,7 @@ class FixMatchLossMultiHotLoc(Callable):
 		loss_s_strong = loss_s_strong.mean()
 
 		# Unsupervised weak loss
-		u_mask_confidence_weak = self.get_confidence_mask_v3(u_pred_weak_augm_weak, u_labels_weak_guessed, dim=1)
+		u_mask_confidence_weak = self.get_confidence_mask(u_pred_weak_augm_weak, dim=1)
 
 		loss_u_weak = self.criterion_u_weak(u_pred_weak_augm_strong, u_labels_weak_guessed)
 		loss_u_weak *= u_mask_confidence_weak
@@ -54,7 +54,7 @@ class FixMatchLossMultiHotLoc(Callable):
 
 		# Unsupervised strong loss
 		u_mask_has_strong = self.get_has_strong_mask(u_labels_strong_guessed)
-		u_mask_confidence_strong = self.get_confidence_mask_v3(u_pred_strong_augm_weak, u_labels_strong_guessed, dim=(1, 2))
+		u_mask_confidence_strong = self.get_confidence_mask(u_pred_strong_augm_weak, dim=(1, 2))
 
 		loss_u_strong = self.criterion_u_strong(u_pred_strong_augm_strong, u_labels_strong_guessed).mean(dim=(1, 2))
 		loss_u_strong = u_mask_has_strong * u_mask_confidence_strong * loss_u_strong
@@ -68,12 +68,11 @@ class FixMatchLossMultiHotLoc(Callable):
 	def get_has_strong_mask(self, labels_strong: Tensor) -> Tensor:
 		return torch.clamp(labels_strong.sum(dim=(1, 2)), 0, 1)
 
-	# TODO
-	def get_confidence_mask_v1(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
+	def get_confidence_mask(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
 		means = pred.mean(dim=dim)
 		return (means > self.threshold_mask).float()
 
-	def get_confidence_mask_v2(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
+	def get_confidence_mask_v1(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
 		if type(dim) == int:
 			maxes, _ = pred.max(dim=dim)
 		else:
