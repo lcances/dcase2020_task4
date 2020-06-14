@@ -1,0 +1,12 @@
+[1;34mDEBUG --- datasetManager.__init__ >>> ../dataset/DESED/dataset/audio/dcase2020_dataset_22050.hdf5[0m
+[1;37mINFO --- datasetManager._load_metadata >>> Reading metadata: ../dataset/DESED/dataset/metadata/train/weak.tsv[0m
+[1;37mINFO --- datasetManager._load_metadata >>> Reading metadata: ../dataset/DESED/dataset/metadata/train/unlabel_in_domain.tsv[0m
+[1;37mINFO --- datasetManager._load_metadata >>> Reading metadata: ../dataset/DESED/dataset/metadata/train/synthetic20.tsv[0m
+[1;37mINFO --- datasetManager._add_eval_subset >>> Loading dataset: evaluation[0m
+[1;34mDEBUG --- datasetManager._hdf_to_dict >>> hdf_file: <HDF5 file "dcase2020_dataset_22050.hdf5" (mode r)>[0m
+[1;34mDEBUG --- datasetManager._hdf_to_dict >>> path: DESED/dataset/audio/eval[0m
+[1;37mINFO --- datasetManager._add_val_subset >>> Loading dataset: validation[0m
+[1;34mDEBUG --- datasetManager._hdf_to_dict >>> hdf_file: <HDF5 file "dcase2020_dataset_22050.hdf5" (mode r)>[0m
+[1;34mDEBUG --- datasetManager._hdf_to_dict >>> path: DESED/dataset/audio/validation[0m
+[1;37mINFO --- utils.get_model_from_name >>> Model loaded: dcase2019_model[0m
+[1;37mINFO --- optimization_and_evaluation.<module> >>> Model dcase2019_model loaded[0m

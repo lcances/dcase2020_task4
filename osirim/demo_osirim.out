@@ -1,0 +1,70 @@
+download real data audio files ... ~23GB
+INFO - desed.download_real/download_file - YU5udL6UCigk_100.000_110.000.wav
+INFO - desed.download_real/download_file - list index out of range
+moving real audio files
+Requirement already satisfied: desed@ git+https://github.com/turpaultn/DESED from git+https://github.com/turpaultn/DESED in ./desed (1.2.0)
+Requirement already satisfied: scaper>=1.3.5 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from desed@ git+https://github.com/turpaultn/DESED) (1.3.7)
+Requirement already satisfied: numpy>=1.15.4 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from desed@ git+https://github.com/turpaultn/DESED) (1.18.5)
+Requirement already satisfied: pandas>=0.24.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from desed@ git+https://github.com/turpaultn/DESED) (1.0.4)
+Requirement already satisfied: dcase-util>=0.2.11 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from desed@ git+https://github.com/turpaultn/DESED) (0.2.13)
+Requirement already satisfied: youtube-dl>=2019.4.30 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from desed@ git+https://github.com/turpaultn/DESED) (2020.6.6)
+Requirement already satisfied: soundfile>=0.10.1 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from desed@ git+https://github.com/turpaultn/DESED) (0.10.3.post1)
+Requirement already satisfied: jams>=0.3.4 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from desed@ git+https://github.com/turpaultn/DESED) (0.3.4)
+Requirement already satisfied: tqdm>=4.29.1 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from desed@ git+https://github.com/turpaultn/DESED) (4.46.1)
+Requirement already satisfied: requests>=2.21.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from desed@ git+https://github.com/turpaultn/DESED) (2.23.0)
+Requirement already satisfied: pysoundfile in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from scaper>=1.3.5->desed@ git+https://github.com/turpaultn/DESED) (0.9.0.post1)
+Requirement already satisfied: sox>=1.3.3 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from scaper>=1.3.5->desed@ git+https://github.com/turpaultn/DESED) (1.3.7)
+Requirement already satisfied: pytz>=2017.2 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from pandas>=0.24.0->desed@ git+https://github.com/turpaultn/DESED) (2020.1)
+Requirement already satisfied: python-dateutil>=2.6.1 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from pandas>=0.24.0->desed@ git+https://github.com/turpaultn/DESED) (2.8.1)
+Requirement already satisfied: matplotlib>=2.0.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (3.2.1)
+Requirement already satisfied: pydot-ng>=1.0.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (2.0.0)
+Requirement already satisfied: six>=1.10.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (1.15.0)
+Requirement already satisfied: pyyaml>=3.11 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (5.3.1)
+Requirement already satisfied: validators>=0.12.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (0.15.0)
+Requirement already satisfied: python-magic>=0.4.13 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (0.4.18)
+Requirement already satisfied: scipy>=0.19.1 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (1.4.1)
+Requirement already satisfied: librosa>=0.7.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (0.7.2)
+Requirement already satisfied: future>=0.16.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (0.18.2)
+Requirement already satisfied: cffi>=1.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from soundfile>=0.10.1->desed@ git+https://github.com/turpaultn/DESED) (1.14.0)
+Requirement already satisfied: jsonschema>=3.0.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from jams>=0.3.4->desed@ git+https://github.com/turpaultn/DESED) (3.2.0)
+Requirement already satisfied: mir-eval>=0.5 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from jams>=0.3.4->desed@ git+https://github.com/turpaultn/DESED) (0.6)
+Requirement already satisfied: sortedcontainers>=2.0.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from jams>=0.3.4->desed@ git+https://github.com/turpaultn/DESED) (2.2.2)
+Requirement already satisfied: decorator in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from jams>=0.3.4->desed@ git+https://github.com/turpaultn/DESED) (4.4.2)
+Requirement already satisfied: idna<3,>=2.5 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from requests>=2.21.0->desed@ git+https://github.com/turpaultn/DESED) (2.9)
+Requirement already satisfied: certifi>=2017.4.17 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from requests>=2.21.0->desed@ git+https://github.com/turpaultn/DESED) (2020.4.5.1)
+Requirement already satisfied: chardet<4,>=3.0.2 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from requests>=2.21.0->desed@ git+https://github.com/turpaultn/DESED) (3.0.4)
+Requirement already satisfied: urllib3!=1.25.0,!=1.25.1,<1.26,>=1.21.1 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from requests>=2.21.0->desed@ git+https://github.com/turpaultn/DESED) (1.25.9)
+Requirement already satisfied: cycler>=0.10 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from matplotlib>=2.0.0->dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (0.10.0)
+Requirement already satisfied: pyparsing!=2.0.4,!=2.1.2,!=2.1.6,>=2.0.1 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from matplotlib>=2.0.0->dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (2.4.7)
+Requirement already satisfied: kiwisolver>=1.0.1 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from matplotlib>=2.0.0->dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (1.2.0)
+Requirement already satisfied: resampy>=0.2.2 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from librosa>=0.7.0->dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (0.2.2)
+Requirement already satisfied: joblib>=0.12 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from librosa>=0.7.0->dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (0.15.1)
+Requirement already satisfied: audioread>=2.0.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from librosa>=0.7.0->dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (2.1.8)
+Requirement already satisfied: numba>=0.43.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from librosa>=0.7.0->dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (0.49.1)
+Requirement already satisfied: scikit-learn!=0.19.0,>=0.14.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from librosa>=0.7.0->dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (0.23.1)
+Requirement already satisfied: pycparser in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from cffi>=1.0->soundfile>=0.10.1->desed@ git+https://github.com/turpaultn/DESED) (2.20)
+Requirement already satisfied: pyrsistent>=0.14.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from jsonschema>=3.0.0->jams>=0.3.4->desed@ git+https://github.com/turpaultn/DESED) (0.16.0)
+Requirement already satisfied: importlib-metadata; python_version < "3.8" in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from jsonschema>=3.0.0->jams>=0.3.4->desed@ git+https://github.com/turpaultn/DESED) (1.6.1)
+Requirement already satisfied: attrs>=17.4.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from jsonschema>=3.0.0->jams>=0.3.4->desed@ git+https://github.com/turpaultn/DESED) (19.3.0)
+Requirement already satisfied: setuptools in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from jsonschema>=3.0.0->jams>=0.3.4->desed@ git+https://github.com/turpaultn/DESED) (47.1.1.post20200604)
+Requirement already satisfied: llvmlite<=0.33.0.dev0,>=0.31.0.dev0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from numba>=0.43.0->librosa>=0.7.0->dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (0.32.1)
+Requirement already satisfied: threadpoolctl>=2.0.0 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from scikit-learn!=0.19.0,>=0.14.0->librosa>=0.7.0->dcase-util>=0.2.11->desed@ git+https://github.com/turpaultn/DESED) (2.1.0)
+Requirement already satisfied: zipp>=0.5 in /users/samova/lcances/.miniconda3/envs/desed/lib/python3.6/site-packages (from importlib-metadata; python_version < "3.8"->jsonschema>=3.0.0->jams>=0.3.4->desed@ git+https://github.com/turpaultn/DESED) (3.1.0)
+Download and extract soundbank
+Done
+Download SINS background... (to add TUT, add the option --TUT)
+INFO - DESED - SINS downloading zip 1 / 23 ...
+INFO - DESED - SINS downloading zip 2 / 23 ...
+INFO - DESED - SINS downloading zip 3 / 23 ...
+INFO - DESED - SINS downloading zip 4 / 23 ...
+INFO - DESED - SINS downloading zip 5 / 23 ...
+INFO - DESED - SINS downloading zip 6 / 23 ...
+INFO - DESED - SINS downloading zip 7 / 23 ...
+Done
+Getting jams for dcase 2020
+Done
+generate synthetic data from jams ... ~30min
+train data ...
+INFO - DESED - /projets/samova/leocances/DESED/synthetic/code/generate_wav.py
+INFO - desed.generate_synthetic/generate_files_from_jams - generating audio files to /projets/samova/leocances/DESED/dataset/audio/train/synthetic20/soundscapes
+Done

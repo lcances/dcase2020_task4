@@ -84,10 +84,15 @@ def get_datetime():
 
 
 def get_model_from_name(model_name):
-    import models
+    import dcase2020_task4.baseline.models as baseline_models
+    import dcase2020_task4.dcase2019.models as dcase2019_models
     import inspect
 
-    for name, obj in inspect.getmembers(models):
+    all_members = []
+    for module in [baseline_models, dcase2019_models]:
+        all_members += inspect.getmembers(module)
+    
+    for name, obj in all_members:
         if inspect.isclass(obj) or inspect.isfunction(obj):
             if obj.__name__ == model_name:
                 logging.info("Model loaded: %s" % model_name)
