@@ -6,9 +6,11 @@ from time import time
 from torch.nn import Module
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 from metric_utils.metrics import Metrics
+
+from dcase2020_task4.util.checkpoint import CheckPoint
 
 
 class ValidatorABC(ABC):
@@ -89,7 +91,9 @@ class DefaultValidatorLoc(ValidatorABC):
 		loader: DataLoader,
 		metrics_weak: Dict[str, Metrics],
 		metrics_strong: Dict[str, Metrics],
-		writer: SummaryWriter
+		writer: SummaryWriter,
+		checkpoint: Optional[CheckPoint],
+		checkpoint_metric_key: str = "fscore_weak",
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -97,6 +101,8 @@ class DefaultValidatorLoc(ValidatorABC):
 		self.metrics_weak = metrics_weak
 		self.metrics_strong = metrics_strong
 		self.writer = writer
+		self.checkpoint = checkpoint
+		self.checkpoint_metric_key = checkpoint_metric_key
 
 	def val(self, epoch: int):
 		with torch.no_grad():
@@ -137,6 +143,9 @@ class DefaultValidatorLoc(ValidatorABC):
 					for metric_name, metric in metrics.items():
 						_mean_s = metric(pred, labels)
 						metric_values[metric_name].append(metric.value.item())
+
+				if self.checkpoint is not None:
+					self.checkpoint.step(np.mean(metric_values[self.checkpoint_metric_key]))
 
 				prints_buffer = [
 					"{:s}: {:.4e}".format(name, np.mean(values))

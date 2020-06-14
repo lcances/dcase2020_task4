@@ -10,8 +10,8 @@ from typing import Callable, Dict, Optional
 
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.utils_match import get_lr
+from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.trainer import SSTrainer
 
 

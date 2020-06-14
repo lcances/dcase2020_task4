@@ -9,7 +9,6 @@ import torch
 from argparse import ArgumentParser, Namespace
 from easydict import EasyDict as edict
 from time import time
-from torch.nn import Module
 from torch.nn.functional import binary_cross_entropy
 from torch.optim import Adam
 from torch.utils.data import DataLoader
@@ -34,6 +33,7 @@ from dcase2020_task4.supervised.hparams import default_supervised_hparams
 from dcase2020_task4.supervised.loss import weak_synth_loss
 from dcase2020_task4.supervised.trainer_loc import SupervisedTrainerLoc
 
+from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
@@ -89,6 +89,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
 	parser.add_argument("--use_label_strong", type=bool_fn, default=True)
+	parser.add_argument("--path_checkpoint", type=str, default="../models/dcase2019_supervised.torch")
 
 	return parser.parse_args()
 
@@ -220,8 +221,9 @@ def main():
 			criterion, writer, hparams_fm.threshold_multihot
 		)
 
+		checkpoint = CheckPoint(model, optim, name=hparams_fm.path_checkpoint)
 		validator = DefaultValidatorLoc(
-			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer
+			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint
 		)
 		learner = DefaultLearner(hparams_fm.train_name, trainer, validator, hparams_fm.nb_epochs, scheduler)
 		learner.start()
@@ -250,8 +252,10 @@ def main():
 		trainer = SupervisedTrainerLoc(
 			model, acti_fn, optim, loader_train_s, metrics_s_weak, metrics_s_strong, criterion, writer
 		)
+
+		checkpoint = CheckPoint(model, optim, name=hparams_sf.path_checkpoint)
 		validator = DefaultValidatorLoc(
-			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer
+			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint
 		)
 		learner = DefaultLearner(hparams_sf.train_name, trainer, validator, hparams_sf.nb_epochs)
 		learner.start()
