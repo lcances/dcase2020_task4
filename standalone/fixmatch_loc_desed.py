@@ -121,20 +121,19 @@ def main():
 	acti_fn = lambda batch, dim: batch.sigmoid()
 
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
+	ratio = 0.1
 	augm_weak_fn = RandomChoice([
-		Transform(0.5, scale=(0.9, 1.1)),
-		PitchShiftRandom(0.5, steps=(-2, 2)),
+		Transform(ratio, scale=(0.9, 1.1)),
 	])
+	ratio = 0.25
 	augm_strong_fn = Compose([
-		Transform(1.0, scale=(0.9, 1.1)),
-		RandomChoice([
-			TimeStretch(1.0),
-			PitchShiftRandom(1.0),
-			Occlusion(1.0, max_size=1.0),
-			Noise(ratio=1.0, snr=10.0),
-			RandomFreqDropout(1.0, dropout=0.5),
-			RandomTimeDropout(1.0, dropout=0.5),
-		]),
+		Transform(ratio, scale=(0.9, 1.1)),
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio),
+		Occlusion(ratio, max_size=1.0),
+		Noise(ratio=ratio, snr=10.0),
+		RandomFreqDropout(ratio, dropout=0.5),
+		RandomTimeDropout(ratio, dropout=0.5),
 	])
 
 	metrics_s_weak = {
@@ -221,7 +220,7 @@ def main():
 			criterion, writer, hparams_fm.threshold_multihot
 		)
 
-		checkpoint = CheckPoint(model, optim, name=osp.join(hparams_fm.path_checkpoint, "dcase2019_fixmatch.torch"))
+		checkpoint = CheckPoint(model, optim, name=osp.join(hparams_fm.path_checkpoint, "dcase2019_fixmatch_%s.torch" % hparams_fm.suffix))
 		validator = DefaultValidatorLoc(
 			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint
 		)
@@ -253,7 +252,7 @@ def main():
 			model, acti_fn, optim, loader_train_s, metrics_s_weak, metrics_s_strong, criterion, writer
 		)
 
-		checkpoint = CheckPoint(model, optim, name=osp.join(hparams_sf.path_checkpoint, "dcase2019_supervised.torch"))
+		checkpoint = CheckPoint(model, optim, name=osp.join(hparams_sf.path_checkpoint, "dcase2019_supervised_%s.torch" % hparams_sf.suffix))
 		validator = DefaultValidatorLoc(
 			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint
 		)
