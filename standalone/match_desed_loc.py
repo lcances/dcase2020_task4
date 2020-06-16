@@ -28,6 +28,7 @@ from dcase2020_task4.fixmatch.losses.tag_loc.multihot_loc import FixMatchLossMul
 from dcase2020_task4.fixmatch.losses.tag_loc.v1 import FixMatchLossMultiHotLocV1
 from dcase2020_task4.fixmatch.losses.tag_loc.v2 import FixMatchLossMultiHotLocV2
 from dcase2020_task4.fixmatch.losses.tag_loc.v3 import FixMatchLossMultiHotLocV3
+from dcase2020_task4.fixmatch.losses.tag_loc.v5 import FixMatchLossMultiHotLocV5
 from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.fixmatch.trainer_loc import FixMatchTrainerLoc
 
@@ -50,12 +51,13 @@ from metric_utils.metrics import FScore
 
 
 def create_args() -> Namespace:
-	bool_fn = lambda x: str(x).lower() in ['true', '1', 'yes']
+	bool_fn = lambda x: str(x).lower() in ["true", "1", "yes", "y"]
 	optional_str = lambda x: None if str(x).lower() == "none" else str(x)
 
 	parser = ArgumentParser()
 	# TODO : help for acronyms
-	parser.add_argument("--run", type=str, nargs="*", default=["fm", "sf"], choices=["fm", "sf"])
+	parser.add_argument("--run", type=str, nargs="*", default=["fm", "su"],
+						help="Options fm = FixMatch, su = Supervised")
 	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
 	parser.add_argument("--mode", type=str, default="multihot")
@@ -93,7 +95,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
 
-	parser.add_argument("--experimental", type=optional_str, default=None, choices=["None", "V1", "V2", "V3"])
+	parser.add_argument("--experimental", type=optional_str, default=None, choices=["None", "V1", "V2", "V3", "V5"])
 
 	return parser.parse_args()
 
@@ -110,6 +112,7 @@ def main():
 	print("Start fixmatch_loc_desed.")
 	print("- from_disk:", args.from_disk)
 	print("- debug_mode:", args.debug_mode)
+	print("- experimental:", args.experimental)
 
 	hparams = edict()
 	args_filtered = {k: (" ".join(v) if isinstance(v, list) else v) for k, v in args.__dict__.items()}
@@ -193,7 +196,9 @@ def main():
 	args_loader_train_u = dict(
 		batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_u, drop_last=True)
 
-	if "fm" in args.run:
+	suffix_loc = "LOC"
+
+	if "fm" in args.run or "fixmatch" in args.run:
 		hparams_fm = default_fixmatch_hparams()
 		hparams_fm.update(hparams)
 
@@ -219,7 +224,8 @@ def main():
 			scheduler = None
 
 		hparams_fm.train_name = "FixMatch"
-		writer = build_writer(hparams_fm, suffix="%s_%s_%s" % ("LOC", str(hparams_fm.scheduler), hparams_fm.suffix))
+		writer = build_writer(hparams_fm, suffix="%s_%s_%s_%s" % (
+			suffix_loc, str(hparams_fm.scheduler), hparams_fm.experimental, hparams_fm.suffix))
 
 		if hparams_fm.experimental is None:
 			criterion = FixMatchLossMultiHotLoc.from_edict(hparams_fm)
@@ -229,6 +235,8 @@ def main():
 			criterion = FixMatchLossMultiHotLocV2.from_edict(hparams_fm)
 		elif hparams_fm.experimental.lower() == "v3":
 			criterion = FixMatchLossMultiHotLocV3.from_edict(hparams_fm)
+		elif hparams_fm.experimental.lower() == "v5":
+			criterion = FixMatchLossMultiHotLocV5.from_edict(hparams_fm)
 		else:
 			raise RuntimeError("Unknown experimental mode %s" % str(hparams_fm.experimental))
 
@@ -249,7 +257,7 @@ def main():
 		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
 		writer.close()
 
-	if "sf" in args.run:
+	if "su" in args.run or "supervised" in args.run:
 		hparams_sf = default_supervised_hparams()
 		hparams_sf.update(hparams)
 
@@ -262,7 +270,7 @@ def main():
 		optim = Adam(model.parameters(), lr=hparams_sf.lr, weight_decay=hparams_sf.weight_decay)
 
 		hparams_sf.train_name = "Supervised"
-		writer = build_writer(hparams_sf, suffix="%s" % "LOC")
+		writer = build_writer(hparams_sf, suffix="%s" % suffix_loc)
 
 		criterion = weak_synth_loss
 

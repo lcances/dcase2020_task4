@@ -7,7 +7,7 @@ from typing import Union
 from dcase2020_task4.fixmatch.losses.abc import FixMatchLossMultiHotLocABC
 
 
-class FixMatchLossMultiHotLocV3(FixMatchLossMultiHotLocABC):
+class FixMatchLossMultiHotLocV5(FixMatchLossMultiHotLocABC):
 	""" FixMatch loss multi-hot (based on FixMatchLossMultiHotV2 class tagging). """
 
 	def __init__(
