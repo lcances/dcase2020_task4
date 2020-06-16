@@ -2,10 +2,14 @@ import torch
 
 from torch import Tensor
 from torch.nn import BCELoss
-from typing import Callable, Union
+from typing import Union
+
+from dcase2020_task4.fixmatch.losses.abc import FixMatchLossMultiHotLocABC
 
 
-class FixMatchLossMultiHotLoc(Callable):
+class FixMatchLossMultiHotLoc(FixMatchLossMultiHotLocABC):
+	""" FixMatch loss multi-hot (based on FixMatchLossMultiHotV2 class tagging). """
+
 	def __init__(
 		self,
 		lambda_u: float = 1.0,

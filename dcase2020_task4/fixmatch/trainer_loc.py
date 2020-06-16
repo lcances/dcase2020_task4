@@ -10,6 +10,7 @@ from typing import Callable, Dict, Optional
 
 from metric_utils.metrics import Metrics
 
+from dcase2020_task4.fixmatch.losses.abc import FixMatchLossMultiHotLocABC
 from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.trainer import SSTrainer
@@ -27,7 +28,7 @@ class FixMatchTrainerLoc(SSTrainer):
 		metrics_u_weak: Dict[str, Metrics],
 		metrics_s_strong: Dict[str, Metrics],
 		metrics_u_strong: Dict[str, Metrics],
-		criterion: Callable,
+		criterion: FixMatchLossMultiHotLocABC,
 		writer: Optional[SummaryWriter],
 		threshold_multihot: float,
 	):
