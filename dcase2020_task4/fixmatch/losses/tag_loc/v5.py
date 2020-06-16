@@ -28,8 +28,8 @@ class FixMatchLossMultiHotLocV5(FixMatchLossMultiHotLocABC):
 		self.criterion_u_strong = BCELoss(reduction="none")
 
 	@staticmethod
-	def from_edict(hparams) -> 'FixMatchLossMultiHotLocV3':
-		return FixMatchLossMultiHotLocV3(hparams.lambda_u, hparams.threshold_mask, hparams.threshold_multihot)
+	def from_edict(hparams) -> 'FixMatchLossMultiHotLocV5':
+		return FixMatchLossMultiHotLocV5(hparams.lambda_u, hparams.threshold_mask, hparams.threshold_multihot)
 
 	def __call__(
 		self,
