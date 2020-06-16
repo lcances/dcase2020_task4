@@ -11,6 +11,7 @@ from typing import Callable, Dict, Optional
 from metric_utils.metrics import Metrics
 
 from dcase2020_task4.fixmatch.losses.abc import FixMatchLossMultiHotLocABC
+from dcase2020_task4.util.rampup import RampUp
 from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.trainer import SSTrainer
@@ -30,6 +31,7 @@ class FixMatchTrainerLoc(SSTrainer):
 		metrics_u_strong: Dict[str, Metrics],
 		criterion: FixMatchLossMultiHotLocABC,
 		writer: Optional[SummaryWriter],
+		rampup: Optional[RampUp],
 		threshold_multihot: float,
 	):
 		self.model = model
@@ -43,6 +45,7 @@ class FixMatchTrainerLoc(SSTrainer):
 		self.metrics_u_strong = metrics_u_strong
 		self.criterion = criterion
 		self.writer = writer
+		self.rampup = rampup
 		self.threshold_multihot = threshold_multihot
 
 	def train(self, epoch: int):
@@ -103,6 +106,10 @@ class FixMatchTrainerLoc(SSTrainer):
 			self.optim.step()
 
 			with torch.no_grad():
+				if self.rampup is not None:
+					self.criterion.lambda_u = self.rampup.value()
+					self.rampup.step()
+
 				metric_values["loss"].append(loss.item())
 				metric_values["loss_s_weak"].append(loss_s_weak.item())
 				metric_values["loss_u_weak"].append(loss_u_weak.item())

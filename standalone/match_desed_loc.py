@@ -42,6 +42,7 @@ from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
+from dcase2020_task4.util.rampup import RampUp
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_match import build_writer
 
@@ -95,6 +96,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
 	parser.add_argument("--experimental", type=optional_str, default=None, choices=["None", "V1", "V2", "V3", "V5"])
+	parser.add_argument("--use_rampup", type=bool_fn, default=False)
 
 	return parser.parse_args()
 
@@ -161,9 +163,15 @@ def main():
 	ratio = 0.1
 	augm_weak_fn = RandomChoice([
 		Transform(ratio, scale=(0.9, 1.1)),
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio),
+		Occlusion(ratio, max_size=1.0),
+		Noise(ratio=ratio, snr=10.0),
+		RandomFreqDropout(ratio, dropout=0.5),
+		RandomTimeDropout(ratio, dropout=0.5),
 	])
 	ratio = 1.0
-	augm_strong_fn = Compose([
+	augm_strong_fn = RandomChoice([
 		Transform(ratio, scale=(0.9, 1.1)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
@@ -217,14 +225,22 @@ def main():
 
 		model = model_factory()
 		optim = Adam(model.parameters(), lr=hparams_fm.lr, weight_decay=hparams_fm.weight_decay)
+
+		if hparams_fm.use_rampup:
+			rampup = RampUp(hparams.lambda_u, hparams.nb_epochs * len(loader_train_u_augms_weak_strong))
+		else:
+			rampup = None
+
 		if hparams_fm.scheduler == "CosineLRScheduler":
 			scheduler = CosineLRScheduler(optim, nb_epochs=hparams_fm.nb_epochs, lr0=hparams_fm.lr)
 		else:
 			scheduler = None
 
 		hparams_fm.train_name = "FixMatch"
-		writer = build_writer(hparams_fm, suffix="%s_%s_%s_%s" % (
-			suffix_loc, str(hparams_fm.scheduler), hparams_fm.experimental, hparams_fm.suffix))
+		writer = build_writer(hparams_fm, suffix="%s_%s_%s_%s_%f_%f" % (
+			suffix_loc, str(hparams_fm.scheduler), hparams_fm.experimental, hparams_fm.suffix,
+			hparams_fm.threshold_multihot, hparams_fm.threshold_mask
+		))
 
 		if hparams_fm.experimental is None:
 			criterion = FixMatchLossMultiHotLoc.from_edict(hparams_fm)
@@ -242,9 +258,8 @@ def main():
 		trainer = FixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong,
 			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
-			criterion, writer, hparams_fm.threshold_multihot
+			criterion, writer, rampup, hparams_fm.threshold_multihot
 		)
-
 		checkpoint = CheckPoint(
 			model, optim, name=osp.join(hparams_fm.path_checkpoint, "%s_%s_%s.torch" % (
 				hparams_fm.model_name, hparams_fm.train_name, hparams_fm.suffix))
@@ -279,7 +294,6 @@ def main():
 		trainer = SupervisedTrainerLoc(
 			model, acti_fn, optim, loader_train_s, metrics_s_weak, metrics_s_strong, criterion, writer
 		)
-
 		checkpoint = CheckPoint(
 			model, optim, name=osp.join(hparams_su.path_checkpoint, "%s_%s_%s.torch" % (
 				hparams_su.model_name, hparams_su.train_name, hparams_su.suffix))

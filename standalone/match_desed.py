@@ -86,6 +86,10 @@ def create_args() -> Namespace:
 	return parser.parse_args()
 
 
+def check_args(args: Namespace):
+	pass
+
+
 def main():
 	prog_start = time()
 

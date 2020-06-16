@@ -10,7 +10,7 @@ from typing import Callable, Dict
 
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.mixmatch.rampup import RampUp
+from dcase2020_task4.util.rampup import RampUp
 from dcase2020_task4.trainer import SSTrainer
 from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.utils_match import get_lr

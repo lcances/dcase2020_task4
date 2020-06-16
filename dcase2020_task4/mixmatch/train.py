@@ -7,7 +7,7 @@ from typing import Callable, Dict
 
 from dcase2020_task4.mixmatch.loss import MixMatchLoss
 from dcase2020_task4.mixmatch.mixer import MixMatchMixer
-from dcase2020_task4.mixmatch.rampup import RampUp
+from dcase2020_task4.util.rampup import RampUp
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 from dcase2020_task4.util.utils_match import build_writer
 from dcase2020_task4.learner import DefaultLearner
