@@ -62,7 +62,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--seed", type=int, default=123)
-	parser.add_argument("--model_name", type=str, default="dcase2019", choices=["WeakBaseline", "dcase2019"])
+	parser.add_argument("--model_name", type=str, default="dcase2019", choices=["dcase2019"])
 	parser.add_argument("--nb_epochs", type=int, default=10)
 	parser.add_argument("--batch_size", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)
@@ -94,7 +94,6 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
-
 	parser.add_argument("--experimental", type=optional_str, default=None, choices=["None", "V1", "V2", "V3", "V5"])
 
 	return parser.parse_args()
@@ -246,7 +245,10 @@ def main():
 			criterion, writer, hparams_fm.threshold_multihot
 		)
 
-		checkpoint = CheckPoint(model, optim, name=osp.join(hparams_fm.path_checkpoint, "dcase2019_fixmatch_%s.torch" % hparams_fm.suffix))
+		checkpoint = CheckPoint(
+			model, optim, name=osp.join(hparams_fm.path_checkpoint, "%s_%s_%s.torch" % (
+				hparams_fm.model_name, hparams_fm.train_name, hparams_fm.suffix))
+		)
 		validator = DefaultValidatorLoc(
 			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint
 		)
@@ -258,8 +260,8 @@ def main():
 		writer.close()
 
 	if "su" in args.run or "supervised" in args.run:
-		hparams_sf = default_supervised_hparams()
-		hparams_sf.update(hparams)
+		hparams_su = default_supervised_hparams()
+		hparams_su.update(hparams)
 
 		dataset_train_s = DESEDDataset(**args_dataset_train_s)
 		dataset_train_s = FnDataset(dataset_train_s, get_batch_label)
@@ -267,10 +269,10 @@ def main():
 		loader_train_s = DataLoader(dataset=dataset_train_s, **args_loader_train_s)
 
 		model = model_factory()
-		optim = Adam(model.parameters(), lr=hparams_sf.lr, weight_decay=hparams_sf.weight_decay)
+		optim = Adam(model.parameters(), lr=hparams_su.lr, weight_decay=hparams_su.weight_decay)
 
-		hparams_sf.train_name = "Supervised"
-		writer = build_writer(hparams_sf, suffix="%s" % suffix_loc)
+		hparams_su.train_name = "Supervised"
+		writer = build_writer(hparams_su, suffix="%s" % suffix_loc)
 
 		criterion = weak_synth_loss
 
@@ -278,14 +280,17 @@ def main():
 			model, acti_fn, optim, loader_train_s, metrics_s_weak, metrics_s_strong, criterion, writer
 		)
 
-		checkpoint = CheckPoint(model, optim, name=osp.join(hparams_sf.path_checkpoint, "dcase2019_supervised_%s.torch" % hparams_sf.suffix))
+		checkpoint = CheckPoint(
+			model, optim, name=osp.join(hparams_su.path_checkpoint, "%s_%s_%s.torch" % (
+				hparams_su.model_name, hparams_su.train_name, hparams_su.suffix))
+		)
 		validator = DefaultValidatorLoc(
 			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint
 		)
-		learner = DefaultLearner(hparams_sf.train_name, trainer, validator, hparams_sf.nb_epochs)
+		learner = DefaultLearner(hparams_su.train_name, trainer, validator, hparams_su.nb_epochs)
 		learner.start()
 
-		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams_sf.items()}
+		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams_su.items()}
 		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
 		writer.close()
 
