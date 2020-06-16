@@ -5,10 +5,10 @@ from torch.optim import Adam
 from torch.utils.data import DataLoader
 from typing import Callable, Dict
 
-from dcase2020_task4.fixmatch.losses.multihot import FixMatchLossMultiHot
+from dcase2020_task4.fixmatch.losses.tag_only.multihot import FixMatchLossMultiHot
 from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.fixmatch.losses.onehot import FixMatchLossOneHot
-from dcase2020_task4.fixmatch.losses.v4 import FixMatchLossMultiHotV4
+from dcase2020_task4.fixmatch.losses.tag_only.v4 import FixMatchLossMultiHotV4
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 from dcase2020_task4.fixmatch.trainer_v4 import FixMatchTrainerV4
 from dcase2020_task4.util.utils_match import build_writer

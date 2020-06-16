@@ -7,7 +7,7 @@ from typing import Union
 from dcase2020_task4.fixmatch.losses.abc import FixMatchLossMultiHotLocABC
 
 
-class FixMatchLossMultiHotLoc(FixMatchLossMultiHotLocABC):
+class FixMatchLossMultiHotLocV1(FixMatchLossMultiHotLocABC):
 	""" FixMatch loss multi-hot (based on FixMatchLossMultiHotV2 class tagging). """
 
 	def __init__(
@@ -28,8 +28,8 @@ class FixMatchLossMultiHotLoc(FixMatchLossMultiHotLocABC):
 		self.criterion_u_strong = BCELoss(reduction="none")
 
 	@staticmethod
-	def from_edict(hparams) -> 'FixMatchLossMultiHotLoc':
-		return FixMatchLossMultiHotLoc(hparams.lambda_u, hparams.threshold_mask, hparams.threshold_multihot)
+	def from_edict(hparams) -> 'FixMatchLossMultiHotLocV1':
+		return FixMatchLossMultiHotLocV1(hparams.lambda_u, hparams.threshold_mask, hparams.threshold_multihot)
 
 	def __call__(
 		self,
@@ -73,58 +73,10 @@ class FixMatchLossMultiHotLoc(FixMatchLossMultiHotLocABC):
 		return torch.clamp(labels_strong.sum(dim=(1, 2)), 0, 1)
 
 	def get_confidence_mask(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
-		means = pred.mean(dim=dim)
-		return (means > self.threshold_mask).float()
-
-	def get_confidence_mask_v1(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
 		if type(dim) == int:
 			maxes, _ = pred.max(dim=dim)
 		else:
 			maxes = pred.clone()
-			for d in reversed(dim):
+			for d in sorted(dim, reverse=True):
 				maxes = maxes.max(dim=d)[0]
 		return (maxes > self.threshold_mask).float()
-
-	def get_confidence_mask_v3(self, pred: Tensor, labels: Tensor, dim: Union[int, tuple]) -> Tensor:
-		means = (pred * labels).sum(dim=dim) / labels.sum(dim=dim)
-		return (means > self.threshold_mask).float()
-
-
-def test():
-	batch_size = 16
-	nb_classes = 10
-	audio_size = 431
-
-	s_pred_weak_augm_weak = torch.zeros(batch_size, nb_classes)
-	s_labels_weak = torch.zeros(batch_size, nb_classes)
-	u_pred_weak_augm_weak = torch.zeros(batch_size, nb_classes)
-	u_pred_weak_augm_strong = torch.zeros(batch_size, nb_classes)
-	u_labels_weak_guessed = torch.zeros(batch_size, nb_classes)
-
-	s_pred_strong_augm_weak = torch.zeros(batch_size, nb_classes, audio_size)
-	s_labels_strong = torch.zeros(batch_size, nb_classes, audio_size)
-	u_pred_strong_augm_weak = torch.zeros(batch_size, nb_classes, audio_size)
-	u_pred_strong_augm_strong = torch.zeros(batch_size, nb_classes, audio_size)
-	u_labels_strong_guessed = torch.zeros(batch_size, nb_classes, audio_size)
-
-	loss = FixMatchLossMultiHotLoc()
-
-	loss, loss_s_weak, loss_u_weak, loss_s_strong, loss_u_strong = loss(
-		s_pred_weak_augm_weak,
-		s_labels_weak,
-		u_pred_weak_augm_weak,
-		u_pred_weak_augm_strong,
-		u_labels_weak_guessed,
-		s_pred_strong_augm_weak,
-		s_labels_strong,
-		u_pred_strong_augm_weak,
-		u_pred_strong_augm_strong,
-		u_labels_strong_guessed,
-	)
-
-	print("DEBUG: ", loss.shape, loss_s_weak.shape, loss_u_weak.shape, loss_s_strong.shape, loss_u_strong.shape)
-	print("DEBUG: ", loss, loss_s_weak, loss_u_weak, loss_s_strong, loss_u_strong)
-
-
-if __name__ == "__main__":
-	test()

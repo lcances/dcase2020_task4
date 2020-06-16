@@ -24,7 +24,10 @@ from dcase2020.datasets import DESEDDataset
 from dcase2020_task4.dcase2019.models import dcase2019_model
 
 from dcase2020_task4.fixmatch.hparams import default_fixmatch_hparams
-from dcase2020_task4.fixmatch.losses.multihot_loc import FixMatchLossMultiHotLoc
+from dcase2020_task4.fixmatch.losses.tag_loc.multihot_loc import FixMatchLossMultiHotLoc
+from dcase2020_task4.fixmatch.losses.tag_loc.v1 import FixMatchLossMultiHotLocV1
+from dcase2020_task4.fixmatch.losses.tag_loc.v2 import FixMatchLossMultiHotLocV2
+from dcase2020_task4.fixmatch.losses.tag_loc.v3 import FixMatchLossMultiHotLocV3
 from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.fixmatch.trainer_loc import FixMatchTrainerLoc
 
@@ -81,15 +84,16 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--threshold_multihot", type=float, default=0.5,
 						help="FixMatch threshold used to replace argmax() in multihot mode.")
-	parser.add_argument("--threshold_mask", type=float, default=0.9,
+	parser.add_argument("--threshold_mask", type=float, default=0.5,
 						help="FixMatch threshold for compute mask in loss.")
 
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
 
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
-	parser.add_argument("--use_label_strong", type=bool_fn, default=True)
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
+
+	parser.add_argument("--experimental", type=optional_str, default=None, choices=["None", "V1", "V2", "V3"])
 
 	return parser.parse_args()
 
@@ -120,32 +124,20 @@ def main():
 	model_factory = lambda: dcase2019_model().cuda()
 	acti_fn = lambda batch, dim: batch.sigmoid()
 
-	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	ratio = 0.1
-	augm_weak_fn = RandomChoice([
-		Transform(ratio, scale=(0.9, 1.1)),
-	])
-	ratio = 0.25
-	augm_strong_fn = Compose([
-		Transform(ratio, scale=(0.9, 1.1)),
-		TimeStretch(ratio),
-		PitchShiftRandom(ratio),
-		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=10.0),
-		RandomFreqDropout(ratio, dropout=0.5),
-		RandomTimeDropout(ratio, dropout=0.5),
-	])
-
 	metrics_s_weak = {
 		"s_acc_weak": BinaryConfidenceAccuracy(hparams.confidence),
 		"s_fscore_weak": FScore(),
 	}
-	metrics_u_weak = {"acc_u_weak": BinaryConfidenceAccuracy(hparams.confidence)}
+	metrics_u_weak = {
+		"u_acc_weak": BinaryConfidenceAccuracy(hparams.confidence)
+	}
 	metrics_s_strong = {
 		"s_acc_strong": BinaryConfidenceAccuracy(hparams.confidence),
 		"s_fscore_strong": FScore(),
 	}
-	metrics_u_strong = {"acc_u_strong": BinaryConfidenceAccuracy(hparams.confidence)}
+	metrics_u_strong = {
+		"u_acc_strong": BinaryConfidenceAccuracy(hparams.confidence)
+	}
 	metrics_val_weak = {
 		"acc_weak": BinaryConfidenceAccuracy(hparams.confidence),
 		"bce_weak": FnMetric(binary_cross_entropy),
@@ -163,19 +155,35 @@ def main():
 		"fscore_strong": FScore(),
 	}
 
+	# Weak and strong augmentations used by FixMatch and ReMixMatch
+	ratio = 0.1
+	augm_weak_fn = RandomChoice([
+		Transform(ratio, scale=(0.9, 1.1)),
+	])
+	ratio = 1.0
+	augm_strong_fn = Compose([
+		Transform(ratio, scale=(0.9, 1.1)),
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio),
+		Occlusion(ratio, max_size=1.0),
+		Noise(ratio=ratio, snr=10.0),
+		RandomFreqDropout(ratio, dropout=0.5),
+		RandomTimeDropout(ratio, dropout=0.5),
+	])
+
 	manager_s, manager_u = get_desed_managers(hparams)
 
 	# Validation
 	get_batch_label = lambda item: (item[0], item[1][0], item[1][1])
-	dataset_val = DESEDDataset(manager_s, train=False, val=True, augments=[], cached=True, weak=True, strong=hparams.use_label_strong)
+	dataset_val = DESEDDataset(manager_s, train=False, val=True, augments=[], cached=True, weak=True, strong=True)
 	dataset_val = FnDataset(dataset_val, get_batch_label)
 	loader_val = DataLoader(dataset_val, batch_size=hparams.batch_size, shuffle=False)
 
 	# Datasets args
 	args_dataset_train_s = dict(
-		manager=manager_s, train=True, val=False, cached=True, weak=True, strong=hparams.use_label_strong)
+		manager=manager_s, train=True, val=False, cached=True, weak=True, strong=True)
 	args_dataset_train_s_augm = dict(
-		manager=manager_s, train=True, val=False, cached=False, weak=True, strong=hparams.use_label_strong)
+		manager=manager_s, train=True, val=False, cached=False, weak=True, strong=True)
 	args_dataset_train_u_augm = dict(
 		manager=manager_u, train=True, val=False, cached=False, weak=False, strong=False)
 
@@ -211,9 +219,19 @@ def main():
 			scheduler = None
 
 		hparams_fm.train_name = "FixMatch"
-		writer = build_writer(hparams_fm, suffix="%s_%s_%s" % ("STRONG", str(hparams_fm.scheduler), hparams_fm.suffix))
+		writer = build_writer(hparams_fm, suffix="%s_%s_%s" % ("LOC", str(hparams_fm.scheduler), hparams_fm.suffix))
 
-		criterion = FixMatchLossMultiHotLoc.from_edict(hparams_fm)
+		if hparams_fm.experimental is None:
+			criterion = FixMatchLossMultiHotLoc.from_edict(hparams_fm)
+		elif hparams_fm.experimental.lower() == "v1":
+			criterion = FixMatchLossMultiHotLocV1.from_edict(hparams_fm)
+		elif hparams_fm.experimental.lower() == "v2":
+			criterion = FixMatchLossMultiHotLocV2.from_edict(hparams_fm)
+		elif hparams_fm.experimental.lower() == "v3":
+			criterion = FixMatchLossMultiHotLocV3.from_edict(hparams_fm)
+		else:
+			raise RuntimeError("Unknown experimental mode %s" % str(hparams_fm.experimental))
+
 		trainer = FixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong,
 			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
@@ -244,7 +262,7 @@ def main():
 		optim = Adam(model.parameters(), lr=hparams_sf.lr, weight_decay=hparams_sf.weight_decay)
 
 		hparams_sf.train_name = "Supervised"
-		writer = build_writer(hparams_sf, suffix="%s" % "STRONG")
+		writer = build_writer(hparams_sf, suffix="%s" % "LOC")
 
 		criterion = weak_synth_loss
 

@@ -51,7 +51,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--seed", type=int, default=123)
-	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline", "dcase2019"])
+	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=10)
 	parser.add_argument("--batch_size", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)
@@ -82,16 +82,8 @@ def create_args() -> Namespace:
 						help="Suffix to Tensorboard log dir.")
 
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
-	parser.add_argument("--use_label_strong", type=bool_fn, default=False)
 
 	return parser.parse_args()
-
-
-def check_args(args: Namespace):
-	if args.model_name == "RCNN":
-		raise NotImplementedError("RCNN cannot be run with MixMatch or ReMixMatch.")
-	if args.use_label_strong:
-		raise NotImplementedError("Cannot use strong label with this script.")
 
 
 def main():
@@ -166,15 +158,15 @@ def main():
 
 	# Validation
 	get_batch_label = lambda item: (item[0], item[1][0])
-	dataset_val = DESEDDataset(manager_s, train=False, val=True, augments=[], cached=True, weak=True, strong=hparams.use_label_strong)
+	dataset_val = DESEDDataset(manager_s, train=False, val=True, augments=[], cached=True, weak=True, strong=False)
 	dataset_val = FnDataset(dataset_val, get_batch_label)
 	loader_val = DataLoader(dataset_val, batch_size=hparams.batch_size, shuffle=False)
 
 	# Datasets args
 	args_dataset_train_s = dict(
-		manager=manager_s, train=True, val=False, cached=True, weak=True, strong=hparams.use_label_strong)
+		manager=manager_s, train=True, val=False, cached=True, weak=True, strong=False)
 	args_dataset_train_s_augm = dict(
-		manager=manager_s, train=True, val=False, cached=False, weak=True, strong=hparams.use_label_strong)
+		manager=manager_s, train=True, val=False, cached=False, weak=True, strong=False)
 	args_dataset_train_u_augm = dict(
 		manager=manager_u, train=True, val=False, cached=False, weak=False, strong=False)
 
