@@ -13,10 +13,11 @@ from metric_utils.metrics import Metrics
 from dcase2020_task4.fixmatch.losses.abc import FixMatchLossABC
 from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.utils_match import binarize_onehot_labels, get_lr
-from dcase2020_task4.trainer import SSTrainer
+from dcase2020_task4.trainer_abc import SSTrainerABC
+from dcase2020_task4.metrics_values_buffer import MetricsValuesBuffer
 
 
-class FixMatchTrainer(SSTrainer):
+class FixMatchTrainer(SSTrainerABC):
 	def __init__(
 		self,
 		model: Module,
@@ -43,16 +44,16 @@ class FixMatchTrainer(SSTrainer):
 		self.mode = mode
 		self.threshold_multihot = threshold_multihot
 
-	def train(self, epoch: int):
-		train_start = time()
-		self.model.train()
-		self.reset_metrics()
+		self.metrics_values = MetricsValuesBuffer(
+			list(self.metrics_s.keys()) +
+			list(self.metrics_u.keys()) +
+			["loss", "loss_s", "loss_u"]
+		)
 
-		metric_values = {
-			metric_name: [] for metric_name in (
-				list(self.metrics_s.keys()) + list(self.metrics_u.keys()) + ["loss", "loss_s", "loss_u"]
-			)
-		}
+	def train(self, epoch: int):
+		self.reset_metrics()
+		self.metrics_values.reset()
+		self.model.train()
 
 		loaders_zip = ZipCycle([self.loader_train_s_augm_weak, self.loader_train_u_augms_weak_strong])
 		iter_train = iter(loaders_zip)
@@ -91,37 +92,22 @@ class FixMatchTrainer(SSTrainer):
 			self.optim.step()
 
 			with torch.no_grad():
-				metric_values["loss"].append(loss.item())
-				metric_values["loss_s"].append(loss_s.item())
-				metric_values["loss_u"].append(loss_u.item())
+				self.metrics_values.add_value("loss", loss.item())
+				self.metrics_values.add_value("loss_s", loss_s.item())
+				self.metrics_values.add_value("loss_u", loss_u.item())
 
-				metric_pred_labels = [
+				metrics_preds_labels = [
 					(self.metrics_s, s_pred_augm_weak, s_labels),
 					(self.metrics_u, u_pred_augm_strong, u_labels_weak_guessed),
 				]
-				for metrics, pred, labels in metric_pred_labels:
-					for metric_name, metric in metrics.items():
-						_mean_s = metric(pred, labels)
-						metric_values[metric_name].append(metric.value.item())
-
-				prints_buffer = [
-					"{:s}: {:.4e}".format(name, np.mean(values))
-					for name, values in metric_values.items()
-				]
-				prints_buffer.append("took: {:.2f}s".format(time() - train_start))
-
-				print("Epoch {:d}, {:d}% \t {:s}".format(
-					epoch + 1,
-					int(100 * (i + 1) / len(loaders_zip)),
-					" - ".join(prints_buffer)
-				), end="\r")
+				self.metrics_values.apply_metrics(metrics_preds_labels)
+				self.metrics_values.print_metrics(epoch, i, len(loaders_zip))
 
 		print("")
 
 		if self.writer is not None:
 			self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
-			for metric_name, values in metric_values.items():
-				self.writer.add_scalar("train/%s" % metric_name, float(np.mean(values)), epoch)
+			self.metrics_values.store_in_writer(self.writer, "train", epoch)
 
 	def nb_examples_supervised(self) -> int:
 		return len(self.loader_train_s_augm_weak) * self.loader_train_s_augm_weak.batch_size

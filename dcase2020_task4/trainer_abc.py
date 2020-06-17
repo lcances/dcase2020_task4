@@ -1,7 +1,7 @@
 from abc import ABC
 
 
-class Trainer(ABC):
+class TrainerABC(ABC):
 	def train(self, epoch: int):
 		raise NotImplementedError("Abstract method")
 
@@ -12,7 +12,7 @@ class Trainer(ABC):
 		raise NotImplementedError("Abstract method")
 
 
-class SSTrainer(Trainer, ABC):
+class SSTrainerABC(TrainerABC, ABC):
 	def nb_examples_supervised(self) -> int:
 		raise NotImplementedError("Abstract method")
 

@@ -1,7 +1,7 @@
 
 from abc import ABC
 from time import time
-from dcase2020_task4.trainer import Trainer
+from dcase2020_task4.trainer_abc import TrainerABC
 from dcase2020_task4.validator import ValidatorABC
 
 
@@ -12,7 +12,13 @@ class Learner(ABC):
 
 class DefaultLearner(Learner):
 	def __init__(
-		self, name: str, trainer: Trainer, validator: ValidatorABC, nb_epochs: int, scheduler=None, verbose: int = 1
+		self,
+		name: str,
+		trainer: TrainerABC,
+		validator: ValidatorABC,
+		nb_epochs: int,
+		scheduler=None,
+		verbose: int = 1
 	):
 		self.name = name
 		self.trainer = trainer

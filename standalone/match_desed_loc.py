@@ -9,10 +9,12 @@ import torch
 from argparse import ArgumentParser, Namespace
 from easydict import EasyDict as edict
 from time import time
+from torch.nn import Module
 from torch.nn.functional import binary_cross_entropy
 from torch.optim import Adam
+from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
-from torchvision.transforms import RandomChoice, Compose
+from torchvision.transforms import RandomChoice
 
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion
@@ -65,15 +67,16 @@ def create_args() -> Namespace:
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--model_name", type=str, default="dcase2019", choices=["dcase2019"])
 	parser.add_argument("--nb_epochs", type=int, default=10)
-	parser.add_argument("--batch_size", type=int, default=8)
+	parser.add_argument("--batch_size_s", type=int, default=8)
+	parser.add_argument("--batch_size_u", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.5)
 	parser.add_argument("--from_disk", type=bool_fn, default=True,
-						help="Select False if you want ot load all data into RAM.")
+						help="Select False if you want ot load all data into RAM. It will be faster but consume a lot of RAM.")
 	parser.add_argument("--num_workers_s", type=int, default=1)
 	parser.add_argument("--num_workers_u", type=int, default=1)
 
-	parser.add_argument("--lr", type=float, default=1e-3,
+	parser.add_argument("--lr", type=float, default=3e-3,
 						help="Learning rate used.")
 	parser.add_argument("--scheduler", "--sched", type=optional_str, default="CosineLRScheduler",
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
@@ -96,7 +99,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
 	parser.add_argument("--experimental", type=optional_str, default=None, choices=["None", "V1", "V2", "V3", "V5"])
-	parser.add_argument("--use_rampup", type=bool_fn, default=False)
+	parser.add_argument("--use_rampup", type=bool_fn, default=False,
+						help="Use RampUp or not for lambda_u FixMatch loss hyperparameter.")
 
 	return parser.parse_args()
 
@@ -128,20 +132,29 @@ def main():
 	model_factory = lambda: dcase2019_model().cuda()
 	acti_fn = lambda batch, dim: batch.sigmoid()
 
+	def optim_factory(model: Module) -> Optimizer:
+		if hparams.optim_name.lower() == "adam":
+			return Adam(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
+		else:
+			raise RuntimeError("Unknown optimizer %s" % str(hparams.optim_name))
+
 	metrics_s_weak = {
 		"s_acc_weak": BinaryConfidenceAccuracy(hparams.confidence),
 		"s_fscore_weak": FScore(),
 	}
 	metrics_u_weak = {
-		"u_acc_weak": BinaryConfidenceAccuracy(hparams.confidence)
+		"u_acc_weak": BinaryConfidenceAccuracy(hparams.confidence),
+		"u_fscore_weak": FScore(),
 	}
 	metrics_s_strong = {
 		"s_acc_strong": BinaryConfidenceAccuracy(hparams.confidence),
 		"s_fscore_strong": FScore(),
 	}
 	metrics_u_strong = {
-		"u_acc_strong": BinaryConfidenceAccuracy(hparams.confidence)
+		"u_acc_strong": BinaryConfidenceAccuracy(hparams.confidence),
+		"u_fscore_strong": FScore(),
 	}
+
 	metrics_val_weak = {
 		"acc_weak": BinaryConfidenceAccuracy(hparams.confidence),
 		"bce_weak": FnMetric(binary_cross_entropy),
@@ -185,9 +198,10 @@ def main():
 
 	# Validation
 	get_batch_label = lambda item: (item[0], item[1][0], item[1][1])
-	dataset_val = DESEDDataset(manager_s, train=False, val=True, augments=[], cached=True, weak=True, strong=True)
+	dataset_val = DESEDDataset(
+		manager=manager_s, train=False, val=True, cached=True, weak=True, strong=True, augments=[])
 	dataset_val = FnDataset(dataset_val, get_batch_label)
-	loader_val = DataLoader(dataset_val, batch_size=hparams.batch_size, shuffle=False)
+	loader_val = DataLoader(dataset_val, batch_size=hparams.batch_size_s, shuffle=False)
 
 	# Datasets args
 	args_dataset_train_s = dict(
@@ -199,9 +213,9 @@ def main():
 
 	# Loaders args
 	args_loader_train_s = dict(
-		batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_s, drop_last=True)
+		batch_size=hparams.batch_size_s, shuffle=True, num_workers=hparams.num_workers_s, drop_last=True)
 	args_loader_train_u = dict(
-		batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_u, drop_last=True)
+		batch_size=hparams.batch_size_u, shuffle=True, num_workers=hparams.num_workers_u, drop_last=True)
 
 	suffix_loc = "LOC"
 
@@ -224,7 +238,7 @@ def main():
 		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
 		model = model_factory()
-		optim = Adam(model.parameters(), lr=hparams_fm.lr, weight_decay=hparams_fm.weight_decay)
+		optim = optim_factory(model)
 
 		if hparams_fm.use_rampup:
 			rampup = RampUp(hparams.lambda_u, hparams.nb_epochs * len(loader_train_u_augms_weak_strong))
@@ -284,7 +298,7 @@ def main():
 		loader_train_s = DataLoader(dataset=dataset_train_s, **args_loader_train_s)
 
 		model = model_factory()
-		optim = Adam(model.parameters(), lr=hparams_su.lr, weight_decay=hparams_su.weight_decay)
+		optim = optim_factory(model)
 
 		hparams_su.train_name = "Supervised"
 		writer = build_writer(hparams_su, suffix="%s" % suffix_loc)

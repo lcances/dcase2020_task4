@@ -15,7 +15,7 @@ def sharpen(batch: Tensor, temperature: float, dim: int) -> Tensor:
 	return normalize(batch, dim=dim)
 
 
-def sharpen_multi(distribution: Tensor, temperature: float, k: int) -> Tensor:
+def sharpen_multi_1(distribution: Tensor, temperature: float, k: int) -> Tensor:
 	""" Experimental multi-hot sharpening. Currently unused. """
 	if k < 1:
 		raise RuntimeError("Invalid argument k")
@@ -36,12 +36,48 @@ def sharpen_multi(distribution: Tensor, temperature: float, k: int) -> Tensor:
 	return new_dis
 
 
+def sharpen_multi_2(distribution: Tensor, temperature: float, threshold: float) -> Tensor:
+	original_mask = (distribution > threshold).float()
+	nb_above = original_mask.sum().item()
+
+	if nb_above == 0:
+		return distribution
+
+	distribution_expanded = distribution.expand(nb_above, *distribution.shape)
+	mask_nums = get_idx_max(original_mask, nb_above)
+
+	mask_nums_expanded = torch.zeros(nb_above, nb_above - 1)
+	for i in range(nb_above):
+		indices = list(range(nb_above))
+		indices.remove(i)
+		mask_nums_expanded[i] = mask_nums[indices].clone()
+
+	for distribution, nums in zip(distribution_expanded, mask_nums_expanded):
+		distribution[nums] = 0.0
+
+	distribution_expanded = sharpen(distribution_expanded, temperature, dim=1)
+
+	result = distribution_expanded.mean(dim=0)
+	result[mask_nums] = distribution_expanded.max(dim=1)[0]
+
+	return result
+
+
+def sharpen_multi(batch: Tensor, temperature: float, threshold: float) -> Tensor:
+	result = batch.clone()
+	for i, distribution in enumerate(batch):
+		result[i] = sharpen_multi_2(distribution, temperature, threshold)
+	return result
+
+
+def get_idx_max(t: Tensor, nb: int) -> Tensor:
+	idx = t.argsort(descending=True)
+	return idx[:nb]
+
+
 def normalize(batch: Tensor, dim: int) -> Tensor:
 	""" Return the vector normalized. """
-	norms = batch.norm(p=1, dim=dim)
-	for i, norm in enumerate(norms):
-		batch[i] /= norm
-	return batch
+	return batch / batch.norm(p=1, dim=dim).unsqueeze(dim=1)
 
 
 def same_shuffle(values: List[Tensor]) -> List[Tensor]:

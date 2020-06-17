@@ -4,7 +4,8 @@ from easydict import EasyDict as edict
 def default_fixmatch_hparams() -> edict:
 	# TODO : clean
 	hparams = edict()
-	hparams.batch_size = 64
+	hparams.batch_size_s = 64
+	hparams.batch_size_u = 64
 	hparams.lambda_u = 1.0
 	hparams.threshold_mask = 0.95  # tau
 	hparams.mode = "onehot"

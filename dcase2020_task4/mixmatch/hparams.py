@@ -4,7 +4,8 @@ from easydict import EasyDict as edict
 def default_mixmatch_hparams() -> edict:
 	# TODO : clean
 	hparams = edict()
-	hparams.batch_size = 64
+	hparams.batch_size_s = 64
+	hparams.batch_size_u = 64
 	hparams.nb_augms = 2
 	hparams.sharpen_temp = 0.5
 	hparams.mixup_alpha = 0.75

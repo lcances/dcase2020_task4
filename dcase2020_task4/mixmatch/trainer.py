@@ -6,17 +6,18 @@ from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, Dict
+from typing import Callable, Dict, Optional
 
 from metric_utils.metrics import Metrics
 
 from dcase2020_task4.util.rampup import RampUp
-from dcase2020_task4.trainer import SSTrainer
+from dcase2020_task4.trainer_abc import SSTrainerABC
 from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.utils_match import get_lr
+from dcase2020_task4.metrics_values_buffer import MetricsValuesBuffer
 
 
-class MixMatchTrainer(SSTrainer):
+class MixMatchTrainer(SSTrainerABC):
 	def __init__(
 		self,
 		model: Module,
@@ -27,7 +28,7 @@ class MixMatchTrainer(SSTrainer):
 		metrics_s: Dict[str, Metrics],
 		metrics_u: Dict[str, Metrics],
 		criterion: Callable,
-		writer: SummaryWriter,
+		writer: Optional[SummaryWriter],
 		mixer: Callable,
 		lambda_u_rampup: RampUp
 	):
@@ -43,15 +44,16 @@ class MixMatchTrainer(SSTrainer):
 		self.mixer = mixer
 		self.lambda_u_rampup = lambda_u_rampup
 
-	def train(self, epoch: int):
-		train_start = time()
-		self.model.train()
-		self.reset_metrics()
+		self.metrics_values = MetricsValuesBuffer(
+			list(self.metrics_s.keys()) +
+			list(self.metrics_u.keys()) +
+			["loss", "loss_s", "loss_u"]
+		)
 
-		losses = []
-		metric_values = {
-			metric_name: [] for metric_name in (list(self.metrics_s.keys()) + list(self.metrics_u.keys()))
-		}
+	def train(self, epoch: int):
+		self.reset_metrics()
+		self.metrics_values.reset()
+		self.model.train()
 
 		loaders_zip = ZipCycle([self.loader_train_s_augm, self.loader_train_u_augms])
 		iter_train = iter(loaders_zip)
@@ -72,47 +74,36 @@ class MixMatchTrainer(SSTrainer):
 			s_logits_mixed = self.model(s_batch_mixed)
 			u_logits_mixed = self.model(u_batch_mixed)
 
-			# Compute accuracies
 			s_pred_mixed = self.acti_fn(s_logits_mixed, dim=1)
 			u_pred_mixed = self.acti_fn(u_logits_mixed, dim=1)
 
 			# Update model
-			self.criterion.lambda_u = self.lambda_u_rampup.value()
-			loss = self.criterion(s_pred_mixed, s_labels_mixed, u_pred_mixed, u_labels_mixed)
+			loss, loss_s, loss_u = self.criterion(s_pred_mixed, s_labels_mixed, u_pred_mixed, u_labels_mixed)
 			self.optim.zero_grad()
 			loss.backward()
 			self.optim.step()
 
-			self.lambda_u_rampup.step()
+			with torch.no_grad():
+				self.criterion.lambda_u = self.lambda_u_rampup.value()
+				self.lambda_u_rampup.step()
 
-			# Compute metrics
-			losses.append(loss.item())
-			buffer = ["{:s}: {:.4e}".format("loss", np.mean(losses))]
+				# Compute metrics
+				self.metrics_values.add_value("loss", loss.item())
+				self.metrics_values.add_value("loss_s", loss_s.item())
+				self.metrics_values.add_value("loss_u", loss_u.item())
 
-			metric_pred_labels = [
-				(self.metrics_s, s_pred_mixed, s_labels_mixed),
-				(self.metrics_u, u_pred_mixed, u_labels_mixed),
-			]
-			for metrics, pred, labels in metric_pred_labels:
-				for metric_name, metric in metrics.items():
-					mean_s = metric(pred, labels)
-					buffer.append("{:s}: {:.4e}".format(metric_name, mean_s))
-					metric_values[metric_name].append(metric.value.item())
-
-			buffer.append("took: {:.2f}s".format(time() - train_start))
-
-			print("Epoch {:d}, {:d}% \t {:s}".format(
-				epoch + 1,
-				int(100 * (i + 1) / len(loaders_zip)),
-				" - ".join(buffer),
-			), end="\r")
+				metrics_preds_labels = [
+					(self.metrics_s, s_pred_mixed, s_labels_mixed),
+					(self.metrics_u, u_pred_mixed, u_labels_mixed),
+				]
+				self.metrics_values.apply_metrics(metrics_preds_labels)
+				self.metrics_values.print_metrics(epoch, i, len(loaders_zip))
 
 		print("")
 
-		self.writer.add_scalar("train/loss", float(np.mean(losses)), epoch)
-		self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
-		for metric_name, values in metric_values.items():
-			self.writer.add_scalar("train/%s" % metric_name, float(np.mean(values)), epoch)
+		if self.writer is not None:
+			self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
+			self.metrics_values.store_in_writer(self.writer, "train", epoch)
 
 	def nb_examples_supervised(self) -> int:
 		return len(self.loader_train_s_augm) * self.loader_train_s_augm.batch_size
@@ -121,7 +112,7 @@ class MixMatchTrainer(SSTrainer):
 		return len(self.loader_train_u_augms) * self.loader_train_u_augms.batch_size
 
 	def reset_metrics(self):
-		metrics_lst = [self.metrics_s, self.metrics_u]
-		for metrics in metrics_lst:
+		metrics_dict_lst = [self.metrics_s, self.metrics_u]
+		for metrics in metrics_dict_lst:
 			for metric in metrics.values():
 				metric.reset()

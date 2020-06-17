@@ -14,10 +14,11 @@ from dcase2020_task4.fixmatch.losses.abc import FixMatchLossMultiHotLocABC
 from dcase2020_task4.util.rampup import RampUp
 from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.util.zip_cycle import ZipCycle
-from dcase2020_task4.trainer import SSTrainer
+from dcase2020_task4.trainer_abc import SSTrainerABC
+from dcase2020_task4.metrics_values_buffer import MetricsValuesBuffer
 
 
-class FixMatchTrainerLoc(SSTrainer):
+class FixMatchTrainerLoc(SSTrainerABC):
 	def __init__(
 		self,
 		model: Module,
@@ -48,20 +49,18 @@ class FixMatchTrainerLoc(SSTrainer):
 		self.rampup = rampup
 		self.threshold_multihot = threshold_multihot
 
-	def train(self, epoch: int):
-		train_start = time()
-		self.model.train()
-		self.reset_metrics()
+		self.metrics_values = MetricsValuesBuffer(
+			list(self.metrics_s_weak.keys()) +
+			list(self.metrics_u_weak.keys()) +
+			list(self.metrics_s_strong.keys()) +
+			list(self.metrics_u_strong.keys()) +
+			["loss", "loss_s_weak", "loss_u_weak", "loss_s_strong", "loss_u_strong"]
+		)
 
-		metric_values = {
-			metric_name: [] for metric_name in (
-				list(self.metrics_s_weak.keys()) +
-				list(self.metrics_u_weak.keys()) +
-				list(self.metrics_s_strong.keys()) +
-				list(self.metrics_u_strong.keys()) +
-				["loss", "loss_s_weak", "loss_u_weak", "loss_s_strong", "loss_u_strong"]
-			)
-		}
+	def train(self, epoch: int):
+		self.reset_metrics()
+		self.metrics_values.reset()
+		self.model.train()
 
 		loaders_zip = ZipCycle([self.loader_train_s_augm_weak, self.loader_train_u_augms_weak_strong])
 		iter_train = iter(loaders_zip)
@@ -110,41 +109,26 @@ class FixMatchTrainerLoc(SSTrainer):
 					self.criterion.lambda_u = self.rampup.value()
 					self.rampup.step()
 
-				metric_values["loss"].append(loss.item())
-				metric_values["loss_s_weak"].append(loss_s_weak.item())
-				metric_values["loss_u_weak"].append(loss_u_weak.item())
-				metric_values["loss_s_strong"].append(loss_s_strong.item())
-				metric_values["loss_u_strong"].append(loss_u_strong.item())
+				self.metrics_values.add_value("loss", loss.item())
+				self.metrics_values.add_value("loss_s_weak", loss_s_weak.item())
+				self.metrics_values.add_value("loss_u_weak", loss_u_weak.item())
+				self.metrics_values.add_value("loss_s_strong", loss_s_strong.item())
+				self.metrics_values.add_value("loss_u_strong", loss_u_strong.item())
 
-				metric_pred_labels = [
+				metrics_preds_labels = [
 					(self.metrics_s_weak, s_pred_weak_augm_weak, s_labels_weak),
 					(self.metrics_u_weak, u_pred_weak_augm_strong, u_labels_weak_guessed),
 					(self.metrics_s_strong, s_pred_strong_augm_weak, s_labels_strong),
 					(self.metrics_u_strong, u_pred_strong_augm_strong, u_labels_strong_guessed),
 				]
-				for metrics, pred, labels in metric_pred_labels:
-					for metric_name, metric in metrics.items():
-						_mean_s = metric(pred, labels)
-						metric_values[metric_name].append(metric.value.item())
-
-				prints_buffer = [
-					"{:s}: {:.4e}".format(name, np.mean(values))
-					for name, values in metric_values.items()
-				]
-				prints_buffer.append("took: {:.2f}s".format(time() - train_start))
-
-				print("Epoch {:d}, {:d}% \t {:s}".format(
-					epoch + 1,
-					int(100 * (i + 1) / len(loaders_zip)),
-					" - ".join(prints_buffer)
-				), end="\r")
+				self.metrics_values.apply_metrics(metrics_preds_labels)
+				self.metrics_values.print_metrics(epoch, i, len(loaders_zip))
 
 		print("")
 
 		if self.writer is not None:
 			self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
-			for metric_name, values in metric_values.items():
-				self.writer.add_scalar("train/%s" % metric_name, float(np.mean(values)), epoch)
+			self.metrics_values.store_in_writer(self.writer, "train", epoch)
 
 	def nb_examples_supervised(self) -> int:
 		return len(self.loader_train_s_augm_weak) * self.loader_train_s_augm_weak.batch_size

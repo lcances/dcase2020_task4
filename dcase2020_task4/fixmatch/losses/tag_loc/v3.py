@@ -70,6 +70,7 @@ class FixMatchLossMultiHotLocV3(FixMatchLossMultiHotLocABC):
 		return loss, loss_s_weak, loss_u_weak, loss_s_strong, loss_u_strong
 
 	def get_has_strong_mask(self, labels_strong: Tensor) -> Tensor:
+		""" Strong labels of shape contains at least one "1". """
 		return torch.clamp(labels_strong.sum(dim=(1, 2)), 0, 1)
 
 	def get_confidence_mask(self, pred: Tensor, labels: Tensor, dim: Union[int, tuple]) -> Tensor:

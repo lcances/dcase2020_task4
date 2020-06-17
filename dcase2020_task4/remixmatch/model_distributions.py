@@ -9,7 +9,7 @@ class ModelDistributions:
 	"""
 
 	def __init__(
-		self, history_size: int, nb_classes: int, names: List[str], mode: str = "onehot"
+		self, history_size: int, nb_classes: int, mode: str, names: List[str]
 	):
 		if mode == "onehot":
 			distributions_priori = ModelDistributions.uniform_distribution_onehot(history_size, nb_classes)
@@ -23,6 +23,15 @@ class ModelDistributions:
 		self.data = {}
 
 		self.reset()
+
+	@staticmethod
+	def from_edict(hparams) -> 'ModelDistributions':
+		return ModelDistributions(
+			history_size=hparams.history_size,
+			nb_classes=hparams.nb_classes,
+			mode=hparams.mode,
+			names=["labeled", "unlabeled"],
+		)
 
 	def reset(self):
 		self.data = {

@@ -3,15 +3,19 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
+import numpy as np
 import os.path as osp
 import torch
 
 from argparse import ArgumentParser, Namespace
 from easydict import EasyDict as edict
 from time import time
+from torch.nn import Module
 from torch.nn.functional import binary_cross_entropy
+from torch.optim import Adam
+from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
-from torchvision.transforms import RandomChoice, Compose
+from torchvision.transforms import RandomChoice
 
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion
@@ -21,21 +25,36 @@ from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
 from dcase2020_task4.dcase2019.models import dcase2019_model
-from dcase2020_task4.fixmatch.hparams import default_fixmatch_hparams
-from dcase2020_task4.fixmatch.train import train_fixmatch
-from dcase2020_task4.mixmatch.hparams import default_mixmatch_hparams
-from dcase2020_task4.mixmatch.train import train_mixmatch
-from dcase2020_task4.remixmatch.hparams import default_remixmatch_hparams
-from dcase2020_task4.remixmatch.train import train_remixmatch
-from dcase2020_task4.supervised.hparams import default_supervised_hparams
-from dcase2020_task4.supervised.train import train_supervised
+from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
+from dcase2020_task4.fixmatch.losses.tag_only.v1 import FixMatchLossMultiHotV1
+from dcase2020_task4.fixmatch.losses.tag_only.v2 import FixMatchLossMultiHotV2
+from dcase2020_task4.fixmatch.losses.tag_only.v3 import FixMatchLossMultiHotV3
+from dcase2020_task4.fixmatch.losses.tag_only.v4 import FixMatchLossMultiHotV4
+from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
+from dcase2020_task4.fixmatch.trainer_v4 import FixMatchTrainerV4
+
+from dcase2020_task4.mixmatch.losses.multihot import MixMatchLossMultiHot
+from dcase2020_task4.mixmatch.mixer import MixMatchMixer
+from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
+
+from dcase2020_task4.remixmatch.losses.multihot import ReMixMatchLossMultiHot
+from dcase2020_task4.remixmatch.mixer import ReMixMatchMixer
+from dcase2020_task4.remixmatch.model_distributions import ModelDistributions
+from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
+
+from dcase2020_task4.supervised.trainer import SupervisedTrainer
 
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, CategoricalConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
+from dcase2020_task4.util.rampup import RampUp
 from dcase2020_task4.util.utils import reset_seed, get_datetime
+from dcase2020_task4.util.utils_match import build_writer
+
 from dcase2020_task4.weak_baseline_rot import WeakBaselineRot
+from dcase2020_task4.learner import DefaultLearner
+from dcase2020_task4.validator import DefaultValidator
 
 from metric_utils.metrics import FScore
 
@@ -46,23 +65,30 @@ def create_args() -> Namespace:
 
 	parser = ArgumentParser()
 	# TODO : help for acronyms
-	parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "sf"], choices=["fm", "mm", "rmm", "sf"])
+	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch", "mixmatch", "remixmatch", "supervised"])
 	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=10)
-	parser.add_argument("--batch_size", type=int, default=8)
+	parser.add_argument("--batch_size_s", type=int, default=8)
+	parser.add_argument("--batch_size_u", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.5)
 	parser.add_argument("--from_disk", type=bool_fn, default=True,
 						help="Select False if you want ot load all data into RAM.")
 	parser.add_argument("--num_workers_s", type=int, default=1)
 	parser.add_argument("--num_workers_u", type=int, default=1)
+	parser.add_argument("--criterion_name_u", type=str, default="crossentropy", choices=["sqdiff", "crossentropy"],
+						help="MixMatch unsupervised loss component.")
 
 	parser.add_argument("--lr", type=float, default=1e-3,
 						help="Learning rate used.")
+	parser.add_argument("--weight_decay", type=float, default=0.0,
+						help="Weight decay used.")
+	parser.add_argument("--optim_name", type=str, default="Adam", choices=["Adam"],
+						help="Optimizer used.")
 	parser.add_argument("--scheduler", "--sched", type=optional_str, default="CosineLRScheduler",
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 
@@ -77,11 +103,19 @@ def create_args() -> Namespace:
 						help="FixMatch threshold used to replace argmax() in multihot mode.")
 	parser.add_argument("--threshold_mask", type=float, default=0.9,
 						help="FixMatch threshold for compute mask in loss.")
+	parser.add_argument("--sharpen_threshold_multihot", type=float, default=0.5,
+						help="MixMatch threshold for multihot sharpening.")
+
+	parser.add_argument("--sharpen_temp", type=float, default=0.5,
+						help="MixMatch and ReMixMatch hyperparameter \"temperature\" used by sharpening.")
+	parser.add_argument("--mixup_alpha", type=float, default=0.75,
+						help="MixMatch and ReMixMatch hyperparameter \"alpha\" used by MixUp.")
 
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
 
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
+	parser.add_argument("--experimental", type=str, default="V2", choices=["V1", "V2", "V3", "V4"])
 
 	return parser.parse_args()
 
@@ -114,23 +148,35 @@ def main():
 		model_factory = lambda: dcase2019_model().cuda()
 	else:
 		raise RuntimeError("Invalid model %s" % hparams.model_name)
+
 	acti_fn = lambda batch, dim: batch.sigmoid()
 
+	def optim_factory(model: Module) -> Optimizer:
+		if hparams.optim_name.lower() == "adam":
+			return Adam(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
+		else:
+			raise RuntimeError("Unknown optimizer %s" % str(hparams.optim_name))
+
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
+	ratio = 0.1
 	augm_weak_fn = RandomChoice([
-		Transform(0.5, scale=(0.9, 1.1)),
-		PitchShiftRandom(0.5, steps=(-2, 2)),
+		Transform(ratio, scale=(0.9, 1.1)),
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio),
+		Occlusion(ratio, max_size=1.0),
+		Noise(ratio=ratio, snr=10.0),
+		RandomFreqDropout(ratio, dropout=0.5),
+		RandomTimeDropout(ratio, dropout=0.5),
 	])
-	augm_strong_fn = Compose([
-		Transform(1.0, scale=(0.9, 1.1)),
-		RandomChoice([
-			TimeStretch(1.0),
-			PitchShiftRandom(1.0),
-			Occlusion(1.0, max_size=1.0),
-			Noise(ratio=1.0, snr=10.0),
-			RandomFreqDropout(1.0, dropout=0.5),
-			RandomTimeDropout(1.0, dropout=0.5),
-		]),
+	ratio = 1.0
+	augm_strong_fn = RandomChoice([
+		Transform(ratio, scale=(0.9, 1.1)),
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio),
+		Occlusion(ratio, max_size=1.0),
+		Noise(ratio=ratio, snr=10.0),
+		RandomFreqDropout(ratio, dropout=0.5),
+		RandomTimeDropout(ratio, dropout=0.5),
 	])
 	# Augmentation used by MixMatch
 	ratio = 0.5
@@ -138,24 +184,32 @@ def main():
 		Transform(ratio, scale=(0.9, 1.1)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
-		Noise(ratio, snr=10.0),
-		Occlusion(ratio),
+		Occlusion(ratio, max_size=1.0),
+		Noise(ratio=ratio, snr=10.0),
+		RandomFreqDropout(ratio, dropout=0.5),
+		RandomTimeDropout(ratio, dropout=0.5),
 	])
 
 	metrics_s = {
 		"s_acc_weak": BinaryConfidenceAccuracy(hparams.confidence),
 		"s_fscore_weak": FScore(),
 	}
-	metrics_u = {"acc_u": BinaryConfidenceAccuracy(hparams.confidence)}
-	metrics_u1 = {"acc_u1": BinaryConfidenceAccuracy(hparams.confidence)}
-	metrics_r = {"acc_r": CategoricalConfidenceAccuracy(hparams.confidence)}
+	metrics_u = {
+		"u_acc_weak": BinaryConfidenceAccuracy(hparams.confidence)
+	}
+	metrics_u1 = {
+		"u1_acc_weak": BinaryConfidenceAccuracy(hparams.confidence)
+	}
+	metrics_r = {
+		"r_acc": CategoricalConfidenceAccuracy(hparams.confidence)
+	}
 	metrics_val = {
-		"acc": BinaryConfidenceAccuracy(hparams.confidence),
-		"bce": FnMetric(binary_cross_entropy),
-		"eq": EqConfidenceMetric(hparams.confidence),
-		"mean": MeanMetric(),
-		"max": MaxMetric(),
-		"fscore": FScore(),
+		"acc_weak": BinaryConfidenceAccuracy(hparams.confidence),
+		"bce_weak": FnMetric(binary_cross_entropy),
+		"eq_weak": EqConfidenceMetric(hparams.confidence),
+		"mean_weak": MeanMetric(),
+		"max_weak": MaxMetric(),
+		"fscore_weak": FScore(),
 	}
 
 	manager_s, manager_u = get_desed_managers(hparams)
@@ -164,7 +218,7 @@ def main():
 	get_batch_label = lambda item: (item[0], item[1][0])
 	dataset_val = DESEDDataset(manager_s, train=False, val=True, augments=[], cached=True, weak=True, strong=False)
 	dataset_val = FnDataset(dataset_val, get_batch_label)
-	loader_val = DataLoader(dataset_val, batch_size=hparams.batch_size, shuffle=False)
+	loader_val = DataLoader(dataset_val, batch_size=hparams.batch_size_s, shuffle=False)
 
 	# Datasets args
 	args_dataset_train_s = dict(
@@ -176,14 +230,11 @@ def main():
 
 	# Loaders args
 	args_loader_train_s = dict(
-		batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_s, drop_last=True)
+		batch_size=hparams.batch_size_s, shuffle=True, num_workers=hparams.num_workers_s, drop_last=True)
 	args_loader_train_u = dict(
-		batch_size=hparams.batch_size, shuffle=True, num_workers=hparams.num_workers_u, drop_last=True)
+		batch_size=hparams.batch_size_u, shuffle=True, num_workers=hparams.num_workers_u, drop_last=True)
 
-	if "fm" in args.run:
-		hparams_fm = default_fixmatch_hparams()
-		hparams_fm.update(hparams)
-
+	if "fm" in args.run or "fixmatch" in args.run:
 		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_weak = FnDataset(dataset_train_s_augm_weak, get_batch_label)
 
@@ -198,15 +249,50 @@ def main():
 		loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
-		train_fixmatch(
-			model_factory(), acti_fn, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, loader_val,
-			metrics_s, metrics_u, metrics_val, hparams_fm
+		model = model_factory()
+		optim = optim_factory(model)
+
+		if hparams.scheduler == "CosineLRScheduler":
+			scheduler = CosineLRScheduler(optim, nb_epochs=hparams.nb_epochs, lr0=hparams.lr)
+		else:
+			scheduler = None
+
+		hparams.train_name = "FixMatch"
+		writer = build_writer(hparams, suffix="%s_%s" % (str(hparams.scheduler), hparams.suffix))
+
+		if hparams.experimental.lower() == "v1":
+			criterion = FixMatchLossMultiHotV1.from_edict(hparams)
+		elif hparams.experimental.lower() == "v2":
+			criterion = FixMatchLossMultiHotV2.from_edict(hparams)
+		elif hparams.experimental.lower() == "v3":
+			criterion = FixMatchLossMultiHotV3.from_edict(hparams)
+		elif hparams.experimental.lower() == "v4":
+			criterion = FixMatchLossMultiHotV4.from_edict(hparams)
+		else:
+			raise RuntimeError("Unknown experimental mode %s" % str(hparams.experimental))
+
+		if hparams.experimental.lower() != "v4":
+			trainer = FixMatchTrainer(
+				model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
+				criterion, writer, hparams.mode, hparams.threshold_multihot
+			)
+		else:
+			trainer = FixMatchTrainerV4(
+				model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
+				criterion, writer, hparams.mode, hparams.threshold_multihot, hparams.nb_classes
+			)
+
+		validator = DefaultValidator(
+			model, acti_fn, loader_val, metrics_val, writer
 		)
+		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs, scheduler)
+		learner.start()
 
-	if "mm" in args.run:
-		hparams_mm = default_mixmatch_hparams()
-		hparams_mm.update(hparams)
+		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
+		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.close()
 
+	if "mm" in args.run or "mixmatch" in args.run:
 		dataset_train_s_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm = FnDataset(dataset_train_s_augm, get_batch_label)
 
@@ -218,23 +304,39 @@ def main():
 		loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm, **args_loader_train_s)
 		loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
 
-		# Train MixMatch with sqdiff for loss_u
-		hparams_mm.criterion_name_u = "sqdiff"
-		train_mixmatch(
-			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
-			metrics_s, metrics_u, metrics_val, hparams_mm
-		)
-		# Train MixMatch with crossentropy for loss_u
-		hparams_mm.criterion_name_u = "crossentropy"
-		train_mixmatch(
-			model_factory(), acti_fn, loader_train_s_augm, loader_train_u_augms, loader_val,
-			metrics_s, metrics_u, metrics_val, hparams_mm
-		)
+		if loader_train_s_augm.batch_size != loader_train_u_augms.batch_size:
+			raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
+				loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
 
-	if "rmm" in args.run:
-		hparams_rmm = default_remixmatch_hparams()
-		hparams_rmm.update(hparams)
+		model = model_factory()
+		optim = optim_factory(model)
 
+		hparams.train_name = "MixMatch"
+		writer = build_writer(hparams, suffix=hparams.criterion_name_u)
+
+		nb_rampup_steps = hparams.nb_epochs * len(loader_train_u_augms)
+
+		criterion = MixMatchLossMultiHot.from_edict(hparams)
+
+		mixer = MixMatchMixer(model, acti_fn, hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha,
+							  hparams.sharpen_threshold_multihot)
+		lambda_u_rampup = RampUp(hparams.lambda_u, nb_rampup_steps)
+
+		trainer = MixMatchTrainer(
+			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
+			criterion, writer, mixer, lambda_u_rampup
+		)
+		validator = DefaultValidator(
+			model, acti_fn, loader_val, metrics_val, writer
+		)
+		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
+		learner.start()
+
+		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
+		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.close()
+
+	if "rmm" in args.run or "remixmatch" in args.run:
 		dataset_train_s_augm_strong = DESEDDataset(augments=[augm_strong_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_strong = FnDataset(dataset_train_s_augm_strong, get_batch_label)
 
@@ -244,30 +346,77 @@ def main():
 		dataset_train_u_augm_strong = DESEDDataset(augments=[augm_strong_fn], **args_dataset_train_u_augm)
 		dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
 
-		dataset_train_u_augms_strongs = MultipleDataset([dataset_train_u_augm_strong] * hparams_rmm.nb_augms_strong)
+		dataset_train_u_augms_strongs = MultipleDataset([dataset_train_u_augm_strong] * hparams.nb_augms_strong)
 		dataset_train_u_augms_weak_strongs = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augms_strongs])
 
 		loader_train_s_augm_strong = DataLoader(dataset=dataset_train_s_augm_strong, **args_loader_train_s)
 		loader_train_u_augms_weak_strongs = DataLoader(dataset=dataset_train_u_augms_weak_strongs, **args_loader_train_u)
 
-		train_remixmatch(
-			model_factory(), acti_fn, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs, loader_val,
-			metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val, hparams_rmm
+		if loader_train_s_augm_strong.batch_size != loader_train_u_augms_weak_strongs.batch_size:
+			raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
+				loader_train_s_augm_strong.batch_size, loader_train_u_augms_weak_strongs.batch_size))
+
+		rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
+
+		model = model_factory()
+		optim = optim_factory(model)
+
+		hparams.train_name = "ReMixMatch"
+		writer = build_writer(hparams)
+
+		criterion = ReMixMatchLossMultiHot.from_edict(hparams)
+		distributions = ModelDistributions(
+			history_size=hparams.history_size, nb_classes=hparams.nb_classes, names=["labeled", "unlabeled"], mode=hparams.mode
 		)
+		mixer = ReMixMatchMixer(
+			model,
+			acti_fn,
+			distributions,
+			hparams.nb_augms_strong,
+			hparams.sharpen_temp,
+			hparams.mixup_alpha,
+			hparams.mode
+		)
+		trainer = ReMixMatchTrainer(
+			model, acti_fn, optim, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs, metrics_s, metrics_u,
+			metrics_u1, metrics_r, criterion, writer, mixer, distributions, rot_angles
+		)
+		validator = DefaultValidator(
+			model, acti_fn, loader_val, metrics_val, writer
+		)
+		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
+		learner.start()
 
-	if "sf" in args.run:
-		hparams_sf = default_supervised_hparams()
-		hparams_sf.update(hparams)
+		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
+		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.close()
 
+	if "su" in args.run or "supervised" in args.run:
 		dataset_train_s = DESEDDataset(**args_dataset_train_s)
 		dataset_train_s = FnDataset(dataset_train_s, get_batch_label)
 
 		loader_train_s = DataLoader(dataset=dataset_train_s, **args_loader_train_s)
 
-		train_supervised(
-			model_factory(), acti_fn, loader_train_s, loader_val, metrics_s, metrics_val,
-			hparams_sf, suffix="full_100"
+		model = model_factory()
+		optim = optim_factory(model)
+
+		hparams.train_name = "Supervised"
+		writer = build_writer(hparams, suffix="")
+
+		criterion = binary_cross_entropy
+
+		trainer = SupervisedTrainer(
+			model, acti_fn, optim, loader_train_s, metrics_s, criterion, writer
 		)
+		validator = DefaultValidator(
+			model, acti_fn, loader_val, metrics_val, writer
+		)
+		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
+		learner.start()
+
+		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
+		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.close()
 
 	exec_time = time() - prog_start
 	print("")
