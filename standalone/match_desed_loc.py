@@ -115,6 +115,7 @@ def main():
 	args = create_args()
 	check_args(args)
 	print("Start fixmatch_loc_desed.")
+	print("- run:", " ".join(args.run))
 	print("- from_disk:", args.from_disk)
 	print("- debug_mode:", args.debug_mode)
 	print("- experimental:", args.experimental)

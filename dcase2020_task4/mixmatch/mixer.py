@@ -52,6 +52,8 @@ class MixMatchMixer(Callable):
 				u_label_guessed = sharpen(u_label_guessed, self.sharpen_temp, dim=1)
 			elif self.mode == "multihot":
 				u_label_guessed = sharpen_multi(u_label_guessed, self.sharpen_temp, self.sharpen_threshold_multihot)
+			else:
+				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
 
 			repeated_size = [self.nb_augms] + [1] * (len(u_label_guessed.size()) - 1)
 			labels_u_guessed_repeated = u_label_guessed.repeat(repeated_size)

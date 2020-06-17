@@ -106,6 +106,8 @@ def main():
 	prog_start = time()
 
 	args = create_args()
+	print("Start match_cifar10.")
+	print("- run:", " ".join(args.run))
 
 	hparams = edict()
 	args_filtered = {k: (" ".join(v) if isinstance(v, list) else v) for k, v in args.__dict__.items()}
