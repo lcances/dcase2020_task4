@@ -321,8 +321,10 @@ def main():
 
 		criterion = MixMatchLossMultiHot.from_edict(hparams)
 
-		mixer = MixMatchMixer(model, acti_fn, hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha,
-							  hparams.sharpen_threshold_multihot)
+		mixer = MixMatchMixer(
+			model, acti_fn,
+			hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha, hparams.mode, hparams.sharpen_threshold_multihot
+		)
 		lambda_u_rampup = RampUp(hparams.lambda_u, nb_rampup_steps)
 
 		trainer = MixMatchTrainer(
@@ -378,7 +380,8 @@ def main():
 			hparams.nb_augms_strong,
 			hparams.sharpen_temp,
 			hparams.mixup_alpha,
-			hparams.mode
+			hparams.mode,
+			hparams.sharpen_threshold_multihot,
 		)
 		trainer = ReMixMatchTrainer(
 			model, acti_fn, optim, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs, metrics_s, metrics_u,

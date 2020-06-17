@@ -5,7 +5,7 @@ from typing import Callable
 
 from dcase2020_task4.remixmatch.model_distributions import ModelDistributions
 from dcase2020_task4.mixup.mixer import MixUpMixer
-from dcase2020_task4.util.utils_match import normalize, same_shuffle, sharpen, merge_first_dimension
+from dcase2020_task4.util.utils_match import normalize, same_shuffle, sharpen, merge_first_dimension, sharpen_multi
 
 
 class ReMixMatchMixer(Callable):
@@ -14,10 +14,11 @@ class ReMixMatchMixer(Callable):
 		model: Module,
 		acti_fn: Callable,
 		distributions: ModelDistributions,
-		nb_augms_strong: int,
-		sharpen_temp: float,
-		mixup_alpha: float,
+		nb_augms_strong: int = 2,
+		sharpen_temp: float = 0.5,
+		mixup_alpha: float = 0.75,
 		mode: str = "onehot",
+		sharpen_threshold_multihot: float = 0.5,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -25,53 +26,59 @@ class ReMixMatchMixer(Callable):
 		self.nb_augms_strong = nb_augms_strong
 		self.sharpen_temp = sharpen_temp
 		self.mode = mode
+		self.sharpen_threshold_multihot = sharpen_threshold_multihot
 
 		self.mixup_mixer = MixUpMixer(alpha=mixup_alpha, apply_max=True)
 
 	def __call__(
-		self, batch_s_strong: Tensor, labels_s: Tensor, batch_u_weak: Tensor, batch_u_strongs: Tensor
+		self, s_batch_strong: Tensor, s_label: Tensor, u_batch_weak: Tensor, u_batch_strongs: Tensor
 	) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor):
-		return self.mix(batch_s_strong, labels_s, batch_u_weak, batch_u_strongs)
+		return self.mix(s_batch_strong, s_label, u_batch_weak, u_batch_strongs)
 
 	def mix(
-		self, batch_s_strong: Tensor, labels_s: Tensor, batch_u_weak: Tensor, batch_u_strongs: Tensor
+		self, s_batch_strong: Tensor, s_label: Tensor, u_batch_weak: Tensor, u_batch_strongs: Tensor
 	) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor):
 		"""
-			batch_s_strong of size (bsize, feat_size, ...)
+			s_batch_strong of size (bsize, feat_size, ...)
 			s_labels_weak of size (bsize, label_size)
-			batch_u_weak of size (bsize, feat_size, ...)
-			batch_u_strongs of size (nb_augms, bsize, feat_size, ...)
+			u_batch_weak of size (bsize, feat_size, ...)
+			u_batch_strongs of size (nb_augms, bsize, feat_size, ...)
 		"""
 		with torch.no_grad():
 			# Compute guessed label
-			logits_u_weak = self.model(batch_u_weak)
-			labels_u_guessed = self.acti_fn(logits_u_weak, dim=1)
-			labels_u_guessed *= self.distributions.get_mean_pred("labeled") / self.distributions.get_mean_pred("unlabeled")
+			u_logits_weak = self.model(u_batch_weak)
+			u_label_guessed = self.acti_fn(u_logits_weak, dim=1)
+			u_label_guessed *= self.distributions.get_mean_pred("labeled") / self.distributions.get_mean_pred("unlabeled")
+
 			if self.mode == "onehot":
-				labels_u_guessed = normalize(labels_u_guessed, dim=1)
-				labels_u_guessed = sharpen(labels_u_guessed, self.sharpen_temp, dim=1)
+				u_label_guessed = normalize(u_label_guessed, dim=1)
+				u_label_guessed = sharpen(u_label_guessed, self.sharpen_temp, dim=1)
+			elif self.mode == "multihot":
+				u_label_guessed = sharpen_multi(u_label_guessed, self.sharpen_temp, self.sharpen_threshold_multihot)
+			else:
+				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
 
 			# Get strongly augmented batch "batch_u1"
-			batch_u1 = batch_u_strongs[0, :].clone()
-			labels_u1 = labels_u_guessed.clone()
+			batch_u1 = u_batch_strongs[0, :].clone()
+			labels_u1 = u_label_guessed.clone()
 
-			repeated_size = [self.nb_augms_strong] + [1] * (len(labels_u_guessed.size()) - 1)
-			labels_u_guessed_repeated = labels_u_guessed.repeat(repeated_size)
-			batch_u_strongs = merge_first_dimension(batch_u_strongs)
+			repeated_size = [self.nb_augms_strong] + [1] * (len(u_label_guessed.size()) - 1)
+			labels_u_guessed_repeated = u_label_guessed.repeat(repeated_size)
+			u_batch_strongs = merge_first_dimension(u_batch_strongs)
 
 			# Concatenate strongly and weakly augmented data from batch_u
-			batch_u_cat = torch.cat((batch_u_strongs, batch_u_weak), dim=0)
-			labels_u_cat = torch.cat((labels_u_guessed_repeated, labels_u_guessed), dim=0)
+			batch_u_cat = torch.cat((u_batch_strongs, u_batch_weak), dim=0)
+			labels_u_cat = torch.cat((labels_u_guessed_repeated, u_label_guessed), dim=0)
 
-			batch_w = torch.cat((batch_s_strong, batch_u_cat), dim=0)
-			labels_w = torch.cat((labels_s, labels_u_cat), dim=0)
+			batch_w = torch.cat((s_batch_strong, batch_u_cat), dim=0)
+			labels_w = torch.cat((s_label, labels_u_cat), dim=0)
 
 			# Shuffle batch and labels
 			batch_w, labels_w = same_shuffle([batch_w, labels_w])
 
-			len_s = len(batch_s_strong)
+			len_s = len(s_batch_strong)
 			batch_s_mixed, labels_s_mixed = self.mixup_mixer(
-				batch_s_strong, labels_s, batch_w[:len_s], labels_w[:len_s]
+				s_batch_strong, s_label, batch_w[:len_s], labels_w[:len_s]
 			)
 			batch_u_mixed, labels_u_mixed = self.mixup_mixer(
 				batch_u_cat, labels_u_cat, batch_w[len_s:], labels_w[len_s:]
