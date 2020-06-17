@@ -312,7 +312,7 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "MixMatch"
-		writer = build_writer(hparams, suffix=hparams.criterion_name_u)
+		writer = build_writer(hparams, suffix="%s_%s" % (hparams.criterion_name_u, hparams.suffix))
 
 		nb_rampup_steps = hparams.nb_epochs * len(loader_train_u_augms)
 
@@ -362,7 +362,7 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "ReMixMatch"
-		writer = build_writer(hparams)
+		writer = build_writer(hparams, suffix="%s" % hparams.suffix)
 
 		criterion = ReMixMatchLossMultiHot.from_edict(hparams)
 		distributions = ModelDistributions(
@@ -401,7 +401,7 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "Supervised"
-		writer = build_writer(hparams, suffix="")
+		writer = build_writer(hparams, suffix="%s" % hparams.suffix)
 
 		criterion = binary_cross_entropy
 
