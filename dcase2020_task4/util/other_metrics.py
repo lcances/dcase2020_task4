@@ -2,7 +2,7 @@ import torch
 
 from torch import Tensor
 from typing import Callable
-from metric_utils.metrics import CategoricalAccuracy, Metrics, Recall, Precision
+from metric_utils.metrics import CategoricalAccuracy, Metrics
 
 
 class CategoricalConfidenceAccuracy(CategoricalAccuracy):
@@ -41,7 +41,7 @@ class MaxMetric(FnMetric):
 
 class MeanMetric(FnMetric):
 	def __init__(self):
-		super().__init__(lambda y_pred, y_true: y_pred.mean(dim=1)[0])
+		super().__init__(lambda y_pred, y_true: y_pred.mean(dim=1))
 
 
 class EqConfidenceMetric(Metrics):
@@ -72,7 +72,7 @@ class BinaryConfidenceAccuracy(Metrics):
 		with torch.no_grad():
 			y_pred = (y_pred > self.confidence).float()
 			correct = (y_pred == y_true).float().sum()
-			self.value = correct / (y_true.shape[0] * y_true.shape[1])
+			self.value = correct / torch.prod(torch.as_tensor(y_true.shape))
 
 			self.accumulate_value += self.value
 			return self.accumulate_value / self.count
