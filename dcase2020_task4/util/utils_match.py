@@ -38,22 +38,27 @@ def sharpen_multi_1(distribution: Tensor, temperature: float, k: int) -> Tensor:
 
 def sharpen_multi_2(distribution: Tensor, temperature: float, threshold: float) -> Tensor:
 	original_mask = (distribution > threshold).float()
-	nb_above = original_mask.sum().item()
+	nb_above = original_mask.sum().long().item()
 
 	if nb_above == 0:
 		return distribution
 
-	distribution_expanded = distribution.expand(nb_above, *distribution.shape)
+	distribution_expanded = distribution.expand(nb_above, *distribution.shape).clone()
 	mask_nums = get_idx_max(original_mask, nb_above)
 
-	mask_nums_expanded = torch.zeros(nb_above, nb_above - 1)
+	mask_nums_expanded = torch.zeros(nb_above, nb_above - 1).long()
 	for i in range(nb_above):
 		indices = list(range(nb_above))
 		indices.remove(i)
 		mask_nums_expanded[i] = mask_nums[indices].clone()
 
-	for distribution, nums in zip(distribution_expanded, mask_nums_expanded):
-		distribution[nums] = 0.0
+	# TODO : rem
+	# inverted_mask = -original_mask + 1
+	# inverted_nums = get_idx_max(inverted_mask, len(original_mask) - nb_above)
+	# mean_below = distribution[inverted_nums].mean()
+
+	for i, (distribution, nums) in enumerate(zip(distribution_expanded, mask_nums_expanded)):
+		distribution_expanded[i][nums] = 0.0
 
 	distribution_expanded = sharpen(distribution_expanded, temperature, dim=1)
 
