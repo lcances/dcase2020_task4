@@ -11,6 +11,7 @@ def default_supervised_hparams() -> edict:
 	hparams.weight_decay = 0.0
 
 	# Other param defined for running methods
+	hparams.train_name = "Supervised"
 	hparams.nb_epochs = 100
 	hparams.begin_date = ""
 	hparams.dataset_name = ""

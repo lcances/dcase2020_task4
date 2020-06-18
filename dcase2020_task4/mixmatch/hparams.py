@@ -16,6 +16,7 @@ def default_mixmatch_hparams() -> edict:
 	hparams.weight_decay = 0.0  # In paper : 8e-4
 
 	# Other param defined for running methods
+	hparams.train_name = "MixMatch"
 	hparams.nb_epochs = 100
 	hparams.begin_date = ""
 	hparams.dataset_name = ""

@@ -69,6 +69,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
 	parser.add_argument("--mode", type=str, default="multihot")
+	parser.add_argument("--dataset_name", type=str, default="DESED")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=10)
@@ -83,7 +84,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--criterion_name_u", type=str, default="crossentropy", choices=["sqdiff", "crossentropy"],
 						help="MixMatch unsupervised loss component.")
 
-	parser.add_argument("--lr", type=float, default=1e-3,
+	parser.add_argument("--lr", type=float, default=3e-3,
 						help="Learning rate used.")
 	parser.add_argument("--weight_decay", type=float, default=0.0,
 						help="Weight decay used.")
@@ -115,20 +116,15 @@ def create_args() -> Namespace:
 						help="Suffix to Tensorboard log dir.")
 
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
-	parser.add_argument("--experimental", type=str, default="V2", choices=["V1", "V2", "V3", "V4"])
+	parser.add_argument("--experimental", type=str, default="V2", choices=["None", "V1", "V2", "V3", "V4"])
 
 	return parser.parse_args()
 
 
-def check_args(args: Namespace):
-	pass
-
-
 def main():
 	prog_start = time()
-
 	args = create_args()
-	check_args(args)
+
 	print("Start match_desed.")
 	print("- run:", " ".join(args.run))
 	print("- from_disk:", args.from_disk)
@@ -136,11 +132,12 @@ def main():
 	print("- experimental:", args.experimental)
 
 	hparams = edict()
-	args_filtered = {k: (" ".join(v) if isinstance(v, list) else v) for k, v in args.__dict__.items()}
-	hparams.update(args_filtered)
+	hparams.update({
+		k: (str(v) if v is None else (" ".join(v) if isinstance(v, list) else v))
+		for k, v in args.__dict__.items()
+	})
 	# Note : some hyperparameters are overwritten when calling the training function, change this in the future
 	hparams.begin_date = get_datetime()
-	hparams.dataset_name = "DESED"
 
 	reset_seed(hparams.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
@@ -291,8 +288,7 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs, scheduler)
 		learner.start()
 
-		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
-		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 		writer.close()
 
 	if "mm" in args.run or "mixmatch" in args.run:
@@ -317,14 +313,12 @@ def main():
 		hparams.train_name = "MixMatch"
 		writer = build_writer(hparams, suffix="%s_%s" % (hparams.criterion_name_u, hparams.suffix))
 
-		nb_rampup_steps = hparams.nb_epochs * len(loader_train_u_augms)
-
 		criterion = MixMatchLossMultiHot.from_edict(hparams)
-
 		mixer = MixMatchMixer(
 			model, acti_fn,
 			hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha, hparams.mode, hparams.sharpen_threshold_multihot
 		)
+		nb_rampup_steps = hparams.nb_epochs * len(loader_train_u_augms)
 		lambda_u_rampup = RampUp(hparams.lambda_u, nb_rampup_steps)
 
 		trainer = MixMatchTrainer(
@@ -337,8 +331,7 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
-		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 		writer.close()
 
 	if "rmm" in args.run or "remixmatch" in args.run:
@@ -393,8 +386,7 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
-		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 		writer.close()
 
 	if "su" in args.run or "supervised" in args.run:
@@ -420,8 +412,7 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
-		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 		writer.close()
 
 	exec_time = time() - prog_start

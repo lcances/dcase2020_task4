@@ -18,6 +18,7 @@ def default_remixmatch_hparams() -> edict:
 	hparams.weight_decay = 0.0  # In paper 0.02
 
 	# Other param defined for running methods
+	hparams.train_name = "ReMixMatch"
 	hparams.nb_epochs = 100
 	hparams.begin_date = ""
 	hparams.dataset_name = ""

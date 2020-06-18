@@ -53,11 +53,6 @@ class SupervisedTrainerLoc(TrainerABC):
 
 			logits_weak, logits_strong = self.model(batch)
 
-			pred_weak = self.acti_fn(logits_weak, dim=1)
-			pred_strong = self.acti_fn(logits_strong, dim=1)
-			pred_weak.detach_()
-			pred_strong.detach_()
-
 			loss_weak, loss_strong, loss = self.criterion(logits_weak, logits_strong, labels_weak, labels_strong)
 			self.optim.zero_grad()
 			loss.backward()
@@ -65,6 +60,9 @@ class SupervisedTrainerLoc(TrainerABC):
 
 			# Compute accuracies
 			with torch.no_grad():
+				pred_weak = self.acti_fn(logits_weak, dim=1)
+				pred_strong = self.acti_fn(logits_strong, dim=1)
+
 				self.metrics_values.add_value("loss", loss.item())
 				self.metrics_values.add_value("loss_weak", loss_weak.item())
 				self.metrics_values.add_value("loss_strong", loss_strong.item())

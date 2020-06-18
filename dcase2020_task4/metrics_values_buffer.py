@@ -17,6 +17,9 @@ class MetricsValuesBuffer:
 		self.values = None
 		self.start = None
 
+		if len(set(keys)) != len(keys):
+			raise RuntimeError("Duplicate found for metrics names : %s" % " ".join(keys))
+
 		self.reset()
 
 	def reset(self):

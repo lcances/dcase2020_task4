@@ -60,6 +60,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
 	parser.add_argument("--dataset", type=str, default="../dataset/CIFAR10")
 	parser.add_argument("--mode", type=str, default="onehot")
+	parser.add_argument("--dataset_name", type=str, default="CIFAR10")
 	parser.add_argument("--seed", type=int, default=1234)
 	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
@@ -110,11 +111,12 @@ def main():
 	print("- run:", " ".join(args.run))
 
 	hparams = edict()
-	args_filtered = {k: (" ".join(v) if isinstance(v, list) else v) for k, v in args.__dict__.items()}
-	hparams.update(args_filtered)
+	hparams.update({
+		k: (str(v) if v is None else (" ".join(v) if isinstance(v, list) else v))
+		for k, v in args.__dict__.items()
+	})
 	# Note : some hyperparameters are overwritten when calling the training function, change this in the future
 	hparams.begin_date = get_datetime()
-	hparams.dataset_name = "CIFAR10"
 
 	reset_seed(hparams.seed)
 
@@ -257,8 +259,7 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs, scheduler)
 		learner.start()
 
-		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
-		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 		writer.close()
 
 	if "mm" in args.run or "mixmatch" in args.run:
@@ -298,8 +299,7 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
-		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 		writer.close()
 
 	if "rmm" in args.run or "remixmatch" in args.run:
@@ -329,8 +329,10 @@ def main():
 
 		criterion = ReMixMatchLossOneHot.from_edict(hparams)
 		distributions = ModelDistributions(
-			history_size=hparams.history_size, nb_classes=hparams.nb_classes, names=["labeled", "unlabeled"],
-			mode=hparams.mode
+			history_size=hparams.history_size,
+			nb_classes=hparams.nb_classes,
+			mode=hparams.mode,
+			names=["labeled", "unlabeled"],
 		)
 		mixer = ReMixMatchMixer(
 			model,
@@ -351,8 +353,7 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
-		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 		writer.close()
 
 	if "sf" in args.run or "supervised_full" in args.run:
@@ -376,8 +377,7 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
-		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 		writer.close()
 
 	if "sp" in args.run or "supervised_part" in args.run:
@@ -401,8 +401,7 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams.items()}
-		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 		writer.close()
 
 	exec_time = time() - prog_start

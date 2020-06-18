@@ -28,7 +28,11 @@ class RampUp:
 
 
 def test():
-	rampup = RampUp(10.0, 10)
+	rampup = RampUp(1.0, 10)
 	for i in range(15):
 		print("Value:", rampup.value())
 		rampup.step()
+
+
+if __name__ == "__main__":
+	test()

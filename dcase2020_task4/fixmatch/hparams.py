@@ -16,6 +16,7 @@ def default_fixmatch_hparams() -> edict:
 	hparams.momentum = 0  # in paper : SGD hyperparameter beta = 0.9
 
 	# Other param defined for running methods
+	hparams.train_name = "FixMatch"
 	hparams.nb_epochs = 100
 	hparams.begin_date = ""
 	hparams.dataset_name = ""

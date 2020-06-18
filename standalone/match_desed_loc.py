@@ -35,7 +35,6 @@ from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.fixmatch.trainer_loc import FixMatchTrainerLoc
 
 from dcase2020_task4.learner import DefaultLearner
-from dcase2020_task4.supervised.hparams import default_supervised_hparams
 from dcase2020_task4.supervised.loss import weak_synth_loss
 from dcase2020_task4.supervised.trainer_loc import SupervisedTrainerLoc
 
@@ -49,6 +48,7 @@ from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_match import build_writer
 
 from dcase2020_task4.validator import DefaultValidatorLoc
+from dcase2020_task4.weak_baseline_rot import WeakStrongBaselineRot
 
 from metric_utils.metrics import FScore
 
@@ -64,8 +64,9 @@ def create_args() -> Namespace:
 	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
 	parser.add_argument("--mode", type=str, default="multihot")
+	parser.add_argument("--dataset_name", type=str, default="DESED")
 	parser.add_argument("--seed", type=int, default=123)
-	parser.add_argument("--model_name", type=str, default="dcase2019", choices=["dcase2019"])
+	parser.add_argument("--model_name", type=str, default="dcase2019", choices=["dcase2019", "WeakStrongBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=10)
 	parser.add_argument("--batch_size_s", type=int, default=8)
 	parser.add_argument("--batch_size_u", type=int, default=8)
@@ -102,22 +103,24 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
-	parser.add_argument("--experimental", type=optional_str, default=None, choices=["None", "V1", "V2", "V3", "V5"])
+	parser.add_argument("--experimental", type=optional_str, default=None,
+						choices=["None", "V1", "V2", "V3", "V5"],
+						help="Experimental FixMatch mode.")
+
 	parser.add_argument("--use_rampup", type=bool_fn, default=False,
 						help="Use RampUp or not for lambda_u FixMatch loss hyperparameter.")
+
+	parser.add_argument("--checkpoint_metric_name", type=str, default="fscore_weak",
+						choices=["fscore_weak", "fscore_strong", "acc_weak", "acc_strong"],
+						help="Metric used to compare and save best model during training.")
 
 	return parser.parse_args()
 
 
-def check_args(args: Namespace):
-	pass
-
-
 def main():
 	prog_start = time()
-
 	args = create_args()
-	check_args(args)
+
 	print("Start fixmatch_loc_desed.")
 	print("- run:", " ".join(args.run))
 	print("- from_disk:", args.from_disk)
@@ -125,16 +128,23 @@ def main():
 	print("- experimental:", args.experimental)
 
 	hparams = edict()
-	args_filtered = {k: (" ".join(v) if isinstance(v, list) else v) for k, v in args.__dict__.items()}
-	hparams.update(args_filtered)
+	hparams.update({
+		k: (str(v) if v is None else (" ".join(v) if isinstance(v, list) else v))
+		for k, v in args.__dict__.items()
+	})
 	# Note : some hyperparameters are overwritten when calling the training function, change this in the future
 	hparams.begin_date = get_datetime()
-	hparams.dataset_name = "DESED"
 
 	reset_seed(hparams.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
 
-	model_factory = lambda: dcase2019_model().cuda()
+	if hparams.model_name == "dcase2019":
+		model_factory = lambda: dcase2019_model().cuda()
+	elif hparams.model_name == "WeakStrongBaseline":
+		model_factory = lambda: WeakStrongBaselineRot().cuda()
+	else:
+		raise RuntimeError("Unknown model name %s" % hparams.model_name)
+
 	acti_fn = lambda batch, dim: batch.sigmoid()
 
 	def optim_factory(model: Module) -> Optimizer:
@@ -284,19 +294,15 @@ def main():
 				hparams_fm.model_name, hparams_fm.train_name, hparams_fm.suffix))
 		)
 		validator = DefaultValidatorLoc(
-			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, "fscore_weak"
+			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, hparams.checkpoint_metric_name
 		)
 		learner = DefaultLearner(hparams_fm.train_name, trainer, validator, hparams_fm.nb_epochs, scheduler)
 		learner.start()
 
-		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams_fm.items()}
-		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 		writer.close()
 
 	if "su" in args.run or "supervised" in args.run:
-		hparams_su = default_supervised_hparams()
-		hparams_su.update(hparams)
-
 		dataset_train_s = DESEDDataset(**args_dataset_train_s)
 		dataset_train_s = FnDataset(dataset_train_s, get_batch_label)
 
@@ -305,8 +311,8 @@ def main():
 		model = model_factory()
 		optim = optim_factory(model)
 
-		hparams_su.train_name = "Supervised"
-		writer = build_writer(hparams_su, suffix="%s" % suffix_loc)
+		hparams.train_name = "Supervised"
+		writer = build_writer(hparams, suffix="%s" % suffix_loc)
 
 		criterion = weak_synth_loss
 
@@ -314,17 +320,16 @@ def main():
 			model, acti_fn, optim, loader_train_s, metrics_s_weak, metrics_s_strong, criterion, writer
 		)
 		checkpoint = CheckPoint(
-			model, optim, name=osp.join(hparams_su.path_checkpoint, "%s_%s_%s.torch" % (
-				hparams_su.model_name, hparams_su.train_name, hparams_su.suffix))
+			model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (
+				hparams.model_name, hparams.train_name, hparams.suffix))
 		)
 		validator = DefaultValidatorLoc(
-			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint
+			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, hparams.checkpoint_metric_name
 		)
-		learner = DefaultLearner(hparams_su.train_name, trainer, validator, hparams_su.nb_epochs)
+		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		hparams_dict = {k: v if v is not None else str(v) for k, v in hparams_su.items()}
-		writer.add_hparams(hparam_dict=hparams_dict, metric_dict={})
+		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
 		writer.close()
 
 	exec_time = time() - prog_start
