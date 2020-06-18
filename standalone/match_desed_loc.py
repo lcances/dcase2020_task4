@@ -78,6 +78,10 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--lr", type=float, default=3e-3,
 						help="Learning rate used.")
+	parser.add_argument("--weight_decay", type=float, default=0.0,
+						help="Weight decay used.")
+	parser.add_argument("--optim_name", type=str, default="Adam", choices=["Adam"],
+						help="Optimizer used.")
 	parser.add_argument("--scheduler", "--sched", type=optional_str, default="CosineLRScheduler",
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 
