@@ -47,7 +47,7 @@ class DefaultValidator(ValidatorABC):
 
 				# Compute accuracies
 				with torch.no_grad():
-					metrics_preds_labels = [self.metrics, x_pred, x_label]
+					metrics_preds_labels = [(self.metrics, x_pred, x_label)]
 					self.metrics_values.apply_metrics(metrics_preds_labels)
 					self.metrics_values.print_metrics(epoch, i, len(self.loader))
 
