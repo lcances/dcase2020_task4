@@ -266,9 +266,9 @@ def main():
 			scheduler = None
 
 		hparams_fm.train_name = "FixMatch"
-		writer = build_writer(hparams_fm, suffix="%s_%s_%s_%s_%f_%f" % (
-			suffix_loc, str(hparams_fm.scheduler), hparams_fm.experimental, hparams_fm.suffix,
-			hparams_fm.threshold_multihot, hparams_fm.threshold_mask
+		writer = build_writer(hparams_fm, suffix="%s_%s_%s_%.2f_%.2f_%s" % (
+			suffix_loc, str(hparams_fm.scheduler), hparams_fm.experimental,
+			hparams_fm.threshold_multihot, hparams_fm.threshold_mask, hparams_fm.suffix,
 		))
 
 		if hparams_fm.experimental is None:
