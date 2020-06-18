@@ -13,8 +13,9 @@ experimental=$2
 suffix=$3
 
 partition="GPUNodes"
+tmp_file=".tmp_sbatch.sh"
 
-cat << EOT > .tmp.sbatch
+cat << EOT > $tmp_file
 #!/bin/sh
 
 #SBATCH --job-name=DESED_$run
@@ -34,4 +35,4 @@ srun singularity exec $path_torch $path_py $path_script --dataset $path_dataset 
 
 EOT
 
-sbatch .tmp.sbatch
+sbatch $tmp_file

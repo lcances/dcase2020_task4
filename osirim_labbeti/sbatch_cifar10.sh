@@ -10,8 +10,9 @@ path_dataset="/projets/samova/leocances/CIFAR10/"
 path_board="$HOME/root/tensorboard/"
 
 partition="GPUNodes"
+tmp_file=".tmp_sbatch.sh"
 
-cat << EOT > .tmp.sbatch
+cat << EOT > $tmp_file
 #!/bin/sh
 
 #SBATCH --job-name=CIFAR10
@@ -29,4 +30,4 @@ srun singularity exec $path_torch $path_py $path_script --dataset $path_dataset 
 
 EOT
 
-sbatch .tmp.sbatch
+sbatch $tmp_file
