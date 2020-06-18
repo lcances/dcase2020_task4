@@ -37,7 +37,7 @@ class MixMatchMixer(Callable):
 	def mix(self, s_batch_augm: Tensor, s_label: Tensor, u_batch_augms: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
 		"""
 			s_batch_augm of size (bsize, feat_size, ...)
-			s_labels_weak of size (bsize, label_size)
+			s_label of size (bsize, label_size)
 			u_batch_augms of size (nb_augms, bsize, feat_size, ...)
 		"""
 		with torch.no_grad():
@@ -72,3 +72,34 @@ class MixMatchMixer(Callable):
 				u_batch_augms, labels_u_guessed_repeated, w_batch[len_s:], w_label[len_s:])
 
 			return s_batch_mixed, s_label_mixed, u_batch_mixed, u_label_mixed
+
+
+def test():
+	batch = torch.as_tensor([
+		[1, 1, 1, 1],
+		[2, 2, 2, 2],
+		[3, 3, 3, 3.]
+	])
+
+	nb_augms = 2
+	batch_augms = torch.as_tensor([
+		(batch + 0.1).tolist(), (batch + 0.2).tolist()
+	])
+
+	label = torch.as_tensor([10, 20, 30])
+
+	repeated_size = [nb_augms] + [1] * (len(label.size()) - 1)
+	label_repeated = label.repeat(repeated_size)
+	batch_augms_merged = merge_first_dimension(batch_augms)
+
+	w_batch = torch.cat((batch, batch_augms_merged))
+	w_label = torch.cat((label, label_repeated))
+
+	w_batch, w_label = same_shuffle([w_batch, w_label])
+
+	print(w_batch)
+	print(w_label)
+
+
+if __name__ == "__main__":
+	test()

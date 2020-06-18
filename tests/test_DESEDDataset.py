@@ -5,14 +5,14 @@ from dcase2020.datasets import DESEDDataset
 
 def test():
 	dataset = "./dataset/DESED"
-	desed_metadata_root = osp.join(dataset, osp.join("dataset", "metadata"))
-	desed_audio_root = osp.join(dataset, osp.join("dataset", "audio"))
+	desed_metadata_root = osp.join(dataset, "dataset", "metadata")
+	desed_audio_root = osp.join(dataset, "dataset", "audio")
 
 	manager = DESEDManager(
 		desed_metadata_root, desed_audio_root,
 		from_disk=True,
 		sampling_rate=22050,
-		verbose=1
+		verbose=1,
 	)
 
 	# manager.add_subset("weak")

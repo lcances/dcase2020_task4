@@ -11,13 +11,16 @@ path_board="$HOME/root/tensorboard/"
 
 partition="GPUNodes"
 tmp_file=".tmp_sbatch.sh"
+name="CIFAR10"
+out_file="$HOME/logs/CIFAR10_%j.out"
+err_file="$HOME/logs/CIFAR10_%j.err"
 
 cat << EOT > $tmp_file
 #!/bin/sh
 
-#SBATCH --job-name=CIFAR10
-#SBATCH --output=logs/CIFAR10_%j.out
-#SBATCH --error=logs/CIFAR10_%j.err
+#SBATCH --job-name=$name
+#SBATCH --output=$out_file
+#SBATCH --error=$err_file
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=5
 #SBATCH --partition=$partition
