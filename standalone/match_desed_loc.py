@@ -280,7 +280,7 @@ def main():
 				hparams_fm.model_name, hparams_fm.train_name, hparams_fm.suffix))
 		)
 		validator = DefaultValidatorLoc(
-			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint
+			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, "fscore_weak"
 		)
 		learner = DefaultLearner(hparams_fm.train_name, trainer, validator, hparams_fm.nb_epochs, scheduler)
 		learner.start()

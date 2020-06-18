@@ -48,7 +48,7 @@ class MetricsValuesBuffer:
 
 	def store_in_writer(self, writer: SummaryWriter, prefix: str, epoch: int):
 		for metric_name, values in self.values.items():
-			writer.add_scalar("val/%s" % metric_name, np.mean(values), epoch)
+			writer.add_scalar("%s/%s" % (prefix, metric_name), np.mean(values), epoch)
 
 	def get_mean(self, name: str) -> float:
 		return float(np.mean(self.values[name]))

@@ -74,7 +74,7 @@ class DefaultValidatorLoc(ValidatorABC):
 		metrics_strong: Dict[str, Metrics],
 		writer: Optional[SummaryWriter],
 		checkpoint: Optional[CheckPoint],
-		checkpoint_metric_key: str = "fscore_weak",
+		checkpoint_metric_key: str,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -114,10 +114,10 @@ class DefaultValidatorLoc(ValidatorABC):
 					self.metrics_values.apply_metrics(metrics_preds_labels)
 					self.metrics_values.print_metrics(epoch, i, len(self.loader))
 
-					if self.checkpoint is not None:
-						self.checkpoint.step(self.metrics_values.get_mean(self.checkpoint_metric_key))
-
 			print("")
+
+			if self.checkpoint is not None:
+				self.checkpoint.step(self.metrics_values.get_mean(self.checkpoint_metric_key))
 
 			if self.writer is not None:
 				self.metrics_values.store_in_writer(self.writer, "val", epoch)

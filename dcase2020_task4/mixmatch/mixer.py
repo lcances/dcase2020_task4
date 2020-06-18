@@ -66,9 +66,9 @@ class MixMatchMixer(Callable):
 			w_batch, w_label = same_shuffle([w_batch, w_label])
 
 			len_s = len(s_batch_augm)
-			batch_s_mixed, labels_s_mixed = self.mixup_mixer(
+			s_batch_mixed, s_label_mixed = self.mixup_mixer(
 				s_batch_augm, s_label, w_batch[:len_s], w_label[:len_s])
-			batch_u_mixed, labels_u_mixed = self.mixup_mixer(
+			u_batch_mixed, u_label_mixed = self.mixup_mixer(
 				u_batch_augms, labels_u_guessed_repeated, w_batch[len_s:], w_label[len_s:])
 
-			return batch_s_mixed, labels_s_mixed, batch_u_mixed, labels_u_mixed
+			return s_batch_mixed, s_label_mixed, u_batch_mixed, u_label_mixed
