@@ -34,7 +34,7 @@ from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 from dcase2020_task4.fixmatch.trainer_v4 import FixMatchTrainerV4
 
 from dcase2020_task4.mixmatch.losses.multihot import MixMatchLossMultiHot
-from dcase2020_task4.mixmatch.mixer import MixMatchMixer
+from dcase2020_task4.mixmatch.mixers.tag_loc import MixMatchMixer
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 
 from dcase2020_task4.remixmatch.losses.multihot import ReMixMatchLossMultiHot
@@ -234,6 +234,8 @@ def main():
 	args_loader_train_u = dict(
 		batch_size=hparams.batch_size_u, shuffle=True, num_workers=hparams.num_workers_u, drop_last=True)
 
+	suffix_tag = "TAG"
+
 	if "fm" in args.run or "fixmatch" in args.run:
 		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_weak = FnDataset(dataset_train_s_augm_weak, get_batch_label)
@@ -258,7 +260,7 @@ def main():
 			scheduler = None
 
 		hparams.train_name = "FixMatch"
-		writer = build_writer(hparams, suffix="%s_%s" % (str(hparams.scheduler), hparams.suffix))
+		writer = build_writer(hparams, suffix="%s_%s_%s" % (suffix_tag, str(hparams.scheduler), hparams.suffix))
 
 		if hparams.experimental.lower() == "v1":
 			criterion = FixMatchLossMultiHotV1.from_edict(hparams)
@@ -311,7 +313,7 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "MixMatch"
-		writer = build_writer(hparams, suffix="%s_%s" % (hparams.criterion_name_u, hparams.suffix))
+		writer = build_writer(hparams, suffix="%s_%s_%s" % (suffix_tag, hparams.criterion_name_u, hparams.suffix))
 
 		criterion = MixMatchLossMultiHot.from_edict(hparams)
 		mixer = MixMatchMixer(
@@ -360,7 +362,7 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "ReMixMatch"
-		writer = build_writer(hparams, suffix="%s" % hparams.suffix)
+		writer = build_writer(hparams, suffix="%s_%s" % (suffix_tag, hparams.suffix))
 
 		criterion = ReMixMatchLossMultiHot.from_edict(hparams)
 		distributions = ModelDistributions(
@@ -399,7 +401,7 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "Supervised"
-		writer = build_writer(hparams, suffix="%s" % hparams.suffix)
+		writer = build_writer(hparams, suffix="%s_%s" % (suffix_tag, hparams.suffix))
 
 		criterion = binary_cross_entropy
 

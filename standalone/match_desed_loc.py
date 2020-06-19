@@ -235,9 +235,6 @@ def main():
 	suffix_loc = "LOC"
 
 	if "fm" in args.run or "fixmatch" in args.run:
-		hparams_fm = default_fixmatch_hparams()
-		hparams_fm.update(hparams)
-
 		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_weak = FnDataset(dataset_train_s_augm_weak, get_batch_label)
 
@@ -255,48 +252,48 @@ def main():
 		model = model_factory()
 		optim = optim_factory(model)
 
-		if hparams_fm.use_rampup:
+		if hparams.use_rampup:
 			rampup = RampUp(hparams.lambda_u, hparams.nb_epochs * len(loader_train_u_augms_weak_strong))
 		else:
 			rampup = None
 
-		if hparams_fm.scheduler == "CosineLRScheduler":
-			scheduler = CosineLRScheduler(optim, nb_epochs=hparams_fm.nb_epochs, lr0=hparams_fm.lr)
+		if hparams.scheduler == "CosineLRScheduler":
+			scheduler = CosineLRScheduler(optim, nb_epochs=hparams.nb_epochs, lr0=hparams.lr)
 		else:
 			scheduler = None
 
-		hparams_fm.train_name = "FixMatch"
-		writer = build_writer(hparams_fm, suffix="%s_%s_%s_%.2f_%.2f_%s" % (
-			suffix_loc, str(hparams_fm.scheduler), hparams_fm.experimental,
-			hparams_fm.threshold_multihot, hparams_fm.threshold_mask, hparams_fm.suffix,
+		hparams.train_name = "FixMatch"
+		writer = build_writer(hparams, suffix="%s_%s_%s_%.2f_%.2f_%s" % (
+			suffix_loc, str(hparams.scheduler), hparams.experimental,
+			hparams.threshold_multihot, hparams.threshold_mask, hparams.suffix,
 		))
 
-		if hparams_fm.experimental is None:
-			criterion = FixMatchLossMultiHotLoc.from_edict(hparams_fm)
-		elif hparams_fm.experimental.lower() == "v1":
-			criterion = FixMatchLossMultiHotLocV1.from_edict(hparams_fm)
-		elif hparams_fm.experimental.lower() == "v2":
-			criterion = FixMatchLossMultiHotLocV2.from_edict(hparams_fm)
-		elif hparams_fm.experimental.lower() == "v3":
-			criterion = FixMatchLossMultiHotLocV3.from_edict(hparams_fm)
-		elif hparams_fm.experimental.lower() == "v5":
-			criterion = FixMatchLossMultiHotLocV5.from_edict(hparams_fm)
+		if hparams.experimental is None:
+			criterion = FixMatchLossMultiHotLoc.from_edict(hparams)
+		elif hparams.experimental.lower() == "v1":
+			criterion = FixMatchLossMultiHotLocV1.from_edict(hparams)
+		elif hparams.experimental.lower() == "v2":
+			criterion = FixMatchLossMultiHotLocV2.from_edict(hparams)
+		elif hparams.experimental.lower() == "v3":
+			criterion = FixMatchLossMultiHotLocV3.from_edict(hparams)
+		elif hparams.experimental.lower() == "v5":
+			criterion = FixMatchLossMultiHotLocV5.from_edict(hparams)
 		else:
-			raise RuntimeError("Unknown experimental mode %s" % str(hparams_fm.experimental))
+			raise RuntimeError("Unknown experimental mode %s" % str(hparams.experimental))
 
 		trainer = FixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong,
 			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
-			criterion, writer, rampup, hparams_fm.threshold_multihot
+			criterion, writer, rampup, hparams.threshold_multihot
 		)
 		checkpoint = CheckPoint(
-			model, optim, name=osp.join(hparams_fm.path_checkpoint, "%s_%s_%s.torch" % (
-				hparams_fm.model_name, hparams_fm.train_name, hparams_fm.suffix))
+			model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (
+				hparams.model_name, hparams.train_name, hparams.suffix))
 		)
 		validator = DefaultValidatorLoc(
 			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, hparams.checkpoint_metric_name
 		)
-		learner = DefaultLearner(hparams_fm.train_name, trainer, validator, hparams_fm.nb_epochs, scheduler)
+		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs, scheduler)
 		learner.start()
 
 		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})

@@ -1,7 +1,5 @@
 #!/bin/sh
 
-# export PYTHONPATH="$HOME/dcase2020_root/:$PYTHONPATH"
-
 path_torch="/logiciels/containerCollections/CUDA10/pytorch.sif"
 path_py="$HOME/miniconda3/envs/dcase2020/bin/python"
 
@@ -9,7 +7,6 @@ path_script="$HOME/root/task4/standalone/match_cifar10.py"
 path_dataset="/projets/samova/leocances/CIFAR10/"
 path_board="$HOME/root/tensorboard/"
 
-partition="GPUNodes"
 tmp_file=".tmp_sbatch.sh"
 name="CIFAR10"
 out_file="$HOME/logs/CIFAR10_%j.out"
@@ -23,7 +20,8 @@ cat << EOT > $tmp_file
 #SBATCH --error=$err_file
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=5
-#SBATCH --partition=$partition
+# For GPU nodes
+#SBATCH --partition="GPUNodes"
 #SBATCH --gres=gpu:1
 #SBATCH --gres-flags=enforce-binding
 

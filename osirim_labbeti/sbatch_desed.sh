@@ -1,5 +1,9 @@
 #!/bin/sh
 
+run=$1
+experimental=$2
+suffix=$3
+
 path_torch="/logiciels/containerCollections/CUDA10/pytorch.sif"
 path_py="$HOME/miniconda3/envs/dcase2020/bin/python"
 
@@ -7,11 +11,6 @@ path_script="$HOME/root/task4/standalone/match_desed.py"
 path_dataset="/projets/samova/leocances/dcase2020/DESED/"
 path_board="$HOME/root/tensorboard/"
 
-run=$1
-experimental=$2
-suffix=$3
-
-partition="GPUNodes"
 tmp_file=".tmp_sbatch.sh"
 name="TAG_$run"
 out_file="$HOME/logs/DESED_%j.out"
@@ -25,11 +24,10 @@ cat << EOT > $tmp_file
 #SBATCH --error=$err_file
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=5
-#SBATCH --partition=$partition
+# For GPU nodes
+#SBATCH --partition="GPUNodes"
 #SBATCH --gres=gpu:1
 #SBATCH --gres-flags=enforce-binding
-
-# export PYTHONPATH="$HOME/dcase2020_root/:$PYTHONPATH"
 
 module purge
 module load singularity/3.0.3

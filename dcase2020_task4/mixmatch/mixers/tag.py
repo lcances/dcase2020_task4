@@ -4,7 +4,7 @@ from torch import Tensor
 from torch.nn import Module
 from typing import Callable
 
-from dcase2020_task4.mixup.mixer import MixUpMixer
+from dcase2020_task4.mixup.mixers.monolabel import MixUpMixer
 from dcase2020_task4.util.utils_match import same_shuffle, sharpen, merge_first_dimension, sharpen_multi
 
 
@@ -37,7 +37,7 @@ class MixMatchMixer(Callable):
 	def mix(self, s_batch_augm: Tensor, s_label: Tensor, u_batch_augms: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
 		"""
 			s_batch_augm of size (bsize, feat_size, ...)
-			s_label of size (bsize, label_size)
+			s_label_weak of size (bsize, label_size)
 			u_batch_augms of size (nb_augms, bsize, feat_size, ...)
 		"""
 		with torch.no_grad():

@@ -4,7 +4,7 @@ from torch.nn import Module
 from typing import Callable
 
 from dcase2020_task4.remixmatch.model_distributions import ModelDistributions
-from dcase2020_task4.mixup.mixer import MixUpMixer
+from dcase2020_task4.mixup.mixers.monolabel import MixUpMixer
 from dcase2020_task4.util.utils_match import normalize, same_shuffle, sharpen, merge_first_dimension, sharpen_multi
 
 

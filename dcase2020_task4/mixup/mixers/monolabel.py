@@ -36,3 +36,6 @@ class MixUpMixer:
 			labels_mixed = labels_1 * lambda_ + labels_2 * (1.0 - lambda_)
 
 			return batch_mixed, labels_mixed
+
+
+MixUpMixerMonoLabel = MixUpMixer

@@ -26,7 +26,7 @@ from dcase2020_task4.fixmatch.losses.onehot import FixMatchLossOneHot
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 
 from dcase2020_task4.mixmatch.losses.onehot import MixMatchLossOneHot
-from dcase2020_task4.mixmatch.mixer import MixMatchMixer
+from dcase2020_task4.mixmatch.mixers.tag_loc import MixMatchMixer
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 
 from dcase2020_task4.remixmatch.losses.onehot import ReMixMatchLossOneHot
