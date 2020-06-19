@@ -47,7 +47,7 @@ def sharpen_multi_2(distribution: Tensor, temperature: float, threshold: float) 
 	distribution_expanded = distribution.expand(nb_above, *distribution.shape).clone()
 	mask_nums = get_idx_max(original_mask, nb_above)
 
-	mask_nums_expanded = torch.zeros(nb_above, nb_above - 1).long()
+	mask_nums_expanded = torch.zeros(*distribution.shape[:-1], nb_above, nb_above - 1).long()
 	for i in range(nb_above):
 		indices = list(range(nb_above))
 		indices.remove(i)
@@ -69,10 +69,21 @@ def sharpen_multi_2(distribution: Tensor, temperature: float, threshold: float) 
 	return result
 
 
-def sharpen_multi(batch: Tensor, temperature: float, threshold: float) -> Tensor:
+def sharpen_multi(batch: Tensor, temperature: float, threshold: float, dim: int) -> Tensor:
 	result = batch.clone()
-	for i, distribution in enumerate(batch):
-		result[i] = sharpen_multi_2(distribution, temperature, threshold)
+
+	if dim == 0:
+		return sharpen_multi_2(batch, temperature, threshold)
+	elif dim == 1:
+		for i, distribution in enumerate(batch):
+			result[i] = sharpen_multi_2(distribution, temperature, threshold)
+	elif dim == 2:
+		for i, distribution_i in enumerate(batch):
+			for j, distribution_j in enumerate(distribution_i):
+				result[i, j] = sharpen_multi_2(distribution_j, temperature, threshold)
+	else:
+		raise RuntimeError("Invalid dim %d. (only 0, 1 or 2)" % dim)
+
 	return result
 
 
