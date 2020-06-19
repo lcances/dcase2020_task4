@@ -28,8 +28,8 @@ class FnMetric(Metrics):
 		super().__call__(pred, labels)
 
 		with torch.no_grad():
-			self.value = self.fn(pred, labels).mean()
-			self.accumulate_value += self.value
+			self.value_ = self.fn(pred, labels).mean()
+			self.accumulate_value += self.value_
 
 			return self.accumulate_value / self.count
 
@@ -56,8 +56,8 @@ class EqConfidenceMetric(Metrics):
 			y_pred = (pred > self.confidence).float()
 			y_true = (labels > self.confidence).float()
 
-			self.value = (y_pred == y_true).all(dim=1).float().mean()
-			self.accumulate_value += self.value
+			self.value_ = (y_pred == y_true).all(dim=1).float().mean()
+			self.accumulate_value += self.value_
 			return self.accumulate_value / self.count
 
 
@@ -72,7 +72,7 @@ class BinaryConfidenceAccuracy(Metrics):
 		with torch.no_grad():
 			y_pred = (y_pred > self.confidence).float()
 			correct = (y_pred == y_true).float().sum()
-			self.value = correct / torch.prod(torch.as_tensor(y_true.shape))
+			self.value_ = correct / torch.prod(torch.as_tensor(y_true.shape))
 
-			self.accumulate_value += self.value
+			self.accumulate_value += self.value_
 			return self.accumulate_value / self.count
