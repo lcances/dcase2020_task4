@@ -81,11 +81,11 @@ class MixMatchTrainer(SSTrainerABC):
 			loss.backward()
 			self.optim.step()
 
+			# Compute metrics
 			with torch.no_grad():
 				self.criterion.lambda_u = self.lambda_u_rampup.value()
 				self.lambda_u_rampup.step()
 
-				# Compute metrics
 				self.metrics_values.add_value("loss", loss.item())
 				self.metrics_values.add_value("loss_s", loss_s.item())
 				self.metrics_values.add_value("loss_u", loss_u.item())

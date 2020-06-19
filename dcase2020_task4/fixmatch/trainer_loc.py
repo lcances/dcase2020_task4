@@ -102,6 +102,7 @@ class FixMatchTrainerLoc(SSTrainerABC):
 			loss.backward()
 			self.optim.step()
 
+			# Compute metrics
 			with torch.no_grad():
 				if self.rampup is not None:
 					self.criterion.lambda_u = self.rampup.value()

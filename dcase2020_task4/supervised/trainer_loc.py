@@ -58,7 +58,7 @@ class SupervisedTrainerLoc(TrainerABC):
 			loss.backward()
 			self.optim.step()
 
-			# Compute accuracies
+			# Compute metrics
 			with torch.no_grad():
 				pred_weak = self.acti_fn(logits_weak, dim=1)
 				pred_strong = self.acti_fn(logits_strong, dim=1)

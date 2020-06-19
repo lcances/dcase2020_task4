@@ -58,7 +58,7 @@ class SupervisedTrainer(TrainerABC):
 			loss.backward()
 			self.optim.step()
 
-			# Compute accuracies
+			# Compute metrics
 			with torch.no_grad():
 				self.metrics_values.add_value("loss", loss.item())
 

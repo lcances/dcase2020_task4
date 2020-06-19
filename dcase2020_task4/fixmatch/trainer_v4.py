@@ -104,6 +104,7 @@ class FixMatchTrainerV4(SSTrainerABC):
 			loss.backward()
 			self.optim.step()
 
+			# Compute metrics
 			with torch.no_grad():
 				self.metrics_values.add_value("loss", loss.item())
 				self.metrics_values.add_value("loss_s", loss_s.item())

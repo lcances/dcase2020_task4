@@ -54,6 +54,7 @@ class DefaultValidatorLoc(ValidatorABC):
 				pred_weak = self.acti_fn(logits_weak, dim=1)
 				pred_strong = self.acti_fn(logits_strong, dim=1)
 
+				# Compute metrics
 				with torch.no_grad():
 					metrics_preds_labels = [
 						(self.metrics_weak, pred_weak, labels_weak),

@@ -100,6 +100,8 @@ def create_args() -> Namespace:
 						help="FixMatch threshold used to replace argmax() in multihot mode.")
 	parser.add_argument("--threshold_mask", type=float, default=0.5,
 						help="FixMatch threshold for compute mask in loss.")
+	parser.add_argument("--sharpen_threshold_multihot", type=float, default=0.5,
+						help="MixMatch threshold for multihot sharpening.")
 
 	parser.add_argument("--sharpen_temp", type=float, default=0.5,
 						help="MixMatch and ReMixMatch hyperparameter \"temperature\" used by sharpening.")

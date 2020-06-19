@@ -29,9 +29,10 @@ class DefaultValidator(ValidatorABC):
 
 	def val(self, epoch: int):
 		with torch.no_grad():
-			self.model.eval()
 			self.reset_metrics()
 			self.metrics_values.reset()
+
+			self.model.eval()
 
 			iter_val = iter(self.loader)
 
@@ -42,9 +43,11 @@ class DefaultValidator(ValidatorABC):
 				x_logits = self.model(x_batch)
 				x_pred = self.acti_fn(x_logits, dim=1)
 
-				# Compute accuracies
+				# Compute metrics
 				with torch.no_grad():
-					metrics_preds_labels = [(self.metrics, x_pred, x_label)]
+					metrics_preds_labels = [
+						(self.metrics, x_pred, x_label)
+					]
 					self.metrics_values.apply_metrics(metrics_preds_labels)
 					self.metrics_values.print_metrics(epoch, i, len(self.loader))
 
