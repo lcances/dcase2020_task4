@@ -332,7 +332,7 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "MixMatch"
-		writer = build_writer(hparams, suffix="%s_%s_%s" % (suffix_loc, hparams.criterion_name_u, hparams.suffix))
+		writer = build_writer(hparams, suffix="%s_%s" % (suffix_loc, hparams.suffix))
 
 		criterion = MixMatchLossMultiHotLoc.from_edict(hparams)
 		mixer = MixMatchMixerMultiHotLoc(
