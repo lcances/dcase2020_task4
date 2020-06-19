@@ -1,7 +1,5 @@
-import numpy as np
 import torch
 
-from time import time
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader

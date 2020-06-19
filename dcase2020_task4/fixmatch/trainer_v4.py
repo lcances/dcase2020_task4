@@ -1,7 +1,5 @@
-import numpy as np
 import torch
 
-from time import time
 from torch.nn import Module
 from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
@@ -12,7 +10,7 @@ from typing import Callable, Dict, Optional
 from metric_utils.metrics import Metrics
 
 from dcase2020_task4.util.zip_cycle import ZipCycle
-from dcase2020_task4.util.utils_match import binarize_onehot_labels, get_lr
+from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.trainer_abc import SSTrainerABC
 from dcase2020_task4.metrics_values_buffer import MetricsValuesBuffer
 

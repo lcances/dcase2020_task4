@@ -35,7 +35,7 @@ class MixUpMixerMultiLabel:
 				raise RuntimeError("Batches and labels must have the same size for MixUp.")
 			for label_1, label_2 in zip(labels_1, labels_2):
 				if label_1.size() != label_2.size():
-					raise RuntimeError("Batches and labels must have the same size for MixUp.")
+					raise RuntimeError("Labels must have the same size for MixUp.")
 
 			lambda_ = np.random.beta(self.alpha, self.alpha)
 			if self.apply_max:

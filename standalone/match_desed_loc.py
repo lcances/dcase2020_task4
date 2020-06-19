@@ -25,14 +25,17 @@ from dcase2020.datasets import DESEDDataset
 
 from dcase2020_task4.dcase2019.models import dcase2019_model
 
-from dcase2020_task4.fixmatch.hparams import default_fixmatch_hparams
-from dcase2020_task4.fixmatch.losses.tag_loc.multihot_loc import FixMatchLossMultiHotLoc
+from dcase2020_task4.fixmatch.losses.tag_loc.default import FixMatchLossMultiHotLoc
 from dcase2020_task4.fixmatch.losses.tag_loc.v1 import FixMatchLossMultiHotLocV1
 from dcase2020_task4.fixmatch.losses.tag_loc.v2 import FixMatchLossMultiHotLocV2
 from dcase2020_task4.fixmatch.losses.tag_loc.v3 import FixMatchLossMultiHotLocV3
 from dcase2020_task4.fixmatch.losses.tag_loc.v5 import FixMatchLossMultiHotLocV5
 from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.fixmatch.trainer_loc import FixMatchTrainerLoc
+
+from dcase2020_task4.mixmatch.losses.tag_loc import MixMatchLossMultiHotLoc
+from dcase2020_task4.mixmatch.mixers.tag_loc import MixMatchMixerMultiHotLoc
+from dcase2020_task4.mixmatch.trainer_loc import MixMatchTrainerLoc
 
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.supervised.loss import weak_synth_loss
@@ -208,6 +211,16 @@ def main():
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
+	ratio = 0.5
+	augm_fn = RandomChoice([
+		Transform(ratio, scale=(0.9, 1.1)),
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio),
+		Occlusion(ratio, max_size=1.0),
+		Noise(ratio=ratio, snr=10.0),
+		RandomFreqDropout(ratio, dropout=0.5),
+		RandomTimeDropout(ratio, dropout=0.5),
+	])
 
 	manager_s, manager_u = get_desed_managers(hparams)
 
@@ -294,6 +307,54 @@ def main():
 			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, hparams.checkpoint_metric_name
 		)
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs, scheduler)
+		learner.start()
+
+		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+		writer.close()
+
+	if "mm" in args.run or "mixmatch" in args.run:
+		dataset_train_s_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_s_augm)
+		dataset_train_s_augm = FnDataset(dataset_train_s_augm, get_batch_label)
+
+		dataset_train_u_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_u_augm)
+		dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm)
+
+		dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * hparams.nb_augms)
+
+		loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm, **args_loader_train_s)
+		loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
+
+		if loader_train_s_augm.batch_size != loader_train_u_augms.batch_size:
+			raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
+				loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
+
+		model = model_factory()
+		optim = optim_factory(model)
+
+		hparams.train_name = "MixMatch"
+		writer = build_writer(hparams, suffix="%s_%s_%s" % (suffix_loc, hparams.criterion_name_u, hparams.suffix))
+
+		criterion = MixMatchLossMultiHotLoc.from_edict(hparams)
+		mixer = MixMatchMixerMultiHotLoc(
+			model, acti_fn,
+			hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha, hparams.sharpen_threshold_multihot
+		)
+		nb_rampup_steps = hparams.nb_epochs * len(loader_train_u_augms)
+		lambda_u_rampup = RampUp(hparams.lambda_u, nb_rampup_steps)
+
+		trainer = MixMatchTrainerLoc(
+			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms,
+			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
+			criterion, writer, mixer, lambda_u_rampup
+		)
+		checkpoint = CheckPoint(
+			model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (
+				hparams.model_name, hparams.train_name, hparams.suffix))
+		)
+		validator = DefaultValidatorLoc(
+			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, hparams.checkpoint_metric_name
+		)
+		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
 		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
