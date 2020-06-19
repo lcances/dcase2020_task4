@@ -15,10 +15,11 @@ def sharpen(batch: Tensor, temperature: float, dim: int) -> Tensor:
 	return normalize(batch, dim=dim)
 
 
-def sharpen_multi_1(distribution: Tensor, temperature: float, k: int) -> Tensor:
+def sharpen_multi_1(distribution: Tensor, temperature: float, threshold: float) -> Tensor:
 	""" Experimental multi-hot sharpening. Currently unused. """
+	k = (distribution > threshold).long().sum().item()
 	if k < 1:
-		raise RuntimeError("Invalid argument k")
+		return distribution
 
 	sorted_, idx = distribution.sort(descending=True)
 	preds, others = sorted_[:k], sorted_[k:]

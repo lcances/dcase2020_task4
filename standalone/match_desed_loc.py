@@ -50,7 +50,7 @@ from dcase2020_task4.util.rampup import RampUp
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_match import build_writer
 
-from dcase2020_task4.validator import DefaultValidatorLoc
+from dcase2020_task4.validator_loc import DefaultValidatorLoc
 from dcase2020_task4.weak_baseline_rot import WeakStrongBaselineRot
 
 from metric_utils.metrics import FScore
@@ -100,6 +100,11 @@ def create_args() -> Namespace:
 						help="FixMatch threshold used to replace argmax() in multihot mode.")
 	parser.add_argument("--threshold_mask", type=float, default=0.5,
 						help="FixMatch threshold for compute mask in loss.")
+
+	parser.add_argument("--sharpen_temp", type=float, default=0.5,
+						help="MixMatch and ReMixMatch hyperparameter \"temperature\" used by sharpening.")
+	parser.add_argument("--mixup_alpha", type=float, default=0.75,
+						help="MixMatch and ReMixMatch hyperparameter \"alpha\" used by MixUp.")
 
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
