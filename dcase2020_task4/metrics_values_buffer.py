@@ -34,7 +34,7 @@ class MetricsValuesBuffer:
 			for metrics, pred, label in metrics_preds_labels:
 				for metric_name, metric in metrics.items():
 					_mean = metric(pred, label)
-					self.add_value(metric_name, metric.value.item())
+					self.add_value(metric_name, metric.value_.item())
 
 	def print_metrics(self, epoch: int, i: int, len_: int):
 		prints_buffer = [
