@@ -76,7 +76,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.5)
 	parser.add_argument("--from_disk", type=bool_fn, default=True,
-						help="Select False if you want ot load all data into RAM. It will be faster but consume a lot of RAM.")
+						help="Select False if you want ot load all data into RAM. "
+							 "It will be faster but consume a lot of RAM.")
 	parser.add_argument("--num_workers_s", type=int, default=1)
 	parser.add_argument("--num_workers_u", type=int, default=1)
 
@@ -123,6 +124,9 @@ def create_args() -> Namespace:
 	parser.add_argument("--checkpoint_metric_name", type=str, default="fscore_weak",
 						choices=["fscore_weak", "fscore_strong", "acc_weak", "acc_strong"],
 						help="Metric used to compare and save best model during training.")
+
+	parser.add_argument("--write_results", type=bool_fn, default=True,
+						help="Write results in a tensorboard SummaryWriter.")
 
 	return parser.parse_args()
 
@@ -283,10 +287,13 @@ def main():
 			scheduler = None
 
 		hparams.train_name = "FixMatch"
-		writer = build_writer(hparams, suffix="%s_%s_%s_%.2f_%.2f_%s" % (
-			suffix_loc, str(hparams.scheduler), hparams.experimental,
-			hparams.threshold_multihot, hparams.threshold_mask, hparams.suffix,
-		))
+		if hparams.write_results:
+			writer = build_writer(hparams, suffix="%s_%s_%s_%.2f_%.2f_%s" % (
+				suffix_loc, str(hparams.scheduler), hparams.experimental,
+				hparams.threshold_multihot, hparams.threshold_mask, hparams.suffix,
+			))
+		else:
+			writer = None
 
 		if hparams.experimental is None:
 			criterion = FixMatchLossMultiHotLoc.from_edict(hparams)
@@ -316,8 +323,9 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs, scheduler)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
-		writer.close()
+		if writer is not None:
+			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.close()
 
 	if "mm" in args.run or "mixmatch" in args.run:
 		dataset_train_s_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_s_augm)
@@ -339,7 +347,10 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "MixMatch"
-		writer = build_writer(hparams, suffix="%s_%s" % (suffix_loc, hparams.suffix))
+		if hparams.write_results:
+			writer = build_writer(hparams, suffix="%s_%s" % (suffix_loc, hparams.suffix))
+		else:
+			writer = None
 
 		criterion = MixMatchLossMultiHotLoc.from_edict(hparams)
 		mixer = MixMatchMixerMultiHotLoc(
@@ -364,8 +375,9 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
-		writer.close()
+		if writer is not None:
+			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.close()
 
 	if "su" in args.run or "supervised" in args.run:
 		dataset_train_s = DESEDDataset(**args_dataset_train_s)
@@ -377,7 +389,11 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "Supervised"
-		writer = build_writer(hparams, suffix="%s" % suffix_loc)
+
+		if hparams.write_results:
+			writer = build_writer(hparams, suffix="%s" % suffix_loc)
+		else:
+			writer = None
 
 		criterion = weak_synth_loss
 
@@ -394,8 +410,9 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
-		writer.close()
+		if writer is not None:
+			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.close()
 
 	exec_time = time() - prog_start
 	print("")

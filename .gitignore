@@ -8,6 +8,7 @@ tensorboard/
 __pycache__
 *.egg-info
 results/
+models
 
 *.pyc
 notes.txt
