@@ -9,11 +9,13 @@ from typing import Callable, Dict, Optional
 from metric_utils.metrics import Metrics
 
 from dcase2020_task4.fixmatch.losses.abc import FixMatchLossMultiHotLocABC
+from dcase2020_task4.trainer_abc import SSTrainerABC
+from dcase2020_task4.metrics_values_buffer import MetricsValuesBuffer
+
+from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.util.rampup import RampUp
 from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.util.zip_cycle import ZipCycle
-from dcase2020_task4.trainer_abc import SSTrainerABC
-from dcase2020_task4.metrics_values_buffer import MetricsValuesBuffer
 
 
 class FixMatchTrainerLoc(SSTrainerABC):
@@ -32,6 +34,7 @@ class FixMatchTrainerLoc(SSTrainerABC):
 		writer: Optional[SummaryWriter],
 		rampup: Optional[RampUp],
 		threshold_multihot: float,
+		distributions: Optional[AvgDistributions],
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -46,6 +49,7 @@ class FixMatchTrainerLoc(SSTrainerABC):
 		self.writer = writer
 		self.rampup = rampup
 		self.threshold_multihot = threshold_multihot
+		self.distributions = distributions
 
 		self.metrics_values = MetricsValuesBuffer(
 			list(self.metrics_s_weak.keys()) +
@@ -86,6 +90,14 @@ class FixMatchTrainerLoc(SSTrainerABC):
 				u_logits_weak_augm_weak, u_logits_strong_augm_weak = self.model(u_batch_augm_weak)
 				u_pred_weak_augm_weak = self.acti_fn(u_logits_weak_augm_weak, dim=1)
 				u_pred_strong_augm_weak = self.acti_fn(u_logits_strong_augm_weak, dim=(1, 2))
+
+				if self.distributions is not None:
+					self.distributions.add_batch_pred(s_labels_weak, "labeled")
+					self.distributions.add_batch_pred(u_pred_weak_augm_weak, "unlabeled")
+
+					coef_weak = self.distributions.get_avg_pred("labeled") / self.distributions.get_avg_pred("unlabeled")
+					s_pred_weak_augm_weak *= coef_weak
+					u_pred_weak_augm_weak *= coef_weak
 
 				# Use guess u label with prediction of weak augmentation of u
 				u_labels_weak_guessed = (u_pred_weak_augm_weak > self.threshold_multihot).float()

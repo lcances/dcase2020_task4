@@ -20,7 +20,7 @@ def test_2():
 	])
 	print("Distribution:", distribution)
 
-	result = sharpen_multi(distribution, 0.5, 0.5, dim=1)
+	result = sharpen_multi(distribution, 0.5, 0.5)
 	print("Result:", result)
 
 

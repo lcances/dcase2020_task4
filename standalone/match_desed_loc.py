@@ -304,7 +304,7 @@ def main():
 		trainer = FixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong,
 			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
-			criterion, writer, rampup, hparams.threshold_multihot
+			criterion, writer, rampup, hparams.threshold_multihot, None
 		)
 		checkpoint = CheckPoint(
 			model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (

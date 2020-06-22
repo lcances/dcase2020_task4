@@ -39,7 +39,7 @@ from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 
 from dcase2020_task4.remixmatch.losses.multihot import ReMixMatchLossMultiHot
 from dcase2020_task4.remixmatch.mixer import ReMixMatchMixer
-from dcase2020_task4.remixmatch.model_distributions import ModelDistributions
+from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
@@ -365,7 +365,7 @@ def main():
 		writer = build_writer(hparams, suffix="%s_%s" % (suffix_tag, hparams.suffix))
 
 		criterion = ReMixMatchLossMultiHot.from_edict(hparams)
-		distributions = ModelDistributions(
+		distributions = AvgDistributions(
 			history_size=hparams.history_size, nb_classes=hparams.nb_classes, names=["labeled", "unlabeled"], mode=hparams.mode
 		)
 		mixer = ReMixMatchMixer(

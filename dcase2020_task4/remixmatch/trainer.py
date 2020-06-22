@@ -12,7 +12,7 @@ from typing import Callable, Dict, Optional
 from augmentation_utils.img_augmentations import Transform
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.remixmatch.model_distributions import ModelDistributions
+from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.trainer_abc import SSTrainerABC
 from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.utils_match import get_lr
@@ -34,7 +34,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		criterion: Callable,
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
-		distributions: ModelDistributions,
+		distributions: AvgDistributions,
 		rot_angles: np.array,
 	):
 		"""

@@ -1,20 +1,20 @@
 import torch
 from torch import Tensor
-from typing import Optional, List
+from typing import List
 
 
-class ModelDistributions:
+class AvgDistributions:
 	"""
 		Compute mean output distributions of a model.
 	"""
 
 	def __init__(
-		self, history_size: int, nb_classes: int, mode: str, names: List[str]
+		self, history_size: int, shape: List[int], mode: str, names: List[str]
 	):
 		if mode == "onehot":
-			distributions_priori = ModelDistributions.uniform_distribution_onehot(history_size, nb_classes)
+			distributions_priori = AvgDistributions.uniform_distribution_onehot(history_size, shape)
 		elif mode == "multihot":
-			distributions_priori = ModelDistributions.uniform_distribution_multihot(history_size, nb_classes)
+			distributions_priori = AvgDistributions.uniform_distribution_multihot(history_size, shape)
 		else:
 			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
 
@@ -25,10 +25,10 @@ class ModelDistributions:
 		self.reset()
 
 	@staticmethod
-	def from_edict(hparams) -> 'ModelDistributions':
-		return ModelDistributions(
+	def from_edict(hparams) -> 'AvgDistributions':
+		return AvgDistributions(
 			history_size=hparams.history_size,
-			nb_classes=hparams.nb_classes,
+			shape=[hparams.nb_classes],
 			mode=hparams.mode,
 			names=["labeled", "unlabeled"],
 		)
@@ -50,14 +50,14 @@ class ModelDistributions:
 			index = (index + 1) % len(distributions)
 			self.data[name][1] = index
 
-	def get_mean_pred(self, name: str) -> Tensor:
+	def get_avg_pred(self, name: str) -> Tensor:
 		distributions, _ = self.data[name]
 		return torch.mean(distributions, dim=0)
 
 	@staticmethod
-	def uniform_distribution_onehot(history_size: int, nb_classes: int) -> Tensor:
-		return torch.ones(history_size, nb_classes).cuda() / nb_classes
+	def uniform_distribution_onehot(history_size: int, shape: List[int]) -> Tensor:
+		return torch.ones([history_size] + shape).cuda() / shape[-1]
 
 	@staticmethod
-	def uniform_distribution_multihot(history_size: int, nb_classes: int) -> Tensor:
-		return torch.ones(history_size, nb_classes).cuda() * 0.5
+	def uniform_distribution_multihot(history_size: int, shape: List[int]) -> Tensor:
+		return torch.ones([history_size] + shape).cuda() * 0.5

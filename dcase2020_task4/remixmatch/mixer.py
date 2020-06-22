@@ -3,7 +3,7 @@ from torch import Tensor
 from torch.nn import Module
 from typing import Callable
 
-from dcase2020_task4.remixmatch.model_distributions import ModelDistributions
+from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.mixup.mixers.monolabel import MixUpMixer
 from dcase2020_task4.util.utils_match import normalize, same_shuffle, sharpen, merge_first_dimension, sharpen_multi
 
@@ -13,7 +13,7 @@ class ReMixMatchMixer(Callable):
 		self,
 		model: Module,
 		acti_fn: Callable,
-		distributions: ModelDistributions,
+		distributions: AvgDistributions,
 		nb_augms_strong: int = 2,
 		sharpen_temp: float = 0.5,
 		mixup_alpha: float = 0.75,
@@ -48,7 +48,8 @@ class ReMixMatchMixer(Callable):
 			# Compute guessed label
 			u_logits_weak = self.model(u_batch_weak)
 			u_label_guessed = self.acti_fn(u_logits_weak, dim=1)
-			u_label_guessed *= self.distributions.get_mean_pred("labeled") / self.distributions.get_mean_pred("unlabeled")
+			coef = self.distributions.get_avg_pred("labeled") / self.distributions.get_avg_pred("unlabeled")
+			u_label_guessed *= coef
 
 			if self.mode == "onehot":
 				u_label_guessed = normalize(u_label_guessed, dim=1)
