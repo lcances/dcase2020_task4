@@ -4,7 +4,7 @@ from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 from dcase2020_task4.util.utils_match import get_lr
@@ -40,7 +40,7 @@ class SupervisedTrainerLoc(TrainerABC):
 		)
 
 	def train(self, epoch: int):
-		self.reset_metrics()
+		self.reset_all_metrics()
 		self.metrics_values.reset()
 		self.model.train()
 
@@ -83,8 +83,5 @@ class SupervisedTrainerLoc(TrainerABC):
 	def nb_examples(self) -> int:
 		return len(self.loader) * self.loader.batch_size
 
-	def reset_metrics(self):
-		metrics_lst = [self.metrics_weak, self.metrics_strong]
-		for metrics in metrics_lst:
-			for metric in metrics.values():
-				metric.reset()
+	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
+		return [self.metrics_weak, self.metrics_strong]

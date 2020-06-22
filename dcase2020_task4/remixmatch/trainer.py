@@ -7,7 +7,7 @@ from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, List, Optional
 
 from augmentation_utils.img_augmentations import Transform
 from metric_utils.metrics import Metrics
@@ -65,7 +65,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		)
 
 	def train(self, epoch: int):
-		self.reset_metrics()
+		self.reset_all_metrics()
 		self.metrics_values.reset()
 		self.model.train()
 
@@ -145,11 +145,8 @@ class ReMixMatchTrainer(SSTrainerABC):
 	def nb_examples_unsupervised(self) -> int:
 		return len(self.loader_train_u) * self.loader_train_u.batch_size
 
-	def reset_metrics(self):
-		metrics_lst = [self.metrics_s, self.metrics_u, self.metrics_u1, self.metrics_r]
-		for metrics in metrics_lst:
-			for metric in metrics.values():
-				metric.reset()
+	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
+		return [self.metrics_s, self.metrics_u, self.metrics_u1, self.metrics_r]
 
 
 def apply_random_rot(batch: Tensor, angles_allowed) -> (Tensor, Tensor):

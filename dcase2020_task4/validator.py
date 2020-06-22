@@ -3,7 +3,7 @@ import torch
 from torch.nn import Module
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, Dict
+from typing import Callable, Dict, List
 
 from metric_utils.metrics import Metrics
 
@@ -59,6 +59,5 @@ class DefaultValidator(ValidatorABC):
 	def nb_examples(self) -> int:
 		return len(self.loader) * self.loader.batch_size
 
-	def reset_metrics(self):
-		for metric in self.metrics.values():
-			metric.reset()
+	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
+		return [self.metrics]

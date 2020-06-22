@@ -46,7 +46,7 @@ class AvgDistributions:
 	def add_pred(self, pred: Tensor, name: str):
 		with torch.no_grad():
 			distributions, index = self.data[name]
-			distributions[index] = pred
+			distributions[index] = pred.clone()
 			index = (index + 1) % len(distributions)
 			self.data[name][1] = index
 

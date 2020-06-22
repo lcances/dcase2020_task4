@@ -4,7 +4,7 @@ from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, Dict, Optional
+from typing import Callable, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 
@@ -49,7 +49,7 @@ class MixMatchTrainer(SSTrainerABC):
 		)
 
 	def train(self, epoch: int):
-		self.reset_metrics()
+		self.reset_all_metrics()
 		self.metrics_values.reset()
 		self.model.train()
 
@@ -109,8 +109,5 @@ class MixMatchTrainer(SSTrainerABC):
 	def nb_examples_unsupervised(self) -> int:
 		return len(self.loader_train_u_augms) * self.loader_train_u_augms.batch_size
 
-	def reset_metrics(self):
-		metrics_dict_lst = [self.metrics_s, self.metrics_u]
-		for metrics in metrics_dict_lst:
-			for metric in metrics.values():
-				metric.reset()
+	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
+		return [self.metrics_s, self.metrics_u]
