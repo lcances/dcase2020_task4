@@ -69,20 +69,21 @@ def sharpen_multi_2(distribution: Tensor, temperature: float, threshold: float) 
 	return result
 
 
-def sharpen_multi(batch: Tensor, temperature: float, threshold: float, dim: int) -> Tensor:
+def sharpen_multi(batch: Tensor, temperature: float, threshold: float) -> Tensor:
 	result = batch.clone()
+	nb_dim = len(batch.shape)
 
-	if dim == 0:
+	if nb_dim == 1:
 		return sharpen_multi_2(batch, temperature, threshold)
-	elif dim == 1:
+	elif nb_dim == 2:
 		for i, distribution in enumerate(batch):
 			result[i] = sharpen_multi_2(distribution, temperature, threshold)
-	elif dim == 2:
+	elif nb_dim == 3:
 		for i, distribution_i in enumerate(batch):
 			for j, distribution_j in enumerate(distribution_i):
 				result[i, j] = sharpen_multi_2(distribution_j, temperature, threshold)
 	else:
-		raise RuntimeError("Invalid dim %d. (only 0, 1 or 2)" % dim)
+		raise RuntimeError("Invalid nb_dim %d. (only 1, 2 or 3)" % nb_dim)
 
 	return result
 

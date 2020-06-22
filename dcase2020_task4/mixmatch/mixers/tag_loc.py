@@ -48,9 +48,9 @@ class MixMatchMixerMultiHotLoc(Callable):
 			u_label_strong_guessed = u_pred_strong_augms.mean(dim=0)
 
 			u_label_weak_guessed = sharpen_multi(
-				u_label_weak_guessed, self.sharpen_temp, self.sharpen_threshold_multihot, dim=1)
+				u_label_weak_guessed, self.sharpen_temp, self.sharpen_threshold_multihot)
 			u_label_strong_guessed = sharpen_multi(
-				u_label_strong_guessed, self.sharpen_temp, self.sharpen_threshold_multihot, dim=2)
+				u_label_strong_guessed, self.sharpen_temp, self.sharpen_threshold_multihot)
 
 			repeated_size_weak = [self.nb_augms] + [1] * (len(u_label_weak_guessed.size()) - 1)
 			labels_u_weak_guessed_repeated = u_label_weak_guessed.repeat(repeated_size_weak)
