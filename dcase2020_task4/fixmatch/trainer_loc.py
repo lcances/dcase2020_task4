@@ -96,17 +96,8 @@ class FixMatchTrainerLoc(SSTrainerABC):
 					self.distributions.add_batch_pred(s_labels_weak, "labeled")
 					self.distributions.add_batch_pred(u_pred_weak_augm_weak, "unlabeled")
 
-					# Experimental distribution alignment
-					def apply_distribution_alignment(batch: Tensor) -> Tensor:
-						coefficient = self.distributions.get_avg_pred("labeled") / self.distributions.get_avg_pred("unlabeled")
-						prev_norm = batch.norm(p=1)
-						batch *= coefficient
-						batch /= batch.norm(p=1)
-						batch *= prev_norm
-						return batch
-
-					s_pred_weak_augm_weak = apply_distribution_alignment(s_pred_weak_augm_weak)
-					u_pred_weak_augm_weak = apply_distribution_alignment(u_pred_weak_augm_weak)
+					s_pred_weak_augm_weak = self.distributions.apply_distribution_alignment(s_pred_weak_augm_weak, dim=1)
+					u_pred_weak_augm_weak = self.distributions.apply_distribution_alignment(u_pred_weak_augm_weak, dim=1)
 
 				# Use guess u label with prediction of weak augmentation of u
 				u_labels_weak_guessed = (u_pred_weak_augm_weak > self.threshold_multihot).float()

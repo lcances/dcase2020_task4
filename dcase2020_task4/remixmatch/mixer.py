@@ -48,11 +48,9 @@ class ReMixMatchMixer(Callable):
 			# Compute guessed label
 			u_logits_weak = self.model(u_batch_weak)
 			u_label_guessed = self.acti_fn(u_logits_weak, dim=1)
-			coef = self.distributions.get_avg_pred("labeled") / self.distributions.get_avg_pred("unlabeled")
-			u_label_guessed *= coef
+			u_label_guessed = self.distributions.apply_distribution_alignment(u_label_guessed, dim=1)
 
 			if self.mode == "onehot":
-				u_label_guessed = normalize(u_label_guessed, dim=1)
 				u_label_guessed = sharpen(u_label_guessed, self.sharpen_temp, dim=1)
 			elif self.mode == "multihot":
 				u_label_guessed = sharpen_multi(u_label_guessed, self.sharpen_temp, self.sharpen_threshold_multihot)

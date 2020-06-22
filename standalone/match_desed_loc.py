@@ -41,6 +41,7 @@ from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.supervised.loss import weak_synth_loss
 from dcase2020_task4.supervised.trainer_loc import SupervisedTrainerLoc
 
+from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
@@ -120,6 +121,8 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--use_rampup", type=bool_fn, default=False,
 						help="Use RampUp or not for lambda_u FixMatch loss hyperparameter.")
+	parser.add_argument("--use_alignment", type=bool_fn, default=False,
+						help="Use distribution alignment with FixMatch predictions.")
 
 	parser.add_argument("--checkpoint_metric_name", type=str, default="fscore_weak",
 						choices=["fscore_weak", "fscore_strong", "acc_weak", "acc_strong"],
@@ -276,15 +279,20 @@ def main():
 		model = model_factory()
 		optim = optim_factory(model)
 
+		if hparams.scheduler == "CosineLRScheduler":
+			scheduler = CosineLRScheduler(optim, nb_epochs=hparams.nb_epochs, lr0=hparams.lr)
+		else:
+			scheduler = None
+
 		if hparams.use_rampup:
 			rampup = RampUp(hparams.lambda_u, hparams.nb_epochs * len(loader_train_u_augms_weak_strong))
 		else:
 			rampup = None
 
-		if hparams.scheduler == "CosineLRScheduler":
-			scheduler = CosineLRScheduler(optim, nb_epochs=hparams.nb_epochs, lr0=hparams.lr)
+		if hparams.use_alignment:
+			distributions = AvgDistributions.from_edict(hparams)
 		else:
-			scheduler = None
+			distributions = None
 
 		hparams.train_name = "FixMatch"
 		if hparams.write_results:
@@ -311,7 +319,7 @@ def main():
 		trainer = FixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong,
 			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
-			criterion, writer, rampup, hparams.threshold_multihot, None
+			criterion, writer, rampup, hparams.threshold_multihot, distributions
 		)
 		checkpoint = CheckPoint(
 			model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (

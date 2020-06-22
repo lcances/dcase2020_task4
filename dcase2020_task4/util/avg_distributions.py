@@ -18,6 +18,7 @@ class AvgDistributions:
 		else:
 			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
 
+		self.mode = mode
 		self.names = names
 		self.distributions_priori = distributions_priori
 		self.data = {}
@@ -32,6 +33,22 @@ class AvgDistributions:
 			mode=hparams.mode,
 			names=["labeled", "unlabeled"],
 		)
+
+	def apply_distribution_alignment(self, batch: Tensor, dim: int) -> Tensor:
+		coefficients = self.get_avg_pred("labeled") / self.get_avg_pred("unlabeled")
+
+		if self.mode == "onehot":
+			batch *= coefficients
+			batch /= batch.norm(p=1, dim=dim)
+			return batch
+		elif self.mode == "multihot":
+			prev_norm = batch.norm(p=1, dim=dim)
+			batch *= coefficients
+			batch /= batch.norm(p=1, dim=dim)
+			batch *= prev_norm
+			return batch
+		else:
+			raise RuntimeError("Invalid mode %s" % self.mode)
 
 	def reset(self):
 		self.data = {
