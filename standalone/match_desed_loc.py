@@ -93,6 +93,11 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--lambda_u", type=float, default=1.0,
 						help="FixMatch, MixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
+	parser.add_argument("--lambda_u1", type=float, default=0.5,
+						help="ReMixMatch \"lambda_u1\" hyperparameter.")
+	parser.add_argument("--lambda_r", type=float, default=0.5,
+						help="ReMixMatch \"lambda_r\" hyperparameter.")
+
 	parser.add_argument("--nb_augms", type=int, default=2,
 						help="MixMatch nb of augmentations used.")
 	parser.add_argument("--nb_augms_strong", type=int, default=2,
