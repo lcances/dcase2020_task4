@@ -3,6 +3,7 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
+import numpy as np
 import os.path as osp
 import torch
 
@@ -14,7 +15,7 @@ from torch.nn.functional import binary_cross_entropy
 from torch.optim import Adam
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
-from torchvision.transforms import RandomChoice
+from torchvision.transforms import RandomChoice, Compose
 
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion
@@ -102,6 +103,8 @@ def create_args() -> Namespace:
 						help="MixMatch nb of augmentations used.")
 	parser.add_argument("--nb_augms_strong", type=int, default=2,
 						help="ReMixMatch nb of strong augmentations used.")
+	parser.add_argument("--history_size", type=int, default=128,
+						help="Nb of prediction kept in AvgDistributions used in ReMixMatch.")
 
 	parser.add_argument("--threshold_multihot", type=float, default=0.5,
 						help="FixMatch threshold used to replace argmax() in multihot mode.")
@@ -213,6 +216,7 @@ def main():
 	ratio = 0.1
 	augm_weak_fn = RandomChoice([
 		Transform(ratio, scale=(0.9, 1.1)),
+		Transform(0.5, rotation=(-np.pi / 8.0, np.pi / 8.0)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
 		Occlusion(ratio, max_size=1.0),
@@ -220,8 +224,8 @@ def main():
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
-	ratio = 1.0
-	augm_strong_fn = RandomChoice([
+	ratio = 0.5
+	augm_strong_fn = Compose([
 		Transform(ratio, scale=(0.9, 1.1)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
@@ -300,14 +304,6 @@ def main():
 			distributions = None
 
 		hparams.train_name = "FixMatch"
-		if hparams.write_results:
-			writer = build_writer(hparams, suffix="%s_%s_%s_%.2f_%.2f_%d_%d_%s" % (
-				suffix_loc, str(hparams.scheduler), hparams.experimental,
-				hparams.threshold_multihot, hparams.threshold_mask,
-				hparams.batch_size_s, hparams.batch_size_u, hparams.suffix,
-			))
-		else:
-			writer = None
 
 		if hparams.experimental is None:
 			criterion = FixMatchLossMultiHotLoc.from_edict(hparams)
@@ -322,14 +318,25 @@ def main():
 		else:
 			raise RuntimeError("Unknown experimental mode %s" % str(hparams.experimental))
 
+		if hparams.write_results:
+			writer = build_writer(hparams, suffix="%s_%s_%s_%.2f_%.2f_%d_%d_%s" % (
+				suffix_loc, str(hparams.scheduler), hparams.experimental,
+				hparams.threshold_multihot, hparams.threshold_mask,
+				hparams.batch_size_s, hparams.batch_size_u, hparams.suffix,
+			))
+
+			checkpoint = CheckPoint(
+				model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (
+					hparams.model_name, hparams.train_name, hparams.suffix))
+			)
+		else:
+			writer = None
+			checkpoint = None
+
 		trainer = FixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong,
 			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
 			criterion, writer, rampup, hparams.threshold_multihot, distributions
-		)
-		checkpoint = CheckPoint(
-			model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (
-				hparams.model_name, hparams.train_name, hparams.suffix))
 		)
 		validator = DefaultValidatorLoc(
 			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, hparams.checkpoint_metric_name
@@ -362,14 +369,6 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "MixMatch"
-		checkpoint = CheckPoint(
-			model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (
-				hparams.model_name, hparams.train_name, hparams.suffix))
-		)
-		if hparams.write_results:
-			writer = build_writer(hparams, suffix="%s_%s" % (suffix_loc, hparams.suffix))
-		else:
-			writer = None
 
 		criterion = MixMatchLossMultiHotLoc.from_edict(hparams)
 		mixer = MixMatchMixerMultiHotLoc(
@@ -379,11 +378,22 @@ def main():
 		nb_rampup_steps = hparams.nb_epochs * len(loader_train_u_augms)
 		lambda_u_rampup = RampUp(hparams.lambda_u, nb_rampup_steps)
 
+		if hparams.write_results:
+			writer = build_writer(hparams, suffix="%s_%s" % (suffix_loc, hparams.suffix))
+			checkpoint = CheckPoint(
+				model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (
+					hparams.model_name, hparams.train_name, hparams.suffix))
+			)
+		else:
+			writer = None
+			checkpoint = None
+
 		trainer = MixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms,
 			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
 			criterion, writer, mixer, lambda_u_rampup
 		)
+
 		validator = DefaultValidatorLoc(
 			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, hparams.checkpoint_metric_name
 		)

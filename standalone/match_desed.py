@@ -15,7 +15,7 @@ from torch.nn.functional import binary_cross_entropy
 from torch.optim import Adam
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
-from torchvision.transforms import RandomChoice
+from torchvision.transforms import RandomChoice, Compose
 
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion
@@ -64,7 +64,6 @@ def create_args() -> Namespace:
 	optional_str = lambda x: None if str(x).lower() == "none" else str(x)
 
 	parser = ArgumentParser()
-	# TODO : help for acronyms
 	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch", "mixmatch", "remixmatch", "supervised"])
 	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
@@ -104,6 +103,8 @@ def create_args() -> Namespace:
 						help="MixMatch nb of augmentations used.")
 	parser.add_argument("--nb_augms_strong", type=int, default=2,
 						help="ReMixMatch nb of strong augmentations used.")
+	parser.add_argument("--history_size", type=int, default=128,
+						help="Nb of prediction kept in AvgDistributions used in ReMixMatch.")
 
 	parser.add_argument("--threshold_multihot", type=float, default=0.5,
 						help="FixMatch threshold used to replace argmax() in multihot mode.")
@@ -169,6 +170,7 @@ def main():
 	ratio = 0.1
 	augm_weak_fn = RandomChoice([
 		Transform(ratio, scale=(0.9, 1.1)),
+		Transform(0.5, rotation=(-np.pi / 8.0, np.pi / 8.0)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
 		Occlusion(ratio, max_size=1.0),
@@ -176,8 +178,8 @@ def main():
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
-	ratio = 1.0
-	augm_strong_fn = RandomChoice([
+	ratio = 0.5
+	augm_strong_fn = Compose([
 		Transform(ratio, scale=(0.9, 1.1)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
@@ -186,7 +188,6 @@ def main():
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
-	# Augmentation used by MixMatch
 	ratio = 0.5
 	augm_fn = RandomChoice([
 		Transform(ratio, scale=(0.9, 1.1)),
