@@ -95,7 +95,7 @@ def get_idx_max(t: Tensor, nb: int) -> Tensor:
 
 def normalize(batch: Tensor, dim: int) -> Tensor:
 	""" Return the vector normalized. """
-	return batch / batch.norm(p=1, dim=dim).unsqueeze(dim=1)
+	return batch / batch.norm(p=1, dim=dim, keepdim=True)
 
 
 def same_shuffle(values: List[Tensor]) -> List[Tensor]:

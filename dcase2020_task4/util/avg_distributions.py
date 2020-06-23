@@ -1,6 +1,6 @@
 import torch
 from torch import Tensor
-from typing import List
+from typing import List, Union
 
 
 class AvgDistributions:
@@ -34,17 +34,17 @@ class AvgDistributions:
 			names=["labeled", "unlabeled"],
 		)
 
-	def apply_distribution_alignment(self, batch: Tensor, dim: int) -> Tensor:
+	def apply_distribution_alignment(self, batch: Tensor, dim: Union[int, tuple]) -> Tensor:
 		coefficients = self.get_avg_pred("labeled") / self.get_avg_pred("unlabeled")
 
 		if self.mode == "onehot":
 			batch *= coefficients
-			batch /= batch.norm(p=1, dim=dim)
+			batch /= batch.norm(p=1, dim=dim, keepdim=True)
 			return batch
 		elif self.mode == "multihot":
-			prev_norm = batch.norm(p=1, dim=dim)
+			prev_norm = batch.norm(p=1, dim=dim, keepdim=True)
 			batch *= coefficients
-			batch /= batch.norm(p=1, dim=dim)
+			batch /= batch.norm(p=1, dim=dim, keepdim=True)
 			batch *= prev_norm
 			return batch
 		else:
