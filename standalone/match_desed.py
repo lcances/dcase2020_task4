@@ -34,7 +34,7 @@ from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 from dcase2020_task4.fixmatch.trainer_v4 import FixMatchTrainerV4
 
 from dcase2020_task4.mixmatch.losses.multihot import MixMatchLossMultiHot
-from dcase2020_task4.mixmatch.mixers.tag_loc import MixMatchMixer
+from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 
 from dcase2020_task4.remixmatch.losses.multihot import ReMixMatchLossMultiHot
@@ -117,6 +117,9 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
 	parser.add_argument("--experimental", type=str, default="V2", choices=["None", "V1", "V2", "V3", "V4"])
+
+	parser.add_argument("--write_results", type=bool_fn, default=True,
+						help="Write results in a tensorboard SummaryWriter.")
 
 	return parser.parse_args()
 
@@ -260,7 +263,6 @@ def main():
 			scheduler = None
 
 		hparams.train_name = "FixMatch"
-		writer = build_writer(hparams, suffix="%s_%s_%s" % (suffix_tag, str(hparams.scheduler), hparams.suffix))
 
 		if hparams.experimental.lower() == "v1":
 			criterion = FixMatchLossMultiHotV1.from_edict(hparams)
@@ -272,6 +274,11 @@ def main():
 			criterion = FixMatchLossMultiHotV4.from_edict(hparams)
 		else:
 			raise RuntimeError("Unknown experimental mode %s" % str(hparams.experimental))
+
+		if hparams.write_results:
+			writer = build_writer(hparams, suffix="%s_%s_%s" % (suffix_tag, str(hparams.scheduler), hparams.suffix))
+		else:
+			writer = None
 
 		if hparams.experimental.lower() != "v4":
 			trainer = FixMatchTrainer(
@@ -290,8 +297,9 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs, scheduler)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
-		writer.close()
+		if writer is not None:
+			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.close()
 
 	if "mm" in args.run or "mixmatch" in args.run:
 		dataset_train_s_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_s_augm)
@@ -313,8 +321,6 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "MixMatch"
-		writer = build_writer(hparams, suffix="%s_%s_%s" % (suffix_tag, hparams.criterion_name_u, hparams.suffix))
-
 		criterion = MixMatchLossMultiHot.from_edict(hparams)
 		mixer = MixMatchMixer(
 			model, acti_fn,
@@ -322,6 +328,11 @@ def main():
 		)
 		nb_rampup_steps = hparams.nb_epochs * len(loader_train_u_augms)
 		lambda_u_rampup = RampUp(hparams.lambda_u, nb_rampup_steps)
+
+		if hparams.write_results:
+			writer = build_writer(hparams, suffix="%s_%s_%s" % (suffix_tag, hparams.criterion_name_u, hparams.suffix))
+		else:
+			writer = None
 
 		trainer = MixMatchTrainer(
 			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
@@ -333,8 +344,9 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
-		writer.close()
+		if writer is not None:
+			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.close()
 
 	if "rmm" in args.run or "remixmatch" in args.run:
 		dataset_train_s_augm_strong = DESEDDataset(augments=[augm_strong_fn], **args_dataset_train_s_augm)
@@ -362,12 +374,10 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "ReMixMatch"
-		writer = build_writer(hparams, suffix="%s_%s" % (suffix_tag, hparams.suffix))
 
 		criterion = ReMixMatchLossMultiHot.from_edict(hparams)
-		distributions = AvgDistributions(
-			history_size=hparams.history_size, nb_classes=hparams.nb_classes, names=["labeled", "unlabeled"], mode=hparams.mode
-		)
+		distributions = AvgDistributions.from_edict(hparams)
+
 		mixer = ReMixMatchMixer(
 			model,
 			acti_fn,
@@ -378,6 +388,12 @@ def main():
 			hparams.mode,
 			hparams.sharpen_threshold_multihot,
 		)
+
+		if hparams.write_results:
+			writer = build_writer(hparams, suffix="%s_%s" % (suffix_tag, hparams.suffix))
+		else:
+			writer = None
+
 		trainer = ReMixMatchTrainer(
 			model, acti_fn, optim, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs, metrics_s, metrics_u,
 			metrics_u1, metrics_r, criterion, writer, mixer, distributions, rot_angles
@@ -388,8 +404,9 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
-		writer.close()
+		if writer is not None:
+			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.close()
 
 	if "su" in args.run or "supervised" in args.run:
 		dataset_train_s = DESEDDataset(**args_dataset_train_s)
@@ -401,9 +418,13 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "Supervised"
-		writer = build_writer(hparams, suffix="%s_%s" % (suffix_tag, hparams.suffix))
 
 		criterion = binary_cross_entropy
+
+		if hparams.write_results:
+			writer = build_writer(hparams, suffix="%s_%s" % (suffix_tag, hparams.suffix))
+		else:
+			writer = None
 
 		trainer = SupervisedTrainer(
 			model, acti_fn, optim, loader_train_s, metrics_s, criterion, writer
@@ -414,8 +435,9 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
-		writer.close()
+		if writer is not None:
+			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.close()
 
 	exec_time = time() - prog_start
 	print("")
