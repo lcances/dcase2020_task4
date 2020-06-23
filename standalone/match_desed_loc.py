@@ -296,9 +296,10 @@ def main():
 
 		hparams.train_name = "FixMatch"
 		if hparams.write_results:
-			writer = build_writer(hparams, suffix="%s_%s_%s_%.2f_%.2f_%s" % (
+			writer = build_writer(hparams, suffix="%s_%s_%s_%.2f_%.2f_%d_%d_%s" % (
 				suffix_loc, str(hparams.scheduler), hparams.experimental,
-				hparams.threshold_multihot, hparams.threshold_mask, hparams.suffix,
+				hparams.threshold_multihot, hparams.threshold_mask,
+				hparams.batch_size_s, hparams.batch_size_u, hparams.suffix,
 			))
 		else:
 			writer = None
