@@ -58,9 +58,9 @@ class MetricsValuesBuffer:
 	def print_metrics(self, epoch: int, i: int, len_: int):
 		percent = int(100 * (i + 1) / len_)
 
-		content = "Epoch {:3d} | {:3d}%".format(epoch, percent)
+		content = ["Epoch {:3d} | {:3d}%".format(epoch, percent)]
 		content += [("{:.4e}".format(self.get_mean(name)).center(KEY_MAX_LENGTH)) for name in self.data.keys()]
-		content += ["{:.2f}".format(time() - self.start).rjust(KEY_MAX_LENGTH)]
+		content += ["{:.2f}".format(time() - self.start).center(KEY_MAX_LENGTH)]
 
 		print("| {:s} |".format(" | ".join(content)), end="\r")
 
