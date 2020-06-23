@@ -11,5 +11,5 @@ class ReMixMatchLossABC(ABC, Callable):
 		pred_u: Tensor, targets_u: Tensor,
 		pred_u1: Tensor, targets_u1: Tensor,
 		pred_r: Tensor, targets_r: Tensor,
-	) -> Tensor:
+	) -> (Tensor, Tensor, Tensor, Tensor, Tensor):
 		raise NotImplementedError("Abstract method")

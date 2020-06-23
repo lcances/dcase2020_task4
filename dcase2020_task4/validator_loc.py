@@ -33,7 +33,10 @@ class DefaultValidatorLoc(ValidatorABC):
 		self.checkpoint = checkpoint
 		self.checkpoint_metric_key = checkpoint_metric_key
 
-		self.metrics_values = MetricsValuesBuffer(list(self.metrics_weak.keys()) + list(self.metrics_strong))
+		self.metrics_values = MetricsValuesBuffer(
+			"val/",
+			list(self.metrics_weak.keys()) + list(self.metrics_strong)
+		)
 
 	def val(self, epoch: int):
 		with torch.no_grad():
@@ -69,7 +72,7 @@ class DefaultValidatorLoc(ValidatorABC):
 				self.checkpoint.step(self.metrics_values.get_mean(self.checkpoint_metric_key))
 
 			if self.writer is not None:
-				self.metrics_values.store_in_writer(self.writer, "val", epoch)
+				self.metrics_values.store_in_writer(self.writer, epoch)
 
 	def nb_examples(self) -> int:
 		return len(self.loader) * self.loader.batch_size

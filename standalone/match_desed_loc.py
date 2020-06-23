@@ -72,7 +72,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--dataset_name", type=str, default="DESED")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--model_name", type=str, default="dcase2019", choices=["dcase2019", "WeakStrongBaseline"])
-	parser.add_argument("--nb_epochs", type=int, default=10)
+	parser.add_argument("--nb_epochs", type=int, default=1)
 	parser.add_argument("--batch_size_s", type=int, default=8)
 	parser.add_argument("--batch_size_u", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)

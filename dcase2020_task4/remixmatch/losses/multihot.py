@@ -28,7 +28,7 @@ class ReMixMatchLossMultiHot(ReMixMatchLossABC):
 		pred_u: Tensor, targets_u: Tensor,
 		pred_u1: Tensor, targets_u1: Tensor,
 		pred_r: Tensor, targets_r: Tensor,
-	) -> Tensor:
+	) -> (Tensor, Tensor, Tensor, Tensor, Tensor):
 		loss_s = self.criterion_s(pred_s, targets_x)
 		loss_s = loss_s.mean()
 
@@ -43,4 +43,4 @@ class ReMixMatchLossMultiHot(ReMixMatchLossABC):
 
 		loss = loss_s + self.lambda_u * loss_u + self.lambda_u1 * loss_u1 + self.lambda_r * loss_r
 
-		return loss
+		return loss, loss_s, loss_u, loss_u1, loss_r

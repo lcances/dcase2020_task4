@@ -25,7 +25,10 @@ class DefaultValidator(ValidatorABC):
 		self.loader = loader
 		self.metrics = metrics
 		self.writer = writer
-		self.metrics_values = MetricsValuesBuffer(list(self.metrics.keys()))
+		self.metrics_values = MetricsValuesBuffer(
+			"val/",
+			list(self.metrics.keys())
+		)
 
 	def val(self, epoch: int):
 		with torch.no_grad():
@@ -54,7 +57,7 @@ class DefaultValidator(ValidatorABC):
 			print("")
 
 			if self.writer is not None:
-				self.metrics_values.store_in_writer(self.writer, "val", epoch)
+				self.metrics_values.store_in_writer(self.writer, epoch)
 
 	def nb_examples(self) -> int:
 		return len(self.loader) * self.loader.batch_size

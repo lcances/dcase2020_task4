@@ -58,10 +58,12 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 		self.acti_fn_rot = lambda batch, dim: batch.softmax(dim=dim)
 		self.metrics_values = MetricsValuesBuffer(
+			"train/",
 			list(self.metrics_s.keys()) +
 			list(self.metrics_u.keys()) +
 			list(self.metrics_u1.keys()) +
-			list(self.metrics_r.keys())
+			list(self.metrics_r.keys()) +
+			["loss", "loss_s", "loss_u", "loss_u1", "loss_r"]
 		)
 
 	def train(self, epoch: int):
@@ -107,11 +109,11 @@ class ReMixMatchTrainer(SSTrainerABC):
 			r_pred = self.acti_fn_rot(r_logits, dim=1)
 
 			# Update model
-			loss, loss_s, loss_u = self.criterion(
+			loss, loss_s, loss_u, loss_u1, loss_r = self.criterion(
 				s_pred_mixed, s_labels_mixed,
 				u_pred_mixed, u_labels_mixed,
 				u1_pred, u1_labels,
-				r_pred, r_labels,
+				r_pred, r_labels
 			)
 			self.optim.zero_grad()
 			loss.backward()
@@ -122,10 +124,12 @@ class ReMixMatchTrainer(SSTrainerABC):
 				self.metrics_values.add_value("loss", loss.item())
 				self.metrics_values.add_value("loss_s", loss_s.item())
 				self.metrics_values.add_value("loss_u", loss_u.item())
+				self.metrics_values.add_value("loss_u1", loss_u1.item())
+				self.metrics_values.add_value("loss_r", loss_r.item())
 
 				metrics_preds_labels = [
 					(self.metrics_s, s_pred_mixed, s_labels_mixed),
-					(self.metrics_u, u_pred_augm_weak, u_labels_mixed),
+					(self.metrics_u, u_pred_mixed, u_labels_mixed),
 					(self.metrics_u1, u1_pred, u1_labels),
 					(self.metrics_r, r_pred, r_labels),
 				]
@@ -137,7 +141,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 		if self.writer is not None:
 			self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
-			self.metrics_values.store_in_writer(self.writer, "train", epoch)
+			self.metrics_values.store_in_writer(self.writer, epoch)
 
 	def nb_examples_supervised(self) -> int:
 		return len(self.loader_train_s) * self.loader_train_s.batch_size

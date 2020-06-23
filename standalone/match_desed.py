@@ -71,7 +71,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--dataset_name", type=str, default="DESED")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline"])
-	parser.add_argument("--nb_epochs", type=int, default=10)
+	parser.add_argument("--nb_epochs", type=int, default=1)
 	parser.add_argument("--batch_size_s", type=int, default=8)
 	parser.add_argument("--batch_size_u", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)
@@ -80,7 +80,7 @@ def create_args() -> Namespace:
 						help="Select False if you want ot load all data into RAM.")
 	parser.add_argument("--num_workers_s", type=int, default=1)
 	parser.add_argument("--num_workers_u", type=int, default=1)
-	parser.add_argument("--criterion_name_u", type=str, default="crossentropy", choices=["sqdiff", "crossentropy"],
+	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy", choices=["sq_diff", "cross_entropy"],
 						help="MixMatch unsupervised loss component.")
 
 	parser.add_argument("--lr", type=float, default=3e-3,

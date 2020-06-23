@@ -11,19 +11,19 @@ class MixMatchLossOneHot(MixMatchLossABC):
 	def __init__(
 		self,
 		lambda_u: float = 1.0,
-		criterion_name_u: str = "sqdiff"
+		criterion_name_u: str = "sq_diff"
 	):
 		self.lambda_u = lambda_u
 		self.unsupervised_loss_mode = criterion_name_u
 
 		self.criterion_s = cross_entropy
 
-		if criterion_name_u == "sqdiff":
+		if criterion_name_u == "sq_diff":
 			self.criterion_u = sq_diff
-		elif criterion_name_u == "crossentropy":
+		elif criterion_name_u == "cross_entropy":
 			self.criterion_u = cross_entropy
 		else:
-			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (criterion_name_u, " or ".join(("sqdiff", "crossentropy"))))
+			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (criterion_name_u, " or ".join(("sq_diff", "cross_entropy"))))
 
 	@staticmethod
 	def from_edict(hparams) -> 'MixMatchLossOneHot':

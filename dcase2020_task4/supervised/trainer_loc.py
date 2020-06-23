@@ -34,6 +34,7 @@ class SupervisedTrainerLoc(TrainerABC):
 		self.writer = writer
 
 		self.metrics_values = MetricsValuesBuffer(
+			"train/",
 			list(self.metrics_weak.keys()) +
 			list(self.metrics_strong.keys()) +
 			["loss", "loss_weak", "loss_strong"]
@@ -78,7 +79,7 @@ class SupervisedTrainerLoc(TrainerABC):
 
 		if self.writer is not None:
 			self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
-			self.metrics_values.store_in_writer(self.writer, "train", epoch)
+			self.metrics_values.store_in_writer(self.writer, epoch)
 
 	def nb_examples(self) -> int:
 		return len(self.loader) * self.loader.batch_size

@@ -47,6 +47,7 @@ class FixMatchTrainerV4(SSTrainerABC):
 
 		self.acti_count_fn = torch.softmax
 		self.metrics_values = MetricsValuesBuffer(
+			"train/",
 			list(self.metrics_s.keys()) +
 			list(self.metrics_u.keys()) +
 			["loss", "loss_s", "loss_u", "loss_sc", "loss_uc"]
@@ -123,7 +124,7 @@ class FixMatchTrainerV4(SSTrainerABC):
 
 		if self.writer is not None:
 			self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
-			self.metrics_values.store_in_writer(self.writer, "train", epoch)
+			self.metrics_values.store_in_writer(self.writer, epoch)
 
 	def nb_examples_supervised(self) -> int:
 		return len(self.loader_train_s_augm_weak) * self.loader_train_s_augm_weak.batch_size

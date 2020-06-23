@@ -92,7 +92,7 @@ def create_args() -> Namespace:
 						help="Weight decay used.")
 	parser.add_argument("--optim_name", type=str, default="Adam", choices=["Adam"],
 						help="Optimizer used.")
-	parser.add_argument("--criterion_name_u", type=str, default="crossentropy", choices=["sqdiff", "crossentropy"],
+	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy", choices=["sq_diff", "cross_entropy"],
 						help="MixMatch unsupervised loss component.")
 
 	parser.add_argument("--sharpen_temp", type=float, default=0.5,
