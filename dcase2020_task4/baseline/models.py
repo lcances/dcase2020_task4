@@ -29,8 +29,8 @@ class WeakBaseline(nn.Module):
         x = self.classifier(x)
 
         return x
-    
-    
+
+
 class WeakStrongBaseline(nn.Module):
     def __init__(self, **kwargs):
         nn.Module.__init__(self)

@@ -37,12 +37,13 @@ pip install torchsummaryX
 pip install dcase_util
 pip install sed_eval
 
-
-
 pip install git+https://github.com/leocances/dcase2020_task4.git # <-- dcase2020 task 4 separate dataset management
 pip install git+https://github.com/leocances/pytorch_metrics.git # <-- personnal pytorch metrics functions
 pip install git+https://github.com/leocances/augmentation_utils.git # <-- personnal audio & image augmentation functions
 pip install -i https://test.pypi.org/simple/ aeseg # for automatique segmentation optimization
+
+# For deep co-training
+pip install advertorch
 ```
 
 ##### 3. Download the dataset
