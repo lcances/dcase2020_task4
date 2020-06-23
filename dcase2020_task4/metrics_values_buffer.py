@@ -53,7 +53,7 @@ class MetricsValuesBuffer:
 		content += [filter(name) for name in self.keys]
 		content += ["took (s)".center(KEY_MAX_LENGTH)]
 
-		print("| {:s} |".format(" | ".join(content)))
+		print("\n| {:s} |".format(" | ".join(content)))
 
 	def print_metrics(self, epoch: int, i: int, len_: int):
 		percent = int(100 * (i + 1) / len_)

@@ -151,6 +151,8 @@ def main():
 	print("- from_disk:", args.from_disk)
 	print("- debug_mode:", args.debug_mode)
 	print("- experimental:", args.experimental)
+	print("- use_rampup:", args.use_rampup)
+	print("- use_alignment:", args.use_alignment)
 
 	hparams = edict()
 	hparams.update({

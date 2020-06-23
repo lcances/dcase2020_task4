@@ -35,20 +35,21 @@ class AvgDistributions:
 		)
 
 	def apply_distribution_alignment(self, batch: Tensor, dim: Union[int, tuple]) -> Tensor:
+		batch = batch.clone()
 		coefficients = self.get_avg_pred("labeled") / self.get_avg_pred("unlabeled")
 
 		if self.mode == "onehot":
-			batch *= coefficients
-			batch /= batch.norm(p=1, dim=dim, keepdim=True)
-			return batch
+			batch = batch * coefficients
+			batch = batch / batch.norm(p=1, dim=dim, keepdim=True)
 		elif self.mode == "multihot":
 			prev_norm = batch.norm(p=1, dim=dim, keepdim=True)
-			batch *= coefficients
-			batch /= batch.norm(p=1, dim=dim, keepdim=True)
-			batch *= prev_norm
-			return batch
+			batch = batch * coefficients
+			batch = batch / batch.norm(p=1, dim=dim, keepdim=True)
+			batch = batch * prev_norm
 		else:
 			raise RuntimeError("Invalid mode %s" % self.mode)
+
+		return batch
 
 	def reset(self):
 		self.data = {
