@@ -41,7 +41,7 @@ class SupervisedTrainerLoc(TrainerABC):
 
 	def train(self, epoch: int):
 		self.reset_all_metrics()
-		self.metrics_values.reset()
+		self.metrics_values.reset_epoch()
 		self.model.train()
 
 		iter_val = iter(self.loader)

@@ -29,8 +29,8 @@ class DefaultValidator(ValidatorABC):
 
 	def val(self, epoch: int):
 		with torch.no_grad():
-			self.reset_metrics()
-			self.metrics_values.reset()
+			self.reset_all_metrics()
+			self.metrics_values.reset_epoch()
 
 			self.model.eval()
 

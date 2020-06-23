@@ -66,7 +66,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 	def train(self, epoch: int):
 		self.reset_all_metrics()
-		self.metrics_values.reset()
+		self.metrics_values.reset_epoch()
 		self.model.train()
 
 		loaders_zip = ZipCycle([self.loader_train_s, self.loader_train_u])

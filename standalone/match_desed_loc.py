@@ -334,6 +334,7 @@ def main():
 
 		if writer is not None:
 			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.flush()
 			writer.close()
 
 	if "mm" in args.run or "mixmatch" in args.run:
@@ -356,6 +357,10 @@ def main():
 		optim = optim_factory(model)
 
 		hparams.train_name = "MixMatch"
+		checkpoint = CheckPoint(
+			model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (
+				hparams.model_name, hparams.train_name, hparams.suffix))
+		)
 		if hparams.write_results:
 			writer = build_writer(hparams, suffix="%s_%s" % (suffix_loc, hparams.suffix))
 		else:
@@ -374,10 +379,6 @@ def main():
 			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
 			criterion, writer, mixer, lambda_u_rampup
 		)
-		checkpoint = CheckPoint(
-			model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (
-				hparams.model_name, hparams.train_name, hparams.suffix))
-		)
 		validator = DefaultValidatorLoc(
 			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, hparams.checkpoint_metric_name
 		)
@@ -386,6 +387,7 @@ def main():
 
 		if writer is not None:
 			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.flush()
 			writer.close()
 
 	if "su" in args.run or "supervised" in args.run:
@@ -399,19 +401,19 @@ def main():
 
 		hparams.train_name = "Supervised"
 
+		criterion = weak_synth_loss
+		checkpoint = CheckPoint(
+			model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (
+				hparams.model_name, hparams.train_name, hparams.suffix))
+		)
+
 		if hparams.write_results:
 			writer = build_writer(hparams, suffix="%s" % suffix_loc)
 		else:
 			writer = None
 
-		criterion = weak_synth_loss
-
 		trainer = SupervisedTrainerLoc(
 			model, acti_fn, optim, loader_train_s, metrics_s_weak, metrics_s_strong, criterion, writer
-		)
-		checkpoint = CheckPoint(
-			model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (
-				hparams.model_name, hparams.train_name, hparams.suffix))
 		)
 		validator = DefaultValidatorLoc(
 			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, hparams.checkpoint_metric_name
@@ -421,6 +423,7 @@ def main():
 
 		if writer is not None:
 			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.flush()
 			writer.close()
 
 	exec_time = time() - prog_start

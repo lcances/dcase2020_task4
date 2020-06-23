@@ -12,7 +12,7 @@ class CategoricalConfidenceAccuracy(CategoricalAccuracy):
 		super().__init__(epsilon)
 		self.confidence = confidence
 
-	def __call__(self, pred: Tensor, labels: Tensor):
+	def __call__(self, pred: Tensor, labels: Tensor) -> Tensor:
 		with torch.no_grad():
 			y_pred = (pred > self.confidence).float()
 			y_true = (labels > self.confidence).float()
@@ -24,7 +24,7 @@ class FnMetric(Metrics):
 		super().__init__()
 		self.fn = fn
 
-	def __call__(self, pred: Tensor, labels: Tensor):
+	def __call__(self, pred: Tensor, labels: Tensor) -> Tensor:
 		super().__call__(pred, labels)
 
 		with torch.no_grad():
@@ -49,7 +49,7 @@ class EqConfidenceMetric(Metrics):
 		super().__init__(epsilon)
 		self.confidence = confidence
 
-	def __call__(self, pred: Tensor, labels: Tensor):
+	def __call__(self, pred: Tensor, labels: Tensor) -> Tensor:
 		super().__call__(pred, labels)
 
 		with torch.no_grad():
@@ -66,7 +66,7 @@ class BinaryConfidenceAccuracy(Metrics):
 		Metrics.__init__(self, epsilon)
 		self.confidence = confidence
 
-	def __call__(self, y_pred: Tensor, y_true: Tensor) -> float:
+	def __call__(self, y_pred: Tensor, y_true: Tensor) -> Tensor:
 		super().__call__(y_pred, y_true)
 
 		with torch.no_grad():
@@ -76,3 +76,32 @@ class BinaryConfidenceAccuracy(Metrics):
 
 			self.accumulate_value += self.value_
 			return self.accumulate_value / self.count
+
+
+class BestMetric(Metrics):
+	# TODO : fix
+	def __init__(self, metric: Metrics, sub_call: bool = False, mode: str = "max"):
+		super().__init__()
+		self.best = torch.as_tensor(0) if mode == "max" else torch.as_tensor(2**20)
+		self.metric = metric
+		self.sub_call = sub_call
+		self.mode = mode
+
+	def __call__(self, pred: Tensor, label: Tensor) -> Tensor:
+		if self.sub_call:
+			self.metric(pred, label)
+		self.accumulate_value = self.metric.accumulate_value
+		self.count = self.metric.count
+		return self.best
+
+	@property
+	def value(self):
+		return self.best
+
+	def reset(self):
+		super().reset()
+		mean_ = self.accumulate_value / self.count if self.count != 0 else 0
+		if self.mode == "max" and mean_ > self.best:
+			self.best = mean_
+		elif self.mode == "min" and mean_ < self.best:
+			self.best = mean_

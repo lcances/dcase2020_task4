@@ -10,6 +10,11 @@ from metric_utils.metrics import Metrics
 
 
 class MetricsValuesBuffer:
+	"""
+		Store metric values of 1 epoch in lists.
+		Useful for trainers and validators.
+	"""
+
 	def __init__(
 		self, keys: List[str]
 	):
@@ -20,9 +25,9 @@ class MetricsValuesBuffer:
 		if len(set(keys)) != len(keys):
 			raise RuntimeError("Duplicate found for metrics names : %s" % " ".join(keys))
 
-		self.reset()
+		self.reset_epoch()
 
-	def reset(self):
+	def reset_epoch(self):
 		self.values = {k: [] for k in self.keys}
 		self.start = time()
 
@@ -55,3 +60,6 @@ class MetricsValuesBuffer:
 
 	def get_mean(self, name: str) -> float:
 		return float(np.mean(self.values[name]))
+
+	def get_std(self, name: str) -> float:
+		return float(np.std(self.values[name]))

@@ -50,7 +50,7 @@ class FixMatchTrainer(SSTrainerABC):
 
 	def train(self, epoch: int):
 		self.reset_all_metrics()
-		self.metrics_values.reset()
+		self.metrics_values.reset_epoch()
 		self.model.train()
 
 		loaders_zip = ZipCycle([self.loader_train_s_augm_weak, self.loader_train_u_augms_weak_strong])
