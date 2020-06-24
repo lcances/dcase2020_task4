@@ -34,6 +34,7 @@ conda install pillow       # for the augmentation_utils package
 conda install scikit-image # ...
 
 conda install -c conda-forge librosa
+conda install -c conda-forge torchvision
 
 pip install advertorch
 pip install torchsummaryX
