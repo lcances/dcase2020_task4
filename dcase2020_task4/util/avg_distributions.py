@@ -43,9 +43,14 @@ class AvgDistributions:
 			batch = batch / batch.norm(p=1, dim=dim, keepdim=True)
 		elif self.mode == "multihot":
 			prev_norm = batch.norm(p=1, dim=dim, keepdim=True)
+			# Apply coefficients
 			batch = batch * coefficients
+			# Normalize
 			batch = batch / batch.norm(p=1, dim=dim, keepdim=True)
+			# Increase probability with old norm
 			batch = batch * prev_norm
+			# If a distribution contains a value above 1.0, it need to be rescale
+			batch = batch / batch.max(dim=dim, keepdim=True)[0].clamp(min=1.0)
 		else:
 			raise RuntimeError("Invalid mode %s" % self.mode)
 

@@ -1,6 +1,5 @@
 import torch
 
-from torch import Tensor
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
