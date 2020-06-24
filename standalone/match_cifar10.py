@@ -81,7 +81,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--nb_augms_strong", type=int, default=2,
 						help="Nb of strong augmentations used in ReMixMatch.")
 
-	parser.add_argument("--threshold_mask", type=float, default=0.95,
+	parser.add_argument("--threshold_confidence", type=float, default=0.95,
 						help="FixMatch threshold for compute mask.")
 	parser.add_argument("--threshold_multihot", type=float, default=0.5,
 						help="FixMatch threshold use to replace argmax() in multihot mode.")

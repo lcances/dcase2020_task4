@@ -9,11 +9,11 @@ class FixMatchLossMultiHotV3(FixMatchLossABC):
 	def __init__(
 		self,
 		lambda_u: float = 1.0,
-		threshold_mask: float = 0.5,
+		threshold_confidence: float = 0.5,
 		threshold_multihot: float = 0.5,
 	):
 		self.lambda_u = lambda_u
-		self.threshold_mask = threshold_mask
+		self.threshold_confidence = threshold_confidence
 		self.threshold_multihot = threshold_multihot
 
 		self.criterion_s = BCELoss(reduction="none")
@@ -22,7 +22,7 @@ class FixMatchLossMultiHotV3(FixMatchLossABC):
 
 	@staticmethod
 	def from_edict(hparams) -> 'FixMatchLossMultiHotV3':
-		return FixMatchLossMultiHotV3(hparams.lambda_u, hparams.threshold_mask, hparams.threshold_multihot)
+		return FixMatchLossMultiHotV3(hparams.lambda_u, hparams.threshold_confidence, hparams.threshold_multihot)
 
 	def __call__(
 		self,
@@ -48,4 +48,4 @@ class FixMatchLossMultiHotV3(FixMatchLossABC):
 
 	def get_confidence_mask(self, pred: Tensor, labels: Tensor, dim: Union[int, tuple]) -> Tensor:
 		means = (pred * labels).sum(dim=dim) / labels.sum(dim=dim)
-		return (means > self.threshold_mask).float()
+		return (means > self.threshold_confidence).float()

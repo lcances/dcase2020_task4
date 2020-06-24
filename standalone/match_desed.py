@@ -108,7 +108,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--threshold_multihot", type=float, default=0.5,
 						help="FixMatch threshold used to replace argmax() in multihot mode.")
-	parser.add_argument("--threshold_mask", type=float, default=0.5,
+	parser.add_argument("--threshold_confidence", type=float, default=0.5,
 						help="FixMatch threshold for compute mask in loss.")
 	parser.add_argument("--sharpen_threshold_multihot", type=float, default=0.5,
 						help="MixMatch threshold for multihot sharpening.")
@@ -134,7 +134,7 @@ def main():
 	prog_start = time()
 	args = create_args()
 
-	print("Start match_desed.")
+	print("Start match_desed (%s)." % args.suffix)
 	print("- run:", " ".join(args.run))
 	print("- from_disk:", args.from_disk)
 	print("- debug_mode:", args.debug_mode)

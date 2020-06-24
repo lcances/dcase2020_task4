@@ -8,17 +8,17 @@ class FixMatchLossOneHot(FixMatchLossABC):
 	def __init__(
 		self,
 		lambda_u: float = 1.0,
-		threshold_mask: float = 0.95,
+		threshold_confidence: float = 0.95,
 	):
 		self.lambda_u = lambda_u
-		self.threshold_mask = threshold_mask
+		self.threshold_confidence = threshold_confidence
 
 		self.criterion_s = cross_entropy
 		self.criterion_u = cross_entropy
 
 	@staticmethod
 	def from_edict(hparams) -> 'FixMatchLossOneHot':
-		return FixMatchLossOneHot(hparams.lambda_u, hparams.threshold_mask)
+		return FixMatchLossOneHot(hparams.lambda_u, hparams.threshold_confidence)
 
 	def __call__(
 		self,
@@ -34,7 +34,7 @@ class FixMatchLossOneHot(FixMatchLossABC):
 
 		# Unsupervised loss
 		max_values, _ = u_pred_weak_augm_weak.max(dim=1)
-		mask = (max_values > self.threshold_mask).float()
+		mask = (max_values > self.threshold_confidence).float()
 		loss_u = self.criterion_u(u_pred_weak_augm_strong, u_labels_weak_guessed)
 		loss_u *= mask
 		loss_u = loss_u.mean()

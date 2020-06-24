@@ -13,11 +13,11 @@ class FixMatchLossMultiHotLocV5(FixMatchLossMultiHotLocABC):
 	def __init__(
 		self,
 		lambda_u: float = 1.0,
-		threshold_mask: float = 0.5,
+		threshold_confidence: float = 0.5,
 		threshold_multihot: float = 0.5,
 	):
 		self.lambda_u = lambda_u
-		self.threshold_mask = threshold_mask
+		self.threshold_confidence = threshold_confidence
 		self.threshold_multihot = threshold_multihot
 
 		self.criterion_s_weak = BCELoss(reduction="none")
@@ -29,7 +29,7 @@ class FixMatchLossMultiHotLocV5(FixMatchLossMultiHotLocABC):
 
 	@staticmethod
 	def from_edict(hparams) -> 'FixMatchLossMultiHotLocV5':
-		return FixMatchLossMultiHotLocV5(hparams.lambda_u, hparams.threshold_mask, hparams.threshold_multihot)
+		return FixMatchLossMultiHotLocV5(hparams.lambda_u, hparams.threshold_confidence, hparams.threshold_multihot)
 
 	def __call__(
 		self,

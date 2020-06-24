@@ -13,11 +13,11 @@ class FixMatchLossMultiHotLocV1(FixMatchLossMultiHotLocABC):
 	def __init__(
 		self,
 		lambda_u: float = 1.0,
-		threshold_mask: float = 0.5,
+		threshold_confidence: float = 0.5,
 		threshold_multihot: float = 0.5,
 	):
 		self.lambda_u = lambda_u
-		self.threshold_mask = threshold_mask
+		self.threshold_confidence = threshold_confidence
 		self.threshold_multihot = threshold_multihot
 
 		self.criterion_s_weak = BCELoss(reduction="none")
@@ -29,7 +29,7 @@ class FixMatchLossMultiHotLocV1(FixMatchLossMultiHotLocABC):
 
 	@staticmethod
 	def from_edict(hparams) -> 'FixMatchLossMultiHotLocV1':
-		return FixMatchLossMultiHotLocV1(hparams.lambda_u, hparams.threshold_mask, hparams.threshold_multihot)
+		return FixMatchLossMultiHotLocV1(hparams.lambda_u, hparams.threshold_confidence, hparams.threshold_multihot)
 
 	def __call__(
 		self,
@@ -79,4 +79,4 @@ class FixMatchLossMultiHotLocV1(FixMatchLossMultiHotLocABC):
 			maxes = pred.clone()
 			for d in sorted(dim, reverse=True):
 				maxes = maxes.max(dim=d)[0]
-		return (maxes > self.threshold_mask).float()
+		return (maxes > self.threshold_confidence).float()

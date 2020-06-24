@@ -11,11 +11,11 @@ class FixMatchLossMultiHotV4(Callable):
 	def __init__(
 		self,
 		lambda_u: float = 1.0,
-		threshold_mask: float = 0.5,
+		threshold_confidence: float = 0.5,
 		threshold_multihot: float = 0.5,
 	):
 		self.lambda_u = lambda_u
-		self.threshold_mask = threshold_mask
+		self.threshold_confidence = threshold_confidence
 		self.threshold_multihot = threshold_multihot
 
 		self.criterion_s = BCELoss(reduction="none")
@@ -26,7 +26,7 @@ class FixMatchLossMultiHotV4(Callable):
 
 	@staticmethod
 	def from_edict(hparams) -> 'FixMatchLossMultiHotV4':
-		return FixMatchLossMultiHotV4(hparams.lambda_u, hparams.threshold_mask, hparams.threshold_multihot)
+		return FixMatchLossMultiHotV4(hparams.lambda_u, hparams.threshold_confidence, hparams.threshold_multihot)
 
 	def __call__(
 		self,
@@ -56,7 +56,7 @@ class FixMatchLossMultiHotV4(Callable):
 		]
 		mean_values = torch.as_tensor(mean_values).cuda()
 
-		mask = (mean_values > self.threshold_mask).float()
+		mask = (mean_values > self.threshold_confidence).float()
 		loss_u = self.criterion_u(u_pred_weak_augm_strong, u_labels_weak_guessed)
 		loss_u *= mask
 		loss_u = loss_u.mean()
