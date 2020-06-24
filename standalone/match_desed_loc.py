@@ -153,6 +153,8 @@ def main():
 	print("- experimental:", args.experimental)
 	print("- use_rampup:", args.use_rampup)
 	print("- use_alignment:", args.use_alignment)
+	print("- threshold_multihot:", args.threshold_multihot)
+	print("- threshold_confidence:", args.threshold_confidence)
 
 	hparams = edict()
 	hparams.update({
