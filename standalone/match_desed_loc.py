@@ -121,7 +121,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
 
-	parser.add_argument("--debug_mode", type=bool_fn, default=False)
+	parser.add_argument("--debug_mode", "--debug", type=bool_fn, default=False)
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
 	parser.add_argument("--experimental", type=optional_str, default=None,
 						choices=["None", "V1", "V2", "V3", "V5"],

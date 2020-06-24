@@ -25,16 +25,10 @@ def test():
 	loss = FixMatchLossMultiHotLoc()
 
 	loss, loss_s_weak, loss_u_weak, loss_s_strong, loss_u_strong = loss(
-		s_pred_weak_augm_weak,
-		s_labels_weak,
-		u_pred_weak_augm_weak,
-		u_pred_weak_augm_strong,
-		u_labels_weak_guessed,
-		s_pred_strong_augm_weak,
-		s_labels_strong,
-		u_pred_strong_augm_weak,
-		u_pred_strong_augm_strong,
-		u_labels_strong_guessed,
+		s_pred_weak_augm_weak, s_labels_weak,
+		u_pred_weak_augm_weak, u_pred_weak_augm_strong, u_labels_weak_guessed,
+		s_pred_strong_augm_weak, s_labels_strong,
+		u_pred_strong_augm_weak, u_pred_strong_augm_strong, u_labels_strong_guessed,
 	)
 
 	print("DEBUG: ", loss.shape, loss_s_weak.shape, loss_u_weak.shape, loss_s_strong.shape, loss_u_strong.shape)
