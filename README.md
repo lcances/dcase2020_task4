@@ -28,22 +28,27 @@ conda install pytorch
 conda install h5py
 conda install pandas
 conda install tensorboard
+conda install tqdm
+
 conda install pillow       # for the augmentation_utils package
 conda install scikit-image # ...
 
-pip install librosa
-pip install tqdm
+conda install -c conda-forge librosa
+
+pip install advertorch
 pip install torchsummaryX
 pip install dcase_util
 pip install sed_eval
 
-pip install git+https://github.com/leocances/dcase2020_task4.git # <-- dcase2020 task 4 separate dataset management
+pip install git+https://github.com/leocances/dcase2020.git # <-- dcase2020 task 4 separate dataset management
 pip install git+https://github.com/leocances/pytorch_metrics.git # <-- personnal pytorch metrics functions
 pip install git+https://github.com/leocances/augmentation_utils.git # <-- personnal audio & image augmentation functions
 pip install -i https://test.pypi.org/simple/ aeseg # for automatique segmentation optimization
 
-# For deep co-training
-pip install advertorch
+# Extra package for jupyterlab (and running the notebooks smoothly)
+conda install jupyterlab
+conda install -c conda-forge ipywidgets
+conda install -c conda-forge nodejs
 ```
 
 ##### 3. Download the dataset
