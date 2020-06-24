@@ -42,7 +42,7 @@ class dcase2019_model(nn.Module):
 
         x = self.features(x)
         
-        x = x.squeeze()
+        x = x.squeeze(dim=2)
         x = x.permute(0, 2, 1)
         x, _ = self.bi_gru(x)
         
@@ -53,7 +53,7 @@ class dcase2019_model(nn.Module):
         avg_x = self.g_avg_pool(strong_x)
         max_x = self.g_max_pool(strong_x)
         concat = torch.cat((avg_x, max_x), 1)
-        concat = concat.squeeze()
+        concat = concat.squeeze(dim=-1)
         
         weak_x = self.weak_classifier(concat)
 
