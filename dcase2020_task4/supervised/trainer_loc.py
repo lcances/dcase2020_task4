@@ -8,7 +8,7 @@ from typing import Callable, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 from dcase2020_task4.util.utils_match import get_lr
-from dcase2020_task4.metrics_values_buffer import MetricsValuesBuffer
+from dcase2020_task4.metrics_recorder import MetricsRecorder
 from dcase2020_task4.trainer_abc import TrainerABC
 
 
@@ -33,7 +33,7 @@ class SupervisedTrainerLoc(TrainerABC):
 		self.criterion = criterion
 		self.writer = writer
 
-		self.metrics_values = MetricsValuesBuffer(
+		self.metrics_recorder = MetricsRecorder(
 			"train/",
 			list(self.metrics_weak.keys()) +
 			list(self.metrics_strong.keys()) +
@@ -42,7 +42,7 @@ class SupervisedTrainerLoc(TrainerABC):
 
 	def train(self, epoch: int):
 		self.reset_all_metrics()
-		self.metrics_values.reset_epoch()
+		self.metrics_recorder.reset_epoch()
 		self.model.train()
 
 		iter_val = iter(self.loader)
@@ -64,22 +64,22 @@ class SupervisedTrainerLoc(TrainerABC):
 				pred_weak = self.acti_fn(logits_weak, dim=1)
 				pred_strong = self.acti_fn(logits_strong, dim=1)
 
-				self.metrics_values.add_value("loss", loss.item())
-				self.metrics_values.add_value("loss_weak", loss_weak.item())
-				self.metrics_values.add_value("loss_strong", loss_strong.item())
+				self.metrics_recorder.add_value("loss", loss.item())
+				self.metrics_recorder.add_value("loss_weak", loss_weak.item())
+				self.metrics_recorder.add_value("loss_strong", loss_strong.item())
 
 				metrics_preds_labels = [
 					(self.metrics_weak, pred_weak, labels_weak),
 					(self.metrics_strong, pred_strong, labels_strong),
 				]
-				self.metrics_values.apply_metrics(metrics_preds_labels)
-				self.metrics_values.print_metrics(epoch, i, len(self.loader))
+				self.metrics_recorder.apply_metrics(metrics_preds_labels)
+				self.metrics_recorder.print_metrics(epoch, i, len(self.loader))
 
 		print("")
 
 		if self.writer is not None:
-			self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
-			self.metrics_values.store_in_writer(self.writer, epoch)
+			self.writer.add_scalar("hparams/lr", get_lr(self.optim), epoch)
+			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 	def nb_examples(self) -> int:
 		return len(self.loader) * self.loader.batch_size

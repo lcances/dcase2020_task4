@@ -12,7 +12,7 @@ from dcase2020_task4.util.rampup import RampUp
 from dcase2020_task4.trainer_abc import SSTrainerABC
 from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.utils_match import get_lr
-from dcase2020_task4.metrics_values_buffer import MetricsValuesBuffer
+from dcase2020_task4.metrics_recorder import MetricsRecorder
 
 
 class MixMatchTrainerLoc(SSTrainerABC):
@@ -46,7 +46,7 @@ class MixMatchTrainerLoc(SSTrainerABC):
 		self.mixer = mixer
 		self.lambda_u_rampup = lambda_u_rampup
 
-		self.metrics_values = MetricsValuesBuffer(
+		self.metrics_recorder = MetricsRecorder(
 			"train/",
 			list(self.metrics_s_weak.keys()) +
 			list(self.metrics_u_weak.keys()) +
@@ -57,7 +57,7 @@ class MixMatchTrainerLoc(SSTrainerABC):
 
 	def train(self, epoch: int):
 		self.reset_all_metrics()
-		self.metrics_values.reset_epoch()
+		self.metrics_recorder.reset_epoch()
 		self.model.train()
 
 		loaders_zip = ZipCycle([self.loader_train_s_augm, self.loader_train_u_augms])
@@ -99,11 +99,11 @@ class MixMatchTrainerLoc(SSTrainerABC):
 				self.criterion.lambda_u = self.lambda_u_rampup.value()
 				self.lambda_u_rampup.step()
 
-				self.metrics_values.add_value("loss", loss.item())
-				self.metrics_values.add_value("loss_s_weak", loss_s_weak.item())
-				self.metrics_values.add_value("loss_u_weak", loss_u_weak.item())
-				self.metrics_values.add_value("loss_s_strong", loss_s_strong.item())
-				self.metrics_values.add_value("loss_u_strong", loss_u_strong.item())
+				self.metrics_recorder.add_value("loss", loss.item())
+				self.metrics_recorder.add_value("loss_s_weak", loss_s_weak.item())
+				self.metrics_recorder.add_value("loss_u_weak", loss_u_weak.item())
+				self.metrics_recorder.add_value("loss_s_strong", loss_s_strong.item())
+				self.metrics_recorder.add_value("loss_u_strong", loss_u_strong.item())
 
 				metrics_preds_labels = [
 					(self.metrics_s_weak, s_pred_weak_mixed, s_labels_weak_mixed),
@@ -111,14 +111,14 @@ class MixMatchTrainerLoc(SSTrainerABC):
 					(self.metrics_s_strong, s_pred_strong_mixed, s_labels_strong_mixed),
 					(self.metrics_u_strong, u_pred_strong_mixed, u_labels_strong_mixed),
 				]
-				self.metrics_values.apply_metrics(metrics_preds_labels)
-				self.metrics_values.print_metrics(epoch, i, len(loaders_zip))
+				self.metrics_recorder.apply_metrics(metrics_preds_labels)
+				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
 
 		print("")
 
 		if self.writer is not None:
-			self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
-			self.metrics_values.store_in_writer(self.writer, epoch)
+			self.writer.add_scalar("hparams/lr", get_lr(self.optim), epoch)
+			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 	def nb_examples_supervised(self) -> int:
 		return len(self.loader_train_s_augm) * self.loader_train_s_augm.batch_size

@@ -10,7 +10,7 @@ from metric_utils.metrics import Metrics
 
 from dcase2020_task4.fixmatch.losses.abc import FixMatchLossMultiHotLocABC
 from dcase2020_task4.trainer_abc import SSTrainerABC
-from dcase2020_task4.metrics_values_buffer import MetricsValuesBuffer
+from dcase2020_task4.metrics_recorder import MetricsRecorder
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.util.rampup import RampUp
@@ -51,7 +51,7 @@ class FixMatchTrainerLoc(SSTrainerABC):
 		self.threshold_multihot = threshold_multihot
 		self.distributions = distributions
 
-		self.metrics_values = MetricsValuesBuffer(
+		self.metrics_recorder = MetricsRecorder(
 			"train/",
 			list(self.metrics_s_weak.keys()) +
 			list(self.metrics_u_weak.keys()) +
@@ -62,7 +62,7 @@ class FixMatchTrainerLoc(SSTrainerABC):
 
 	def train(self, epoch: int):
 		self.reset_all_metrics()
-		self.metrics_values.reset_epoch()
+		self.metrics_recorder.reset_epoch()
 		self.model.train()
 
 		loaders_zip = ZipCycle([self.loader_train_s_augm_weak, self.loader_train_u_augms_weak_strong])
@@ -88,7 +88,6 @@ class FixMatchTrainerLoc(SSTrainerABC):
 			u_pred_strong_augm_strong = self.acti_fn(u_logits_strong_augm_strong, dim=(1, 2))
 
 			with torch.no_grad():
-
 				u_logits_weak_augm_weak, u_logits_strong_augm_weak = self.model(u_batch_augm_weak)
 				u_pred_weak_augm_weak = self.acti_fn(u_logits_weak_augm_weak, dim=1)
 				u_pred_strong_augm_weak = self.acti_fn(u_logits_strong_augm_weak, dim=(1, 2))
@@ -121,11 +120,11 @@ class FixMatchTrainerLoc(SSTrainerABC):
 					self.criterion.lambda_u = self.rampup.value()
 					self.rampup.step()
 
-				self.metrics_values.add_value("loss", loss.item())
-				self.metrics_values.add_value("loss_s_weak", loss_s_weak.item())
-				self.metrics_values.add_value("loss_u_weak", loss_u_weak.item())
-				self.metrics_values.add_value("loss_s_strong", loss_s_strong.item())
-				self.metrics_values.add_value("loss_u_strong", loss_u_strong.item())
+				self.metrics_recorder.add_value("loss", loss.item())
+				self.metrics_recorder.add_value("loss_s_weak", loss_s_weak.item())
+				self.metrics_recorder.add_value("loss_u_weak", loss_u_weak.item())
+				self.metrics_recorder.add_value("loss_s_strong", loss_s_strong.item())
+				self.metrics_recorder.add_value("loss_u_strong", loss_u_strong.item())
 
 				metrics_preds_labels = [
 					(self.metrics_s_weak, s_pred_weak_augm_weak, s_labels_weak),
@@ -133,14 +132,15 @@ class FixMatchTrainerLoc(SSTrainerABC):
 					(self.metrics_s_strong, s_pred_strong_augm_weak, s_labels_strong),
 					(self.metrics_u_strong, u_pred_strong_augm_strong, u_labels_strong_guessed),
 				]
-				self.metrics_values.apply_metrics(metrics_preds_labels)
-				self.metrics_values.print_metrics(epoch, i, len(loaders_zip))
+				self.metrics_recorder.apply_metrics(metrics_preds_labels)
+				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
 
 		print("")
 
 		if self.writer is not None:
-			self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
-			self.metrics_values.store_in_writer(self.writer, epoch)
+			self.writer.add_scalar("hparams/lr", get_lr(self.optim), epoch)
+			self.writer.add_scalar("hparams/lambda_u", self.criterion.lambda_u, epoch)
+			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 	def nb_examples_supervised(self) -> int:
 		return len(self.loader_train_s_augm_weak) * self.loader_train_s_augm_weak.batch_size

@@ -8,7 +8,7 @@ from dcase2020_task4.fixmatch.losses.abc import FixMatchLossMultiHotLocABC
 
 
 class FixMatchLossMultiHotLocV3(FixMatchLossMultiHotLocABC):
-	""" FixMatch loss multi-hot (based on FixMatchLossMultiHotV2 class tagging). """
+	""" FixMatch loss multi-hot (based on FixMatchLossMultiHotV3 class tagging). """
 
 	def __init__(
 		self,

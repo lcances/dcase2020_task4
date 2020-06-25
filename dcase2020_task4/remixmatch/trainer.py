@@ -16,7 +16,7 @@ from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.trainer_abc import SSTrainerABC
 from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.utils_match import get_lr
-from dcase2020_task4.metrics_values_buffer import MetricsValuesBuffer
+from dcase2020_task4.metrics_recorder import MetricsRecorder
 
 
 class ReMixMatchTrainer(SSTrainerABC):
@@ -57,7 +57,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		self.rot_angles = rot_angles
 
 		self.acti_fn_rot = lambda batch, dim: batch.softmax(dim=dim)
-		self.metrics_values = MetricsValuesBuffer(
+		self.metrics_recorder = MetricsRecorder(
 			"train/",
 			list(self.metrics_s.keys()) +
 			list(self.metrics_u.keys()) +
@@ -68,7 +68,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 	def train(self, epoch: int):
 		self.reset_all_metrics()
-		self.metrics_values.reset_epoch()
+		self.metrics_recorder.reset_epoch()
 		self.model.train()
 
 		loaders_zip = ZipCycle([self.loader_train_s, self.loader_train_u])
@@ -121,11 +121,11 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 			# Compute metrics
 			with torch.no_grad():
-				self.metrics_values.add_value("loss", loss.item())
-				self.metrics_values.add_value("loss_s", loss_s.item())
-				self.metrics_values.add_value("loss_u", loss_u.item())
-				self.metrics_values.add_value("loss_u1", loss_u1.item())
-				self.metrics_values.add_value("loss_r", loss_r.item())
+				self.metrics_recorder.add_value("loss", loss.item())
+				self.metrics_recorder.add_value("loss_s", loss_s.item())
+				self.metrics_recorder.add_value("loss_u", loss_u.item())
+				self.metrics_recorder.add_value("loss_u1", loss_u1.item())
+				self.metrics_recorder.add_value("loss_r", loss_r.item())
 
 				metrics_preds_labels = [
 					(self.metrics_s, s_pred_mixed, s_labels_mixed),
@@ -134,14 +134,14 @@ class ReMixMatchTrainer(SSTrainerABC):
 					(self.metrics_r, r_pred, r_labels),
 				]
 
-				self.metrics_values.apply_metrics(metrics_preds_labels)
-				self.metrics_values.print_metrics(epoch, i, len(loaders_zip))
+				self.metrics_recorder.apply_metrics(metrics_preds_labels)
+				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
 
 		print("")
 
 		if self.writer is not None:
-			self.writer.add_scalar("train/lr", get_lr(self.optim), epoch)
-			self.metrics_values.store_in_writer(self.writer, epoch)
+			self.writer.add_scalar("hparams/lr", get_lr(self.optim), epoch)
+			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 	def nb_examples_supervised(self) -> int:
 		return len(self.loader_train_s) * self.loader_train_s.batch_size

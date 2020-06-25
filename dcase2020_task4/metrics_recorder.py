@@ -8,21 +8,50 @@ from typing import Dict, List, Tuple
 
 from metric_utils.metrics import Metrics
 
-# Length max of keys names. Should be at least 10.
+# Length of a column. Should be at least 10.
 KEY_MAX_LENGTH = 10
 
 
-class MetricsValuesBuffer:
+class MetricsRecorderABC:
+	def add_value(self, name: str, value: float):
+		""" Store a value of a metric. """
+		raise NotImplementedError("Abstract method")
+
+	def apply_metrics(self, metrics_preds_labels: List[Tuple[Dict[str, Metrics], Tensor, Tensor]]):
+		""" Call metrics with predictions and labels and store their values. """
+		raise NotImplementedError("Abstract method")
+
+	def reset_epoch(self):
+		""" Reset the values stored. Should be called before starting to iterate over a dataset. """
+		raise NotImplementedError("Abstract method")
+
+	def print_metrics(self, epoch: int, i: int, len_: int):
+		""" Print current metrics means stored. """
+		raise NotImplementedError("Abstract method")
+
+	def store_in_writer(self, writer: SummaryWriter, epoch: int):
+		""" Store current metrics means in tensorboard SummaryWriter. """
+		raise NotImplementedError("Abstract method")
+
+
+class MetricsRecorder(MetricsRecorderABC):
 	"""
 		Store metric data of 1 epoch in lists.
 		Useful for trainers and validators.
 	"""
 
 	def __init__(
-		self, prefix: str, keys: List[str]
+		self, prefix: str, keys: List[str], accept_unknown_metrics: bool = False
 	):
+		"""
+			prefix: prefix used in tensorboard names. Example: "train/" or "val/". Can be empty.
+			keys: Names of all metrics used.
+			accept_unknown_metrics: If false, any value added must have a name in "keys".
+		"""
 		self.prefix = prefix
 		self.keys = keys
+		self.accept_unknown_metrics = accept_unknown_metrics
+
 		self.data = {k: [] for k in self.keys}
 		self.start = time()
 
@@ -30,6 +59,12 @@ class MetricsValuesBuffer:
 			raise RuntimeError("Duplicate found for metrics names : %s" % " ".join(keys))
 
 	def add_value(self, name: str, value: float):
+		if name not in self.data.keys():
+			if self.accept_unknown_metrics:
+				self.data[name] = []
+			else:
+				raise RuntimeError("Invalid name %s. Include name in \"keys\" when building MetricsRecorder or change "
+								   "\"accept_unknown_metrics\" to True." % name)
 		self.data[name].append(value)
 
 	def apply_metrics(self, metrics_preds_labels: List[Tuple[Dict[str, Metrics], Tensor, Tensor]]):

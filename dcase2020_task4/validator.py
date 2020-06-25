@@ -7,7 +7,7 @@ from typing import Callable, Dict, List
 
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.metrics_values_buffer import MetricsValuesBuffer
+from dcase2020_task4.metrics_recorder import MetricsRecorder
 from dcase2020_task4.validator_abc import ValidatorABC
 
 
@@ -25,7 +25,7 @@ class DefaultValidator(ValidatorABC):
 		self.loader = loader
 		self.metrics = metrics
 		self.writer = writer
-		self.metrics_values = MetricsValuesBuffer(
+		self.metrics_recorder = MetricsRecorder(
 			"val/",
 			list(self.metrics.keys())
 		)
@@ -33,7 +33,7 @@ class DefaultValidator(ValidatorABC):
 	def val(self, epoch: int):
 		with torch.no_grad():
 			self.reset_all_metrics()
-			self.metrics_values.reset_epoch()
+			self.metrics_recorder.reset_epoch()
 
 			self.model.eval()
 
@@ -51,13 +51,13 @@ class DefaultValidator(ValidatorABC):
 					metrics_preds_labels = [
 						(self.metrics, x_pred, x_label)
 					]
-					self.metrics_values.apply_metrics(metrics_preds_labels)
-					self.metrics_values.print_metrics(epoch, i, len(self.loader))
+					self.metrics_recorder.apply_metrics(metrics_preds_labels)
+					self.metrics_recorder.print_metrics(epoch, i, len(self.loader))
 
 			print("")
 
 			if self.writer is not None:
-				self.metrics_values.store_in_writer(self.writer, epoch)
+				self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 	def nb_examples(self) -> int:
 		return len(self.loader) * self.loader.batch_size
