@@ -122,7 +122,7 @@ def create_args() -> Namespace:
 						help="Suffix to Tensorboard log dir.")
 
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
-	parser.add_argument("--experimental", type=str, default="V2", choices=["None", "V1", "V2", "V3", "V4"])
+	parser.add_argument("--experimental", type=optional_str, default="", choices=["", "None", "V1", "V2", "V3", "V4"])
 
 	parser.add_argument("--write_results", type=bool_fn, default=True,
 						help="Write results in a tensorboard SummaryWriter.")
@@ -130,9 +130,19 @@ def create_args() -> Namespace:
 	return parser.parse_args()
 
 
+def check_args(args: Namespace):
+	if not osp.isdir(args.dataset):
+		raise RuntimeError("Invalid dirpath %s" % args.dataset)
+
+	if args.write_results:
+		if not osp.isdir(args.logdir):
+			raise RuntimeError("Invalid dirpath %s" % args.logdir)
+
+
 def main():
 	prog_start = time()
 	args = create_args()
+	check_args(args)
 
 	print("Start match_desed (%s)." % args.suffix)
 	print("- run:", " ".join(args.run))

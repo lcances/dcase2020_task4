@@ -63,14 +63,16 @@ def create_args() -> Namespace:
 	optional_str = lambda x: None if str(x).lower() == "none" else str(x)
 
 	parser = ArgumentParser()
-	# TODO : help for acronyms
-	parser.add_argument("--run", type=str, nargs="*", default=["fm", "su"],
+	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch", "supervised"],
 						help="Options fm = FixMatch, su = Supervised")
-	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
+	parser.add_argument("--seed", type=int, default=123)
+	parser.add_argument("--debug_mode", "--debug", type=bool_fn, default=False)
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
+	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
+	parser.add_argument("--path_checkpoint", type=str, default="../models/")
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--dataset_name", type=str, default="DESED")
-	parser.add_argument("--seed", type=int, default=123)
+
 	parser.add_argument("--model_name", type=str, default="dcase2019", choices=["dcase2019", "WeakStrongBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=1)
 	parser.add_argument("--batch_size_s", type=int, default=8)
@@ -82,6 +84,22 @@ def create_args() -> Namespace:
 							 "It will be faster but consume a lot of RAM.")
 	parser.add_argument("--num_workers_s", type=int, default=1)
 	parser.add_argument("--num_workers_u", type=int, default=1)
+	parser.add_argument("--suffix", type=str, default="",
+						help="Suffix to Tensorboard log dir.")
+	parser.add_argument("--write_results", type=bool_fn, default=True,
+						help="Write results in a tensorboard SummaryWriter.")
+	parser.add_argument("--experimental", type=optional_str, default="",
+						choices=["", "None", "V1", "V2", "V3", "V5"],
+						help="Experimental FixMatch mode.")
+
+	parser.add_argument("--use_rampup", type=bool_fn, default=False,
+						help="Use RampUp or not for lambda_u FixMatch loss hyperparameter.")
+	parser.add_argument("--use_alignment", type=bool_fn, default=False,
+						help="Use distribution alignment with FixMatch predictions.")
+
+	parser.add_argument("--checkpoint_metric_name", type=str, default="fscore_weak",
+						choices=["fscore_weak", "fscore_strong", "acc_weak", "acc_strong"],
+						help="Metric used to compare and save best model during training.")
 
 	parser.add_argument("--lr", type=float, default=3e-3,
 						help="Learning rate used.")
@@ -118,33 +136,27 @@ def create_args() -> Namespace:
 	parser.add_argument("--mixup_alpha", type=float, default=0.75,
 						help="MixMatch and ReMixMatch hyperparameter \"alpha\" used by MixUp.")
 
-	parser.add_argument("--suffix", type=str, default="",
-						help="Suffix to Tensorboard log dir.")
-
-	parser.add_argument("--debug_mode", "--debug", type=bool_fn, default=False)
-	parser.add_argument("--path_checkpoint", type=str, default="../models/")
-	parser.add_argument("--experimental", type=optional_str, default=None,
-						choices=["None", "V1", "V2", "V3", "V5"],
-						help="Experimental FixMatch mode.")
-
-	parser.add_argument("--use_rampup", type=bool_fn, default=False,
-						help="Use RampUp or not for lambda_u FixMatch loss hyperparameter.")
-	parser.add_argument("--use_alignment", type=bool_fn, default=False,
-						help="Use distribution alignment with FixMatch predictions.")
-
-	parser.add_argument("--checkpoint_metric_name", type=str, default="fscore_weak",
-						choices=["fscore_weak", "fscore_strong", "acc_weak", "acc_strong"],
-						help="Metric used to compare and save best model during training.")
-
-	parser.add_argument("--write_results", type=bool_fn, default=True,
-						help="Write results in a tensorboard SummaryWriter.")
-
 	return parser.parse_args()
+
+
+def check_args(args: Namespace):
+	if not osp.isdir(args.dataset):
+		raise RuntimeError("Invalid dirpath %s" % args.dataset)
+
+	if args.write_results:
+		if not osp.isdir(args.logdir):
+			raise RuntimeError("Invalid dirpath %s" % args.logdir)
+		if not osp.isdir(args.path_checkpoint):
+			raise RuntimeError("Invalid dirpath %s" % args.path_checkpoint)
 
 
 def main():
 	prog_start = time()
 	args = create_args()
+	check_args(args)
+
+	reset_seed(args.seed)
+	torch.autograd.set_detect_anomaly(args.debug_mode)
 
 	print("Start fixmatch_loc_desed (%s)." % args.suffix)
 	print("- run:", " ".join(args.run))
@@ -163,9 +175,6 @@ def main():
 	})
 	# Note : some hyperparameters are overwritten when calling the training function, change this in the future
 	hparams.begin_date = get_datetime()
-
-	reset_seed(hparams.seed)
-	torch.autograd.set_detect_anomaly(args.debug_mode)
 
 	if hparams.model_name == "dcase2019":
 		model_factory = lambda: dcase2019_model().cuda()
