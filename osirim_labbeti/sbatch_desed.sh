@@ -32,7 +32,7 @@ cat << EOT > $tmp_file
 module purge
 module load singularity/3.0.3
 
-srun singularity exec $path_torch $path_py $path_script --dataset $path_dataset --logdir $path_board --from_disk False --batch_size_s 64 --batch_size_u 64 --num_workers_s 4 --num_workers_u 4 --nb_epochs 100 --run "$run" --experimental "$experimental" --suffix "$suffix"
+srun singularity exec $path_torch $path_py $path_script --dataset $path_dataset --logdir $path_board --from_disk False --batch_size_s 64 --batch_size_u 64 --num_workers_s 4 --num_workers_u 4 --nb_epochs 100  --threshold_multihot 0.5 --threshold_confidence 0.5 --run "$run" --experimental "$experimental" --suffix "$suffix"
 
 EOT
 

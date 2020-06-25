@@ -9,4 +9,5 @@ run=$1
 experimental=$2
 suffix=$3
 
-$path_py $path_script --dataset $path_dataset --logdir $path_board --from_disk False --batch_size_s 16 --batch_size_u 112 --num_workers_s 4 --num_workers_u 4 --nb_epochs 100 --path_checkpoint $path_checkpoint --run $run --experimental $experimental --suffix $suffix
+
+$path_py $path_script --dataset $path_dataset --logdir $path_board --debug False --from_disk False --batch_size_s 64 --batch_size_u 64 --num_workers_s 4 --num_workers_u 4 --nb_epochs 10 --path_checkpoint $path_checkpoint --write_results False --use_rampup False --use_alignment False --threshold_multihot 0.5 --threshold_confidence 0.5 --run "$run" --experimental "$experimental" --suffix "$suffix"
