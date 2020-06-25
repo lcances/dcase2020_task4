@@ -81,13 +81,13 @@ class FixMatchTrainerLoc(SSTrainerABC):
 			s_logits_weak_augm_weak, s_logits_strong_augm_weak = self.model(s_batch_augm_weak)
 			u_logits_weak_augm_strong, u_logits_strong_augm_strong = self.model(u_batch_augm_strong)
 
+			s_pred_weak_augm_weak = self.acti_fn(s_logits_weak_augm_weak, dim=1)
 			u_pred_weak_augm_strong = self.acti_fn(u_logits_weak_augm_strong, dim=1)
 
 			s_pred_strong_augm_weak = self.acti_fn(s_logits_strong_augm_weak, dim=(1, 2))
 			u_pred_strong_augm_strong = self.acti_fn(u_logits_strong_augm_strong, dim=(1, 2))
 
 			with torch.no_grad():
-				s_pred_weak_augm_weak = self.acti_fn(s_logits_weak_augm_weak, dim=1)
 
 				u_logits_weak_augm_weak, u_logits_strong_augm_weak = self.model(u_batch_augm_weak)
 				u_pred_weak_augm_weak = self.acti_fn(u_logits_weak_augm_weak, dim=1)
