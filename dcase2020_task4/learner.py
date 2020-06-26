@@ -43,14 +43,12 @@ class DefaultLearner(LearnerABC):
 	def _on_start(self):
 		if self.verbose > 0:
 			if issubclass(type(self.trainer), SSTrainerABC):
-				ss_trainer = SSTrainerABC()
-				ss_trainer.__dict__ = self.trainer.__dict__
 				print("\nStart %s training (%d epochs, %d supervised train examples, %d unsupervised train examples, "
 					  "%d valid examples)..." % (
 						  self.name,
 						  self.nb_epochs,
-						  ss_trainer.nb_examples_supervised(),
-						  ss_trainer.nb_examples_unsupervised(),
+						  self.trainer.nb_examples_supervised(),
+						  self.trainer.nb_examples_unsupervised(),
 						  self.validator.nb_examples()
 					  ))
 			else:
