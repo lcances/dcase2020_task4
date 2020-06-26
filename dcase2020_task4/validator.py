@@ -34,7 +34,6 @@ class DefaultValidator(ValidatorABC):
 		with torch.no_grad():
 			self.reset_all_metrics()
 			self.metrics_recorder.reset_epoch()
-
 			self.model.eval()
 
 			iter_val = iter(self.loader)

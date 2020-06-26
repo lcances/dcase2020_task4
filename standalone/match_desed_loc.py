@@ -4,6 +4,7 @@ os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
 import numpy as np
+import json
 import os.path as osp
 import torch
 
@@ -31,7 +32,7 @@ from dcase2020_task4.fixmatch.losses.tag_loc.v1 import FixMatchLossMultiHotLocV1
 from dcase2020_task4.fixmatch.losses.tag_loc.v2 import FixMatchLossMultiHotLocV2
 from dcase2020_task4.fixmatch.losses.tag_loc.v3 import FixMatchLossMultiHotLocV3
 from dcase2020_task4.fixmatch.losses.tag_loc.v5 import FixMatchLossMultiHotLocV5
-from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
+from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.fixmatch.trainer_loc import FixMatchTrainerLoc
 
 from dcase2020_task4.mixmatch.losses.tag_loc import MixMatchLossMultiHotLoc
@@ -39,7 +40,7 @@ from dcase2020_task4.mixmatch.mixers.tag_loc import MixMatchMixerMultiHotLoc
 from dcase2020_task4.mixmatch.trainer_loc import MixMatchTrainerLoc
 
 from dcase2020_task4.learner import DefaultLearner
-from dcase2020_task4.supervised.loss import weak_synth_loss
+from dcase2020_task4.supervised.loss import SupervisedLossLoc
 from dcase2020_task4.supervised.trainer_loc import SupervisedTrainerLoc
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
@@ -67,26 +68,28 @@ def create_args() -> Namespace:
 						help="Options fm = FixMatch, su = Supervised")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--debug_mode", "--debug", type=bool_fn, default=False)
-	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
-	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
-	parser.add_argument("--path_checkpoint", type=str, default="../models/")
-	parser.add_argument("--mode", type=str, default="multihot")
-	parser.add_argument("--dataset_name", type=str, default="DESED")
-
 	parser.add_argument("--begin_date", type=str, default=get_datetime(),
 						help="Date used in SummaryWriter name.")
 
+	parser.add_argument("--mode", type=str, default="multihot")
+	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
+	parser.add_argument("--dataset_name", type=str, default="DESED")
+	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
+
 	parser.add_argument("--model_name", type=str, default="dcase2019", choices=["dcase2019", "WeakStrongBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=1)
-	parser.add_argument("--batch_size_s", type=int, default=8)
-	parser.add_argument("--batch_size_u", type=int, default=8)
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.5)
+
+	parser.add_argument("--batch_size_s", type=int, default=8)
+	parser.add_argument("--batch_size_u", type=int, default=8)
+	parser.add_argument("--num_workers_s", type=int, default=1)
+	parser.add_argument("--num_workers_u", type=int, default=1)
+
+	parser.add_argument("--path_checkpoint", type=str, default="../models/")
 	parser.add_argument("--from_disk", type=bool_fn, default=True,
 						help="Select False if you want ot load all data into RAM. "
 							 "It will be faster but consume a lot of RAM.")
-	parser.add_argument("--num_workers_s", type=int, default=1)
-	parser.add_argument("--num_workers_u", type=int, default=1)
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
 	parser.add_argument("--write_results", type=bool_fn, default=True,
@@ -95,7 +98,7 @@ def create_args() -> Namespace:
 						choices=["", "None", "V1", "V2", "V3", "V5"],
 						help="Experimental FixMatch mode.")
 
-	parser.add_argument("--use_rampup", type=bool_fn, default=False,
+	parser.add_argument("--use_rampup", "--use_warmup", type=bool_fn, default=False,
 						help="Use RampUp or not for lambda_u FixMatch loss hyperparameter.")
 	parser.add_argument("--use_alignment", type=bool_fn, default=False,
 						help="Use distribution alignment with FixMatch predictions.")
@@ -104,14 +107,14 @@ def create_args() -> Namespace:
 						choices=["fscore_weak", "fscore_strong", "acc_weak", "acc_strong"],
 						help="Metric used to compare and save best model during training.")
 
-	parser.add_argument("--lr", type=float, default=3e-3,
-						help="Learning rate used.")
-	parser.add_argument("--weight_decay", type=float, default=0.0,
-						help="Weight decay used.")
 	parser.add_argument("--optim_name", type=str, default="Adam", choices=["Adam"],
 						help="Optimizer used.")
 	parser.add_argument("--scheduler", "--sched", type=optional_str, default="CosineLRScheduler",
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
+	parser.add_argument("--lr", type=float, default=3e-3,
+						help="Learning rate used.")
+	parser.add_argument("--weight_decay", type=float, default=0.0,
+						help="Weight decay used.")
 
 	parser.add_argument("--lambda_u", type=float, default=1.0,
 						help="FixMatch, MixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
@@ -154,7 +157,8 @@ def check_args(args: Namespace):
 
 
 def main():
-	start = time()
+	start_time = time()
+	start_date = get_datetime()
 	args = create_args()
 	check_args(args)
 
@@ -356,6 +360,7 @@ def main():
 		learner.start()
 
 		if writer is not None:
+			json.dump(hparams, open(osp.join(writer.log_dir, "args.json")), indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 			writer.flush()
 			writer.close()
@@ -412,6 +417,7 @@ def main():
 		learner.start()
 
 		if writer is not None:
+			json.dump(hparams, open(osp.join(writer.log_dir, "args.json")), indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 			writer.flush()
 			writer.close()
@@ -427,16 +433,17 @@ def main():
 
 		hparams.train_name = "Supervised"
 
-		criterion = weak_synth_loss
-		checkpoint = CheckPoint(
-			model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (
-				hparams.model_name, hparams.train_name, hparams.suffix))
-		)
+		criterion = SupervisedLossLoc()
 
 		if hparams.write_results:
 			writer = build_writer(hparams, suffix="%s" % suffix_loc)
+			checkpoint = CheckPoint(
+				model, optim, name=osp.join(hparams.path_checkpoint, "%s_%s_%s.torch" % (
+					hparams.model_name, hparams.train_name, hparams.suffix))
+			)
 		else:
 			writer = None
+			checkpoint = None
 
 		trainer = SupervisedTrainerLoc(
 			model, acti_fn, optim, loader_train_s, metrics_s_weak, metrics_s_strong, criterion, writer
@@ -448,13 +455,14 @@ def main():
 		learner.start()
 
 		if writer is not None:
+			json.dump(hparams, open(osp.join(writer.log_dir, "args.json")), indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 			writer.flush()
 			writer.close()
 
-	exec_time = time() - start
+	exec_time = time() - start_time
 	print("")
-	print("Program started at \"%s\" and terminated at \"%s\"." % (hparams.begin_date, get_datetime()))
+	print("Program started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)
 
 

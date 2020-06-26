@@ -10,8 +10,7 @@ import torch
 from argparse import ArgumentParser, Namespace
 from easydict import EasyDict as edict
 from time import time
-from torch.nn import Module
-from torch.nn.functional import binary_cross_entropy
+from torch.nn import Module, BCELoss
 from torch.optim import Adam
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
@@ -25,7 +24,7 @@ from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
 from dcase2020_task4.dcase2019.models import dcase2019_model
-from dcase2020_task4.fixmatch.cosine_scheduler import CosineLRScheduler
+from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.fixmatch.losses.tag_only.v1 import FixMatchLossMultiHotV1
 from dcase2020_task4.fixmatch.losses.tag_only.v2 import FixMatchLossMultiHotV2
 from dcase2020_task4.fixmatch.losses.tag_only.v3 import FixMatchLossMultiHotV3
@@ -65,25 +64,30 @@ def create_args() -> Namespace:
 
 	parser = ArgumentParser()
 	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch", "mixmatch", "remixmatch", "supervised"])
-	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
-	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
-	parser.add_argument("--mode", type=str, default="multihot")
-	parser.add_argument("--dataset_name", type=str, default="DESED")
 	parser.add_argument("--seed", type=int, default=123)
-	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline"])
-	parser.add_argument("--nb_epochs", type=int, default=1)
-	parser.add_argument("--batch_size_s", type=int, default=8)
-	parser.add_argument("--batch_size_u", type=int, default=8)
-	parser.add_argument("--nb_classes", type=int, default=10)
-	parser.add_argument("--confidence", type=float, default=0.5)
-	parser.add_argument("--from_disk", type=bool_fn, default=True,
-						help="Select False if you want ot load all data into RAM.")
-	parser.add_argument("--num_workers_s", type=int, default=1)
-	parser.add_argument("--num_workers_u", type=int, default=1)
-	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy", choices=["sq_diff", "cross_entropy"],
-						help="MixMatch unsupervised loss component.")
+	parser.add_argument("--debug_mode", type=bool_fn, default=False)
 	parser.add_argument("--begin_date", type=str, default=get_datetime(),
 						help="Date used in SummaryWriter name.")
+
+	parser.add_argument("--mode", type=str, default="multihot")
+	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
+	parser.add_argument("--dataset_name", type=str, default="DESED")
+	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
+
+	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline"])
+	parser.add_argument("--nb_epochs", type=int, default=1)
+	parser.add_argument("--nb_classes", type=int, default=10)
+	parser.add_argument("--confidence", type=float, default=0.5)
+
+	parser.add_argument("--batch_size_s", type=int, default=8)
+	parser.add_argument("--batch_size_u", type=int, default=8)
+	parser.add_argument("--num_workers_s", type=int, default=1)
+	parser.add_argument("--num_workers_u", type=int, default=1)
+
+	parser.add_argument("--from_disk", type=bool_fn, default=True,
+						help="Select False if you want ot load all data into RAM.")
+	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy", choices=["sq_diff", "cross_entropy"],
+						help="MixMatch unsupervised loss component.")
 
 	parser.add_argument("--lr", type=float, default=3e-3,
 						help="Learning rate used.")
@@ -123,7 +127,6 @@ def create_args() -> Namespace:
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
 
-	parser.add_argument("--debug_mode", type=bool_fn, default=False)
 	parser.add_argument("--experimental", type=optional_str, default="", choices=["", "None", "V1", "V2", "V3", "V4"])
 
 	parser.add_argument("--write_results", type=bool_fn, default=True,
@@ -142,7 +145,8 @@ def check_args(args: Namespace):
 
 
 def main():
-	start = time()
+	start_time = time()
+	start_date = get_datetime()
 	args = create_args()
 	check_args(args)
 
@@ -221,7 +225,7 @@ def main():
 	}
 	metrics_val = {
 		"acc_weak": BinaryConfidenceAccuracy(hparams.confidence),
-		"bce_weak": FnMetric(binary_cross_entropy),
+		"bce_weak": FnMetric(BCELoss(reduction="mean")),
 		"eq_weak": EqConfidenceMetric(hparams.confidence),
 		"mean_weak": MeanMetric(),
 		"max_weak": MaxMetric(),
@@ -432,7 +436,7 @@ def main():
 
 		hparams.train_name = "Supervised"
 
-		criterion = binary_cross_entropy
+		criterion = BCELoss(reduction="mean")
 
 		if hparams.write_results:
 			writer = build_writer(hparams, suffix="%s_%s" % (suffix_tag, hparams.suffix))
@@ -452,9 +456,9 @@ def main():
 			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 			writer.close()
 
-	exec_time = time() - start
+	exec_time = time() - start_time
 	print("")
-	print("Program started at \"%s\" and terminated at \"%s\"." % (hparams.begin_date, get_datetime()))
+	print("Program started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)
 
 

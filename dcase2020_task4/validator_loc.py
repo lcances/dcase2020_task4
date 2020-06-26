@@ -42,7 +42,6 @@ class DefaultValidatorLoc(ValidatorABC):
 		with torch.no_grad():
 			self.reset_all_metrics()
 			self.metrics_recorder.reset_epoch()
-
 			self.model.eval()
 
 			iter_val = iter(self.loader)
@@ -72,6 +71,9 @@ class DefaultValidatorLoc(ValidatorABC):
 				self.checkpoint.step(self.metrics_recorder.get_mean(self.checkpoint_metric_key))
 
 			if self.writer is not None:
+				for name in (list(self.metrics_weak.keys()) + list(self.metrics_strong.keys())):
+					self.writer.add_scalar("val/min/%s" % name, self.metrics_recorder.get_min(name), epoch)
+					self.writer.add_scalar("val/max/%s" % name, self.metrics_recorder.get_max(name), epoch)
 				self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 	def nb_examples(self) -> int:

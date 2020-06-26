@@ -34,12 +34,20 @@ class VGG(nn.Module):
         return nn.Sequential(*layers)
 
     def forward(self, x):
+        """
+            Input: (batch_size, 32, 32, 3)
+            Output: (batch_size, 10)
+        """
         out = self.features(x)
         out = out.view(out.size(0), -1)
         out = self.classifier(out)
         return out
 
     def forward_rot(self, x):
+        """
+            Input: (batch_size, 32, 32, 3)
+            Output: (batch_size, 4)
+        """
         out = self.features(x)
         out = out.view(out.size(0), -1)
         out = self.classifier_rot(out)

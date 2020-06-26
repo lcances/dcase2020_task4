@@ -6,7 +6,7 @@ from torch import Tensor
 from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
-from typing import List
+from typing import List, Union
 
 
 def sharpen(batch: Tensor, temperature: float, dim: int) -> Tensor:
@@ -106,10 +106,10 @@ def same_shuffle(values: List[Tensor]) -> List[Tensor]:
 	return values
 
 
-def binarize_onehot_labels(distributions: Tensor) -> Tensor:
+def binarize_onehot_labels(batch: Tensor) -> Tensor:
 	""" Convert list of distributions vectors to one-hot. """
-	indexes = distributions.argmax(dim=1)
-	nb_classes = distributions.shape[1]
+	indexes = batch.argmax(dim=1)
+	nb_classes = batch.shape[1]
 	bin_labels = one_hot(indexes, nb_classes)
 	return bin_labels
 
@@ -122,26 +122,26 @@ def label_to_num(one_hot_vectors: Tensor):
 def merge_first_dimension(t: Tensor) -> Tensor:
 	""" Reshape tensor of size (M, N, ...) to (M*N, ...). """
 	shape = list(t.size())
-	shape[1] *= shape[0]
-	shape = shape[1:]
-	return t.reshape(shape)
+	if len(shape) < 2:
+		raise RuntimeError("Invalid nb of dimension (%d) for merge_first_dimension. Should have at least 2 dimensions." % len(shape))
+	return t.reshape(shape[0] * shape[1], *shape[2:])
 
 
-def cross_entropy_with_logits(logits: Tensor, targets: Tensor) -> Tensor:
+def cross_entropy_with_logits(logits: Tensor, targets: Tensor, dim: Union[int, tuple] = 1) -> Tensor:
 	"""
 		Apply softmax on logits and compute cross-entropy with targets.
 		Target must be a (batch_size, nb_classes) tensor.
 	"""
-	pred_x = torch.softmax(logits, dim=1)
-	return cross_entropy(pred_x, targets)
+	pred_x = torch.softmax(logits, dim=dim)
+	return cross_entropy(pred_x, targets, dim)
 
 
-def cross_entropy(pred_x: Tensor, targets: Tensor) -> Tensor:
+def cross_entropy(pred_x: Tensor, targets: Tensor, dim: Union[int, tuple] = 1) -> Tensor:
 	"""
 		Compute cross-entropy with targets.
 		Target must be a (batch_size, nb_classes) tensor.
 	"""
-	return -torch.sum(torch.log(pred_x) * targets, dim=1)
+	return -torch.sum(torch.log(pred_x) * targets, dim=dim)
 
 
 def get_lrs(optim: Optimizer) -> List[float]:

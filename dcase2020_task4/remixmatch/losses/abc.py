@@ -4,7 +4,7 @@ from torch import Tensor
 from typing import Callable
 
 
-class ReMixMatchLossABC(ABC, Callable):
+class ReMixMatchLossTagABC(ABC, Callable):
 	def __call__(
 		self,
 		pred_s: Tensor, targets_x: Tensor,

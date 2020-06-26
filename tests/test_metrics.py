@@ -24,14 +24,24 @@ def test_2():
 	metric = FScore()
 	bmetric = BestMetric(metric)
 
-	label = torch.ones(5)
+	shape = 5
+	label = torch.rand(shape)
 	for e in range(5):
-		pred = label * (e / 5)
-		mean_ = metric(pred, label)
-		bmean = bmetric(pred, label)
+		metric.reset()
+		bmetric.reset()
 
-		print(mean_)
-		print(bmean)
+		for i in range(3):
+			pred = label * (e / 5) + torch.rand(shape) * 10
+
+			mean_ = metric(pred, label)
+			bmean = bmetric(pred, label)
+
+			print("e %d, i %d" % (e, i))
+			print("Mean: ", mean_.item())
+			print("Value: ", metric.value.item())
+			print("BMean: ", bmean.item())
+			print("BValue: ", bmetric.value.item())
+			print("")
 
 
 def test_3():
@@ -62,4 +72,4 @@ def test_3():
 
 
 if __name__ == "__main__":
-	test_3()
+	test_2()

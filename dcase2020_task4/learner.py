@@ -1,24 +1,23 @@
-
 from abc import ABC
 from time import time
-from dcase2020_task4.trainer_abc import TrainerABC
+from dcase2020_task4.trainer_abc import TrainerABC, SSTrainerABC
 from dcase2020_task4.validator import ValidatorABC
 
 
-class Learner(ABC):
+class LearnerABC(ABC):
 	def start(self):
 		raise NotImplementedError("Abstract method")
 
 
-class DefaultLearner(Learner):
+class DefaultLearner(LearnerABC):
 	def __init__(
-		self,
-		name: str,
-		trainer: TrainerABC,
-		validator: ValidatorABC,
-		nb_epochs: int,
-		scheduler=None,
-		verbose: int = 1
+			self,
+			name: str,
+			trainer: TrainerABC,
+			validator: ValidatorABC,
+			nb_epochs: int,
+			scheduler=None,
+			verbose: int = 1
 	):
 		self.name = name
 		self.trainer = trainer
@@ -43,12 +42,24 @@ class DefaultLearner(Learner):
 
 	def _on_start(self):
 		if self.verbose > 0:
-			print("\nStart %s training (%d epochs, %d train examples, %d valid examples)..." % (
-				self.name,
-				self.nb_epochs,
-				self.trainer.nb_examples(),
-				self.validator.nb_examples()
-			))
+			if issubclass(type(self.trainer), SSTrainerABC):
+				ss_trainer = SSTrainerABC()
+				ss_trainer.__dict__ = self.trainer.__dict__
+				print("\nStart %s training (%d epochs, %d supervised train examples, %d unsupervised train examples, "
+					  "%d valid examples)..." % (
+						  self.name,
+						  self.nb_epochs,
+						  ss_trainer.nb_examples_supervised(),
+						  ss_trainer.nb_examples_unsupervised(),
+						  self.validator.nb_examples()
+					  ))
+			else:
+				print("\nStart %s training (%d epochs, %d train examples, %d valid examples)..." % (
+					self.name,
+					self.nb_epochs,
+					self.trainer.nb_examples(),
+					self.validator.nb_examples()
+				))
 		self.start_time = time()
 
 	def _on_end(self):

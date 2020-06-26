@@ -79,19 +79,16 @@ class BinaryConfidenceAccuracy(Metrics):
 
 
 class BestMetric(Metrics):
-	# TODO : fix
-	def __init__(self, metric: Metrics, sub_call: bool = False, mode: str = "max"):
+	def __init__(self, metric: Metrics, mode: str = "max"):
 		super().__init__()
 		self.best = torch.as_tensor(0) if mode == "max" else torch.as_tensor(2**20)
 		self.metric = metric
-		self.sub_call = sub_call
 		self.mode = mode
 
 	def __call__(self, pred: Tensor, label: Tensor) -> Tensor:
-		if self.sub_call:
-			self.metric(pred, label)
 		self.accumulate_value = self.metric.accumulate_value
 		self.count = self.metric.count
+		self._update_best()
 		return self.best
 
 	@property
@@ -100,6 +97,9 @@ class BestMetric(Metrics):
 
 	def reset(self):
 		super().reset()
+		self._update_best()
+
+	def _update_best(self):
 		mean_ = self.accumulate_value / self.count if self.count != 0 else 0
 		if self.mode == "max" and mean_ > self.best:
 			self.best = mean_

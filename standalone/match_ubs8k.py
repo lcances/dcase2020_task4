@@ -4,6 +4,7 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
+import os.path as osp
 import torch
 
 from argparse import ArgumentParser, Namespace
@@ -12,7 +13,7 @@ from time import time
 
 from dcase2020.util.utils import get_datetime, reset_seed
 from ubs8k.datasetManager import DatasetManager
-from ubs8k.generators import Dataset
+from ubs8k.datasets import Dataset
 
 
 def create_args() -> Namespace:
@@ -25,6 +26,11 @@ def create_args() -> Namespace:
 	parser.add_argument("--begin_date", type=str, default=get_datetime(),
 						help="Date used in SummaryWriter name.")
 
+	parser.add_argument("--mode", type=str, default="multihot")
+	parser.add_argument("--dataset", type=str, default="/projets/samova/leocances/UrbanSound8K")
+	parser.add_argument("--dataset_name", type=str, default="UbS8K")
+	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
+
 	return parser.parse_args()
 
 
@@ -33,7 +39,8 @@ def check_args(args: Namespace):
 
 
 def main():
-	prog_start = time()
+	start_time = time()
+	start_date = get_datetime()
 	args = create_args()
 	check_args(args)
 
@@ -44,15 +51,15 @@ def main():
 	hparams.update(args.__dict__)
 
 	# TODO
-	metadata_root = ""
-	audio_root = ""
+	metadata_root = osp.join(args.dataset, "metadata")
+	audio_root = osp.join(args.dataset, "audio")
 	manager = DatasetManager(metadata_root, audio_root)
 	dataset = Dataset(manager, train=True, val=False, augments=[], cached=False)
 	# TODO
 
-	exec_time = time() - prog_start
+	exec_time = time() - start_time
 	print("")
-	print("Program started at \"%s\" and terminated at \"%s\"." % (hparams.begin_date, get_datetime()))
+	print("Program started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)
 
 

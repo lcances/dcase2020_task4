@@ -33,8 +33,7 @@ class FixMatchLossOneHot(FixMatchLossTagABC):
 		loss_s = loss_s.mean()
 
 		# Unsupervised loss
-		max_values, _ = u_pred_weak_augm_weak.max(dim=1)
-		mask = (max_values > self.threshold_confidence).float()
+		mask = self.get_confidence_mask(u_pred_weak_augm_weak)
 		loss_u = self.criterion_u(u_pred_weak_augm_strong, u_labels_weak_guessed)
 		loss_u *= mask
 		loss_u = loss_u.mean()
@@ -42,3 +41,7 @@ class FixMatchLossOneHot(FixMatchLossTagABC):
 		loss = loss_s + self.lambda_u * loss_u
 
 		return loss, loss_s, loss_u
+
+	def get_confidence_mask(self, pred_weak: Tensor) -> Tensor:
+		max_values, _ = pred_weak.max(dim=1)
+		return (max_values > self.threshold_confidence).float()

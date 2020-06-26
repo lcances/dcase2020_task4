@@ -1,11 +1,11 @@
 from torch import Tensor
 from torch.nn.functional import binary_cross_entropy
 
-from dcase2020_task4.remixmatch.losses.abc import ReMixMatchLossABC
+from dcase2020_task4.remixmatch.losses.abc import ReMixMatchLossTagABC
 from dcase2020_task4.util.utils_match import cross_entropy
 
 
-class ReMixMatchLossMultiHot(ReMixMatchLossABC):
+class ReMixMatchLossMultiHot(ReMixMatchLossTagABC):
 	def __init__(
 		self, lambda_u: float = 1.5, lambda_u1: float = 0.5, lambda_r: float = 0.5
 	):

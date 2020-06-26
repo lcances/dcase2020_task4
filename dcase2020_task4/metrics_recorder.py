@@ -55,12 +55,18 @@ class MetricsRecorder(MetricsRecorderABC):
 		self.data = {k: [] for k in self.keys}
 		self.start = time()
 
+		self.mins = {k: np.inf for k in self.keys}
+		self.maxs = {k: -np.inf for k in self.keys}
+		self.can_update_min_max = False
+
 		if len(set(keys)) != len(keys):
 			raise RuntimeError("Duplicate found for metrics names : %s" % " ".join(keys))
 
 	def add_value(self, name: str, value: float):
+		self.can_update_min_max = True
 		if name not in self.data.keys():
 			if self.accept_unknown_metrics:
+				self.keys.append(name)
 				self.data[name] = []
 			else:
 				raise RuntimeError("Invalid name %s. Include name in \"keys\" when building MetricsRecorder or change "
@@ -76,30 +82,66 @@ class MetricsRecorder(MetricsRecorderABC):
 
 	def reset_epoch(self):
 		self.data = {k: [] for k in self.keys}
+		self.can_update_min_max = False
 		self.start = time()
+		self._print_header()
 
-		def filter(name: str) -> str:
+	def print_metrics(self, epoch: int, i: int, len_: int):
+		percent = int(100 * (i + 1) / len_)
+
+		content = ["Epoch {:3d} - {:3d}%".format(epoch, percent)]
+		content += [("{:.4e}".format(self.get_mean(name)).center(KEY_MAX_LENGTH)) for name in self.data.keys()]
+		content += ["{:.2f}".format(time() - self.start).center(KEY_MAX_LENGTH)]
+
+		print("- {:s} -".format(" - ".join(content)), end="\r")
+
+	def store_in_writer(self, writer: SummaryWriter, epoch: int):
+		for metric_name, values in self.data.items():
+			writer.add_scalar("%s%s" % (self.prefix, metric_name), np.mean(values), epoch)
+
+	def get_keys(self) -> List[str]:
+		return self.keys
+
+	def get_mean(self, name: str) -> float:
+		return float(np.mean(self.data[name]))
+
+	def get_std(self, name: str) -> float:
+		return float(np.std(self.data[name]))
+
+	def get_min(self, name: str) -> float:
+		if self.can_update_min_max:
+			self._update_min_max()
+		return self.mins[name]
+
+	def get_max(self, name: str) -> float:
+		if self.can_update_min_max:
+			self._update_min_max()
+		return self.maxs[name]
+
+	def _print_header(self):
+		def filter_(name: str) -> str:
 			if len(name) <= KEY_MAX_LENGTH:
 				return name.center(KEY_MAX_LENGTH)
 			else:
 				return name[:KEY_MAX_LENGTH]
 
 		content = ["{:s}".format(self.prefix.center(16))]
-		content += [filter(name) for name in self.keys]
+		content += [filter_(name) for name in self.keys]
 		content += ["took (s)".center(KEY_MAX_LENGTH)]
 
-		print("\n| {:s} |".format(" | ".join(content)))
+		print("\n- {:s} -".format(" - ".join(content)))
 
-	def print_metrics(self, epoch: int, i: int, len_: int):
-		percent = int(100 * (i + 1) / len_)
+	def _update_min_max(self):
+		for key in self.keys:
+			if len(self.data[key]) > 0:
+				mean_ = self.get_mean(key)
+				if mean_ > self.maxs[key]:
+					self.maxs[key] = mean_
+				if mean_ < self.mins[key]:
+					self.mins[key] = mean_
+		self.can_update_min_max = False
 
-		content = ["Epoch {:3d} | {:3d}%".format(epoch, percent)]
-		content += [("{:.4e}".format(self.get_mean(name)).center(KEY_MAX_LENGTH)) for name in self.data.keys()]
-		content += ["{:.2f}".format(time() - self.start).center(KEY_MAX_LENGTH)]
-
-		print("| {:s} |".format(" | ".join(content)), end="\r")
-
-	def print_metrics_old(self, epoch: int, i: int, len_: int):
+	def _old_print_metrics(self, epoch: int, i: int, len_: int):
 		prints_buffer = [
 			"{:s}: {:.4e}".format(name, np.mean(values))
 			for name, values in self.data.items()
@@ -111,13 +153,3 @@ class MetricsRecorder(MetricsRecorderABC):
 			int(100 * (i + 1) / len_),
 			" - ".join(prints_buffer)
 		), end="\r")
-
-	def store_in_writer(self, writer: SummaryWriter, epoch: int):
-		for metric_name, values in self.data.items():
-			writer.add_scalar("%s%s" % (self.prefix, metric_name), np.mean(values), epoch)
-
-	def get_mean(self, name: str) -> float:
-		return float(np.mean(self.data[name]))
-
-	def get_std(self, name: str) -> float:
-		return float(np.std(self.data[name]))
