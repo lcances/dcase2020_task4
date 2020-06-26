@@ -19,8 +19,7 @@ class FixMatchLossMultiHotV4(Callable):
 		self.threshold_multihot = threshold_multihot
 
 		self.criterion_s = BCELoss(reduction="none")
-		# Note : we need a loss per example and not a mean reduction on all loss
-		self.criterion_u = lambda pred, labels: BCELoss(reduction="none")(pred, labels).mean(dim=1)
+		self.criterion_u = BCELoss(reduction="none")
 
 		self.criterion_count = cross_entropy
 
@@ -57,7 +56,7 @@ class FixMatchLossMultiHotV4(Callable):
 		mean_values = torch.as_tensor(mean_values).cuda()
 
 		mask = (mean_values > self.threshold_confidence).float()
-		loss_u = self.criterion_u(u_pred_weak_augm_strong, u_labels_weak_guessed)
+		loss_u = self.criterion_u(u_pred_weak_augm_strong, u_labels_weak_guessed).mean(dim=1)
 		loss_u *= mask
 		loss_u = loss_u.mean()
 

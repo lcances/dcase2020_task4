@@ -17,8 +17,7 @@ class FixMatchLossMultiHotV3(FixMatchLossTagABC):
 		self.threshold_multihot = threshold_multihot
 
 		self.criterion_s = BCELoss(reduction="none")
-		# Note : we need a loss per example and not a mean reduction on all loss
-		self.criterion_u = lambda pred, labels: BCELoss(reduction="none")(pred, labels).mean(dim=1)
+		self.criterion_u = BCELoss(reduction="none")
 
 	@staticmethod
 	def from_edict(hparams) -> 'FixMatchLossMultiHotV3':
@@ -38,7 +37,7 @@ class FixMatchLossMultiHotV3(FixMatchLossTagABC):
 
 		# Unsupervised loss
 		mask = self.get_confidence_mask(u_pred_weak_augm_weak, u_labels_weak_guessed, dim=1)
-		loss_u = self.criterion_u(u_pred_weak_augm_strong, u_labels_weak_guessed)
+		loss_u = self.criterion_u(u_pred_weak_augm_strong, u_labels_weak_guessed).mean(dim=1)
 		loss_u *= mask
 		loss_u = loss_u.mean()
 
@@ -47,5 +46,5 @@ class FixMatchLossMultiHotV3(FixMatchLossTagABC):
 		return loss, loss_s, loss_u
 
 	def get_confidence_mask(self, pred: Tensor, labels: Tensor, dim: Union[int, tuple]) -> Tensor:
-		means = (pred * labels).sum(dim=dim) / labels.sum(dim=dim)
+		means = (pred * labels).sum(dim=dim) / labels.sum(dim=dim).clamp(min=1.0)
 		return (means > self.threshold_confidence).float()
