@@ -22,6 +22,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--run", type=str, default=["supervised", "fixmatch"])
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--debug_mode", "--debug", type=bool_fn, default=False)
+	parser.add_argument("--begin_date", type=str, default=get_datetime(),
+						help="Date used in SummaryWriter name.")
 
 	return parser.parse_args()
 
@@ -39,12 +41,7 @@ def main():
 	torch.autograd.set_detect_anomaly(args.debug_mode)
 
 	hparams = edict()
-	hparams.update({
-		k: (str(v) if v is None else (" ".join(v) if isinstance(v, list) else v))
-		for k, v in args.__dict__.items()
-	})
-	# Note : some hyperparameters are overwritten when calling the training function, change this in the future
-	hparams.begin_date = get_datetime()
+	hparams.update(args.__dict__)
 
 	# TODO
 	metadata_root = ""

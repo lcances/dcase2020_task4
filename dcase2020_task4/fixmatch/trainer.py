@@ -8,7 +8,7 @@ from typing import Callable, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.fixmatch.losses.abc import FixMatchLossABC
+from dcase2020_task4.fixmatch.losses.abc import FixMatchLossTagABC
 from dcase2020_task4.util.zip_cycle import ZipCycle
 from dcase2020_task4.util.utils_match import binarize_onehot_labels, get_lr
 from dcase2020_task4.trainer_abc import SSTrainerABC
@@ -25,7 +25,7 @@ class FixMatchTrainer(SSTrainerABC):
 		loader_train_u_augms_weak_strong: DataLoader,
 		metrics_s: Dict[str, Metrics],
 		metrics_u: Dict[str, Metrics],
-		criterion: FixMatchLossABC,
+		criterion: FixMatchLossTagABC,
 		writer: Optional[SummaryWriter],
 		mode: str,
 		threshold_multihot: float,

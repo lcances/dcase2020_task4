@@ -3,7 +3,7 @@ from torch import Tensor
 from typing import Callable
 
 
-class FixMatchLossABC(ABC, Callable):
+class FixMatchLossTagABC(ABC, Callable):
 	def __call__(
 		self,
 		s_pred_weak_augm_weak: Tensor,
@@ -15,7 +15,7 @@ class FixMatchLossABC(ABC, Callable):
 		raise NotImplementedError("Abstract method")
 
 
-class FixMatchLossMultiHotLocABC(ABC, Callable):
+class FixMatchLossLocABC(ABC, Callable):
 	def __call__(
 		self,
 		s_pred_weak_augm_weak: Tensor, s_labels_weak: Tensor,

@@ -26,7 +26,7 @@ from dcase2020_task4.fixmatch.losses.onehot import FixMatchLossOneHot
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 
 from dcase2020_task4.mixmatch.losses.onehot import MixMatchLossOneHot
-from dcase2020_task4.mixmatch.mixers.tag_loc import MixMatchMixer
+from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 
 from dcase2020_task4.remixmatch.losses.onehot import ReMixMatchLossOneHot
@@ -43,7 +43,7 @@ from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_augments import Gray, Inversion, RandCrop, UniColor
 from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.rampup import RampUp
-from dcase2020_task4.util.utils_match import cross_entropy, build_writer
+from dcase2020_task4.util.utils_match import cross_entropy, build_writer, filter_hparams
 
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.resnet import ResNet18
@@ -63,6 +63,9 @@ def create_args() -> Namespace:
 	parser.add_argument("--dataset_name", type=str, default="CIFAR10")
 	parser.add_argument("--seed", type=int, default=1234)
 	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18"])
+	parser.add_argument("--begin_date", type=str, default=get_datetime(),
+						help="Date used in SummaryWriter name.")
+
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--dataset_ratio", type=float, default=1.0)
 	parser.add_argument("--supervised_ratio", type=float, default=0.1)
@@ -104,19 +107,14 @@ def create_args() -> Namespace:
 
 
 def main():
-	prog_start = time()
+	start = time()
 
 	args = create_args()
 	print("Start match_cifar10.")
 	print("- run:", " ".join(args.run))
 
 	hparams = edict()
-	hparams.update({
-		k: (str(v) if v is None else (" ".join(v) if isinstance(v, list) else v))
-		for k, v in args.__dict__.items()
-	})
-	# Note : some hyperparameters are overwritten when calling the training function, change this in the future
-	hparams.begin_date = get_datetime()
+	hparams.update(args.__dict__)
 
 	reset_seed(hparams.seed)
 
@@ -259,7 +257,7 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs, scheduler)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+		writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 		writer.close()
 
 	if "mm" in args.run or "mixmatch" in args.run:
@@ -299,7 +297,7 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+		writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 		writer.close()
 
 	if "rmm" in args.run or "remixmatch" in args.run:
@@ -328,12 +326,7 @@ def main():
 		writer = build_writer(hparams)
 
 		criterion = ReMixMatchLossOneHot.from_edict(hparams)
-		distributions = AvgDistributions(
-			history_size=hparams.history_size,
-			nb_classes=hparams.nb_classes,
-			mode=hparams.mode,
-			names=["labeled", "unlabeled"],
-		)
+		distributions = AvgDistributions.from_edict(hparams)
 		mixer = ReMixMatchMixer(
 			model,
 			acti_fn,
@@ -353,7 +346,7 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+		writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 		writer.close()
 
 	if "sf" in args.run or "supervised_full" in args.run:
@@ -377,7 +370,7 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+		writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 		writer.close()
 
 	if "sp" in args.run or "supervised_part" in args.run:
@@ -401,10 +394,10 @@ def main():
 		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+		writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 		writer.close()
 
-	exec_time = time() - prog_start
+	exec_time = time() - start
 	print("")
 	print("Program started at \"%s\" and terminated at \"%s\"." % (hparams.begin_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)

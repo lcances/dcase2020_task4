@@ -1,10 +1,10 @@
 from torch import Tensor
 
-from dcase2020_task4.fixmatch.losses.abc import FixMatchLossABC
+from dcase2020_task4.fixmatch.losses.abc import FixMatchLossTagABC
 from dcase2020_task4.util.utils_match import cross_entropy
 
 
-class FixMatchLossOneHot(FixMatchLossABC):
+class FixMatchLossOneHot(FixMatchLossTagABC):
 	def __init__(
 		self,
 		lambda_u: float = 1.0,

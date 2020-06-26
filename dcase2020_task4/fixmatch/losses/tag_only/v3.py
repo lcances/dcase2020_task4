@@ -2,10 +2,10 @@ from torch import Tensor
 from torch.nn import BCELoss
 from typing import Union
 
-from dcase2020_task4.fixmatch.losses.abc import FixMatchLossABC
+from dcase2020_task4.fixmatch.losses.abc import FixMatchLossTagABC
 
 
-class FixMatchLossMultiHotV3(FixMatchLossABC):
+class FixMatchLossMultiHotV3(FixMatchLossTagABC):
 	def __init__(
 		self,
 		lambda_u: float = 1.0,

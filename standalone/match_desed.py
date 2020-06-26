@@ -50,7 +50,7 @@ from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, CategoricalConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
 from dcase2020_task4.util.rampup import RampUp
 from dcase2020_task4.util.utils import reset_seed, get_datetime
-from dcase2020_task4.util.utils_match import build_writer
+from dcase2020_task4.util.utils_match import build_writer, filter_hparams
 
 from dcase2020_task4.weak_baseline_rot import WeakBaselineRot
 from dcase2020_task4.learner import DefaultLearner
@@ -82,6 +82,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--num_workers_u", type=int, default=1)
 	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy", choices=["sq_diff", "cross_entropy"],
 						help="MixMatch unsupervised loss component.")
+	parser.add_argument("--begin_date", type=str, default=get_datetime(),
+						help="Date used in SummaryWriter name.")
 
 	parser.add_argument("--lr", type=float, default=3e-3,
 						help="Learning rate used.")
@@ -140,7 +142,7 @@ def check_args(args: Namespace):
 
 
 def main():
-	prog_start = time()
+	start = time()
 	args = create_args()
 	check_args(args)
 
@@ -151,12 +153,7 @@ def main():
 	print("- experimental:", args.experimental)
 
 	hparams = edict()
-	hparams.update({
-		k: (str(v) if v is None else (" ".join(v) if isinstance(v, list) else v))
-		for k, v in args.__dict__.items()
-	})
-	# Note : some hyperparameters are overwritten when calling the training function, change this in the future
-	hparams.begin_date = get_datetime()
+	hparams.update(args.__dict__)
 
 	reset_seed(hparams.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
@@ -314,7 +311,7 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 			writer.close()
 
 	if "mm" in args.run or "mixmatch" in args.run:
@@ -361,7 +358,7 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 			writer.close()
 
 	if "rmm" in args.run or "remixmatch" in args.run:
@@ -421,7 +418,7 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 			writer.close()
 
 	if "su" in args.run or "supervised" in args.run:
@@ -452,10 +449,10 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 			writer.close()
 
-	exec_time = time() - prog_start
+	exec_time = time() - start
 	print("")
 	print("Program started at \"%s\" and terminated at \"%s\"." % (hparams.begin_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)

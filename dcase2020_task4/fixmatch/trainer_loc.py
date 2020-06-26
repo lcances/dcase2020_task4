@@ -8,7 +8,7 @@ from typing import Callable, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.fixmatch.losses.abc import FixMatchLossMultiHotLocABC
+from dcase2020_task4.fixmatch.losses.abc import FixMatchLossLocABC
 from dcase2020_task4.trainer_abc import SSTrainerABC
 from dcase2020_task4.metrics_recorder import MetricsRecorder
 
@@ -30,7 +30,7 @@ class FixMatchTrainerLoc(SSTrainerABC):
 		metrics_u_weak: Dict[str, Metrics],
 		metrics_s_strong: Dict[str, Metrics],
 		metrics_u_strong: Dict[str, Metrics],
-		criterion: FixMatchLossMultiHotLocABC,
+		criterion: FixMatchLossLocABC,
 		writer: Optional[SummaryWriter],
 		rampup: Optional[RampUp],
 		threshold_multihot: float,

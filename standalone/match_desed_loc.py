@@ -50,7 +50,7 @@ from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
 from dcase2020_task4.util.rampup import RampUp
 from dcase2020_task4.util.utils import reset_seed, get_datetime
-from dcase2020_task4.util.utils_match import build_writer
+from dcase2020_task4.util.utils_match import build_writer, filter_hparams
 
 from dcase2020_task4.validator_loc import DefaultValidatorLoc
 from dcase2020_task4.weak_baseline_rot import WeakStrongBaselineRot
@@ -72,6 +72,9 @@ def create_args() -> Namespace:
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--dataset_name", type=str, default="DESED")
+
+	parser.add_argument("--begin_date", type=str, default=get_datetime(),
+						help="Date used in SummaryWriter name.")
 
 	parser.add_argument("--model_name", type=str, default="dcase2019", choices=["dcase2019", "WeakStrongBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=1)
@@ -151,7 +154,7 @@ def check_args(args: Namespace):
 
 
 def main():
-	prog_start = time()
+	start = time()
 	args = create_args()
 	check_args(args)
 
@@ -169,12 +172,7 @@ def main():
 	print("- threshold_confidence:", args.threshold_confidence)
 
 	hparams = edict()
-	hparams.update({
-		k: (str(v) if v is None else (" ".join(v) if isinstance(v, list) else v))
-		for k, v in args.__dict__.items()
-	})
-	# Note : some hyperparameters are overwritten when calling the training function, change this in the future
-	hparams.begin_date = get_datetime()
+	hparams.update(args.__dict__)
 
 	if hparams.model_name == "dcase2019":
 		model_factory = lambda: dcase2019_model().cuda()
@@ -358,7 +356,7 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 			writer.flush()
 			writer.close()
 
@@ -414,7 +412,7 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 			writer.flush()
 			writer.close()
 
@@ -450,11 +448,11 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			writer.add_hparams(hparam_dict=dict(hparams), metric_dict={})
+			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
 			writer.flush()
 			writer.close()
 
-	exec_time = time() - prog_start
+	exec_time = time() - start
 	print("")
 	print("Program started at \"%s\" and terminated at \"%s\"." % (hparams.begin_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)

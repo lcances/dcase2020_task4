@@ -180,3 +180,19 @@ def multilabel_to_num(labels: Tensor) -> List[List[int]]:
 			if bin == 1.0:
 				res[i].append(j)
 	return res
+
+
+def filter_hparams(hparams: edict) -> dict:
+	""" Modify hparams values for storing them in SummaryWriter. """
+	def filter_item(v):
+		if v is None:
+			return str(v)
+		elif isinstance(v, list):
+			return " ".join(v)
+		else:
+			return v
+
+	hparams = dict(hparams)
+	for key_, val_ in hparams.items():
+		hparams[key_] = filter_item(val_)
+	return hparams

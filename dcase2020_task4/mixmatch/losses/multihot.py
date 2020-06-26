@@ -2,10 +2,10 @@
 from torch import Tensor
 from torch.nn.functional import binary_cross_entropy
 
-from dcase2020_task4.mixmatch.losses.abc import MixMatchLossABC
+from dcase2020_task4.mixmatch.losses.abc import MixMatchLossTagABC
 
 
-class MixMatchLossMultiHot(MixMatchLossABC):
+class MixMatchLossMultiHot(MixMatchLossTagABC):
 	""" MixMatch loss component. """
 
 	def __init__(self, lambda_u: float = 1.0):

@@ -8,11 +8,12 @@ from typing import Callable, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.util.rampup import RampUp
-from dcase2020_task4.trainer_abc import SSTrainerABC
-from dcase2020_task4.util.zip_cycle import ZipCycle
-from dcase2020_task4.util.utils_match import get_lr
+from dcase2020_task4.mixmatch.losses.abc import MixMatchLossLocABC
 from dcase2020_task4.metrics_recorder import MetricsRecorder
+from dcase2020_task4.trainer_abc import SSTrainerABC
+from dcase2020_task4.util.rampup import RampUp
+from dcase2020_task4.util.utils_match import get_lr
+from dcase2020_task4.util.zip_cycle import ZipCycle
 
 
 class MixMatchTrainerLoc(SSTrainerABC):
@@ -27,7 +28,7 @@ class MixMatchTrainerLoc(SSTrainerABC):
 		metrics_u_weak: Dict[str, Metrics],
 		metrics_s_strong: Dict[str, Metrics],
 		metrics_u_strong: Dict[str, Metrics],
-		criterion: Callable,
+		criterion: MixMatchLossLocABC,
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
 		lambda_u_rampup: RampUp

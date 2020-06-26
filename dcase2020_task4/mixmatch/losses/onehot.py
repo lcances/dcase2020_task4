@@ -1,11 +1,11 @@
 
 from torch import Tensor
 
-from dcase2020_task4.mixmatch.losses.abc import MixMatchLossABC
+from dcase2020_task4.mixmatch.losses.abc import MixMatchLossTagABC
 from dcase2020_task4.util.utils_match import cross_entropy
 
 
-class MixMatchLossOneHot(MixMatchLossABC):
+class MixMatchLossOneHot(MixMatchLossTagABC):
 	""" MixMatch loss component. """
 
 	def __init__(

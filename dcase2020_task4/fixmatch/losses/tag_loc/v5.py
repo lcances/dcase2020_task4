@@ -4,10 +4,10 @@ from torch import Tensor
 from torch.nn import BCELoss
 from typing import Union
 
-from dcase2020_task4.fixmatch.losses.abc import FixMatchLossMultiHotLocABC
+from dcase2020_task4.fixmatch.losses.abc import FixMatchLossLocABC
 
 
-class FixMatchLossMultiHotLocV5(FixMatchLossMultiHotLocABC):
+class FixMatchLossMultiHotLocV5(FixMatchLossLocABC):
 	""" FixMatch loss multi-hot localisation. """
 
 	def __init__(
@@ -21,8 +21,7 @@ class FixMatchLossMultiHotLocV5(FixMatchLossMultiHotLocABC):
 		self.threshold_multihot = threshold_multihot
 
 		self.criterion_s_weak = BCELoss(reduction="none")
-		# Note : we need a loss per example and not a mean reduction on all loss
-		self.criterion_u_weak = lambda pred, labels: BCELoss(reduction="none")(pred, labels).mean(dim=1)
+		self.criterion_u_weak = BCELoss(reduction="none")
 
 		self.criterion_s_strong = BCELoss(reduction="none")
 		self.criterion_u_strong = BCELoss(reduction="none")
@@ -52,7 +51,7 @@ class FixMatchLossMultiHotLocV5(FixMatchLossMultiHotLocABC):
 		# Unsupervised weak loss
 		u_mask_confidence_weak = self.get_confidence_mask(u_pred_weak_augm_weak, u_labels_weak_guessed, dim=1)
 
-		loss_u_weak = self.criterion_u_weak(u_pred_weak_augm_strong, u_labels_weak_guessed)
+		loss_u_weak = self.criterion_u_weak(u_pred_weak_augm_strong, u_labels_weak_guessed).mean(dim=1)
 		loss_u_weak *= u_mask_confidence_weak
 		loss_u_weak = loss_u_weak.mean()
 
