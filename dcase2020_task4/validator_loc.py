@@ -72,8 +72,8 @@ class DefaultValidatorLoc(ValidatorABC):
 
 			if self.writer is not None:
 				for name in (list(self.metrics_weak.keys()) + list(self.metrics_strong.keys())):
-					self.writer.add_scalar("val/min/%s" % name, self.metrics_recorder.get_min(name), epoch)
-					self.writer.add_scalar("val/max/%s" % name, self.metrics_recorder.get_max(name), epoch)
+					self.writer.add_scalar("val_min/%s" % name, self.metrics_recorder.get_min(name), epoch)
+					self.writer.add_scalar("val_max/%s" % name, self.metrics_recorder.get_max(name), epoch)
 				self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 	def nb_examples(self) -> int:

@@ -1,8 +1,9 @@
 import os.path as osp
 import torch
 
-from easydict import EasyDict as edict
+from argparse import Namespace
 from torch import Tensor
+from torch.nn import Module
 from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
@@ -157,10 +158,10 @@ def set_lr(optim: Optimizer, new_lr: float):
 		group["lr"] = new_lr
 
 
-def build_writer(hparams: edict, suffix: str = "") -> SummaryWriter:
-	dirname = "%s_%s_%s_%s_%s" % (hparams.dataset_name, hparams.train_name, hparams.model_name, hparams.begin_date, suffix)
-	dirpath = osp.join(hparams.logdir, dirname)
-	writer = SummaryWriter(log_dir=dirpath, comment=hparams.train_name)
+def build_writer(args: Namespace, suffix: str = "") -> SummaryWriter:
+	dirname = "%s_%s_%s_%s_%s" % (args.dataset_name, args.train_name, args.model_name, args.begin_date, suffix)
+	dirpath = osp.join(args.logdir, dirname)
+	writer = SummaryWriter(log_dir=dirpath, comment=args.train_name)
 	return writer
 
 
@@ -182,7 +183,7 @@ def multilabel_to_num(labels: Tensor) -> List[List[int]]:
 	return res
 
 
-def filter_hparams(hparams: edict) -> dict:
+def filter_hparams(args: Namespace) -> dict:
 	""" Modify hparams values for storing them in SummaryWriter. """
 	def filter_item(v):
 		if v is None:
@@ -192,7 +193,15 @@ def filter_hparams(hparams: edict) -> dict:
 		else:
 			return v
 
-	hparams = dict(hparams)
+	hparams = dict(args.__dict__)
 	for key_, val_ in hparams.items():
 		hparams[key_] = filter_item(val_)
 	return hparams
+
+
+def get_nb_parameters(model: Module) -> int:
+	return sum(p.numel() for p in model.parameters())
+
+
+def get_nb_trainable_parameters(model: Module) -> int:
+	return sum(p.numel() for p in model.parameters() if p.requires_grad)

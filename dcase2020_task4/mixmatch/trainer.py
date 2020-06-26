@@ -29,7 +29,7 @@ class MixMatchTrainer(SSTrainerABC):
 		criterion: MixMatchLossTagABC,
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
-		lambda_u_rampup: RampUp
+		rampup_lambda_u: RampUp
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -41,7 +41,7 @@ class MixMatchTrainer(SSTrainerABC):
 		self.criterion = criterion
 		self.writer = writer
 		self.mixer = mixer
-		self.lambda_u_rampup = lambda_u_rampup
+		self.rampup_lambda_u = rampup_lambda_u
 
 		self.metrics_recorder = MetricsRecorder(
 			"train/",
@@ -85,8 +85,8 @@ class MixMatchTrainer(SSTrainerABC):
 
 			# Compute metrics
 			with torch.no_grad():
-				self.criterion.lambda_u = self.lambda_u_rampup.value()
-				self.lambda_u_rampup.step()
+				self.criterion.lambda_u = self.rampup_lambda_u.value()
+				self.rampup_lambda_u.step()
 
 				self.metrics_recorder.add_value("loss", loss.item())
 				self.metrics_recorder.add_value("loss_s", loss_s.item())
@@ -103,6 +103,7 @@ class MixMatchTrainer(SSTrainerABC):
 
 		if self.writer is not None:
 			self.writer.add_scalar("hparams/lr", get_lr(self.optim), epoch)
+			self.writer.add_scalar("hparams/lambda_u", self.criterion.lambda_u, epoch)
 			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 	def nb_examples_supervised(self) -> int:

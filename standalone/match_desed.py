@@ -8,10 +8,9 @@ import os.path as osp
 import torch
 
 from argparse import ArgumentParser, Namespace
-from easydict import EasyDict as edict
 from time import time
 from torch.nn import Module, BCELoss
-from torch.optim import Adam
+from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torchvision.transforms import RandomChoice, Compose
@@ -49,7 +48,7 @@ from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, CategoricalConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
 from dcase2020_task4.util.rampup import RampUp
 from dcase2020_task4.util.utils import reset_seed, get_datetime
-from dcase2020_task4.util.utils_match import build_writer, filter_hparams
+from dcase2020_task4.util.utils_match import build_writer, filter_hparams, get_nb_parameters
 
 from dcase2020_task4.weak_baseline_rot import WeakBaselineRot
 from dcase2020_task4.learner import DefaultLearner
@@ -59,11 +58,11 @@ from metric_utils.metrics import FScore
 
 
 def create_args() -> Namespace:
-	bool_fn = lambda x: str(x).lower() in ['true', '1', 'yes']
+	bool_fn = lambda x: str(x).lower() in ["true", "1", "yes", "y"]
 	optional_str = lambda x: None if str(x).lower() == "none" else str(x)
 
 	parser = ArgumentParser()
-	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch", "mixmatch", "remixmatch", "supervised"])
+	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch"])
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
 	parser.add_argument("--begin_date", type=str, default=get_datetime(),
@@ -84,19 +83,24 @@ def create_args() -> Namespace:
 	parser.add_argument("--num_workers_s", type=int, default=1)
 	parser.add_argument("--num_workers_u", type=int, default=1)
 
-	parser.add_argument("--from_disk", type=bool_fn, default=True,
-						help="Select False if you want ot load all data into RAM.")
-	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy", choices=["sq_diff", "cross_entropy"],
-						help="MixMatch unsupervised loss component.")
-
+	parser.add_argument("--optim_name", type=str, default="Adam", choices=["Adam", "SGD"],
+						help="Optimizer used.")
+	parser.add_argument("--scheduler", "--sched", type=optional_str, default="CosineLRScheduler",
+						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 	parser.add_argument("--lr", type=float, default=3e-3,
 						help="Learning rate used.")
 	parser.add_argument("--weight_decay", type=float, default=0.0,
 						help="Weight decay used.")
-	parser.add_argument("--optim_name", type=str, default="Adam", choices=["Adam"],
-						help="Optimizer used.")
-	parser.add_argument("--scheduler", "--sched", type=optional_str, default="CosineLRScheduler",
-						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
+
+	parser.add_argument("--write_results", type=bool_fn, default=True,
+						help="Write results in a tensorboard SummaryWriter.")
+	parser.add_argument("--suffix", type=str, default="",
+						help="Suffix to Tensorboard log dir.")
+
+	parser.add_argument("--from_disk", type=bool_fn, default=True,
+						help="Select False if you want ot load all data into RAM.")
+	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy", choices=["sq_diff", "cross_entropy"],
+						help="MixMatch unsupervised loss component.")
 
 	parser.add_argument("--lambda_u", type=float, default=1.0,
 						help="FixMatch, MixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
@@ -124,13 +128,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--mixup_alpha", type=float, default=0.75,
 						help="MixMatch and ReMixMatch hyperparameter \"alpha\" used by MixUp.")
 
-	parser.add_argument("--suffix", type=str, default="",
-						help="Suffix to Tensorboard log dir.")
-
 	parser.add_argument("--experimental", type=optional_str, default="", choices=["", "None", "V1", "V2", "V3", "V4"])
-
-	parser.add_argument("--write_results", type=bool_fn, default=True,
-						help="Write results in a tensorboard SummaryWriter.")
 
 	return parser.parse_args()
 
@@ -147,6 +145,7 @@ def check_args(args: Namespace):
 def main():
 	start_time = time()
 	start_date = get_datetime()
+
 	args = create_args()
 	check_args(args)
 
@@ -156,26 +155,25 @@ def main():
 	print("- debug_mode:", args.debug_mode)
 	print("- experimental:", args.experimental)
 
-	hparams = edict()
-	hparams.update(args.__dict__)
-
-	reset_seed(hparams.seed)
+	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
 
-	if hparams.model_name == "WeakBaseline":
+	if args.model_name == "WeakBaseline":
 		model_factory = lambda: WeakBaselineRot().cuda()
-	elif hparams.model_name == "dcase2019":
+	elif args.model_name == "dcase2019":
 		model_factory = lambda: dcase2019_model().cuda()
 	else:
-		raise RuntimeError("Invalid model %s" % hparams.model_name)
+		raise RuntimeError("Invalid model %s" % args.model_name)
 
 	acti_fn = lambda batch, dim: batch.sigmoid()
 
 	def optim_factory(model: Module) -> Optimizer:
-		if hparams.optim_name.lower() == "adam":
-			return Adam(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
+		if args.optim_name.lower() == "adam":
+			return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+		elif args.optim_name.lower() == "sgd":
+			return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 		else:
-			raise RuntimeError("Unknown optimizer %s" % str(hparams.optim_name))
+			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
 
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	ratio = 0.1
@@ -211,34 +209,34 @@ def main():
 	])
 
 	metrics_s = {
-		"s_acc_weak": BinaryConfidenceAccuracy(hparams.confidence),
+		"s_acc_weak": BinaryConfidenceAccuracy(args.confidence),
 		"s_fscore_weak": FScore(),
 	}
 	metrics_u = {
-		"u_acc_weak": BinaryConfidenceAccuracy(hparams.confidence)
+		"u_acc_weak": BinaryConfidenceAccuracy(args.confidence)
 	}
 	metrics_u1 = {
-		"u1_acc_weak": BinaryConfidenceAccuracy(hparams.confidence)
+		"u1_acc_weak": BinaryConfidenceAccuracy(args.confidence)
 	}
 	metrics_r = {
-		"r_acc": CategoricalConfidenceAccuracy(hparams.confidence)
+		"r_acc": CategoricalConfidenceAccuracy(args.confidence)
 	}
 	metrics_val = {
-		"acc_weak": BinaryConfidenceAccuracy(hparams.confidence),
+		"acc_weak": BinaryConfidenceAccuracy(args.confidence),
 		"bce_weak": FnMetric(BCELoss(reduction="mean")),
-		"eq_weak": EqConfidenceMetric(hparams.confidence),
+		"eq_weak": EqConfidenceMetric(args.confidence),
 		"mean_weak": MeanMetric(),
 		"max_weak": MaxMetric(),
 		"fscore_weak": FScore(),
 	}
 
-	manager_s, manager_u = get_desed_managers(hparams)
+	manager_s, manager_u = get_desed_managers(args)
 
 	# Validation
 	get_batch_label = lambda item: (item[0], item[1][0])
 	dataset_val = DESEDDataset(manager_s, train=False, val=True, augments=[], cached=True, weak=True, strong=False)
 	dataset_val = FnDataset(dataset_val, get_batch_label)
-	loader_val = DataLoader(dataset_val, batch_size=hparams.batch_size_s, shuffle=False)
+	loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False)
 
 	# Datasets args
 	args_dataset_train_s = dict(
@@ -250,9 +248,9 @@ def main():
 
 	# Loaders args
 	args_loader_train_s = dict(
-		batch_size=hparams.batch_size_s, shuffle=True, num_workers=hparams.num_workers_s, drop_last=True)
+		batch_size=args.batch_size_s, shuffle=True, num_workers=args.num_workers_s, drop_last=True)
 	args_loader_train_u = dict(
-		batch_size=hparams.batch_size_u, shuffle=True, num_workers=hparams.num_workers_u, drop_last=True)
+		batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
 	suffix_tag = "TAG"
 
@@ -273,49 +271,50 @@ def main():
 
 		model = model_factory()
 		optim = optim_factory(model)
+		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		if hparams.scheduler == "CosineLRScheduler":
-			scheduler = CosineLRScheduler(optim, nb_epochs=hparams.nb_epochs, lr0=hparams.lr)
+		if args.scheduler == "CosineLRScheduler":
+			scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
 		else:
 			scheduler = None
 
-		hparams.train_name = "FixMatch"
+		args.train_name = "FixMatch"
 
-		if hparams.experimental.lower() == "v1":
-			criterion = FixMatchLossMultiHotV1.from_edict(hparams)
-		elif hparams.experimental.lower() == "v2":
-			criterion = FixMatchLossMultiHotV2.from_edict(hparams)
-		elif hparams.experimental.lower() == "v3":
-			criterion = FixMatchLossMultiHotV3.from_edict(hparams)
-		elif hparams.experimental.lower() == "v4":
-			criterion = FixMatchLossMultiHotV4.from_edict(hparams)
+		if args.experimental.lower() == "v1":
+			criterion = FixMatchLossMultiHotV1.from_edict(args)
+		elif args.experimental.lower() == "v2":
+			criterion = FixMatchLossMultiHotV2.from_edict(args)
+		elif args.experimental.lower() == "v3":
+			criterion = FixMatchLossMultiHotV3.from_edict(args)
+		elif args.experimental.lower() == "v4":
+			criterion = FixMatchLossMultiHotV4.from_edict(args)
 		else:
-			raise RuntimeError("Unknown experimental mode %s" % str(hparams.experimental))
+			raise RuntimeError("Unknown experimental mode %s" % str(args.experimental))
 
-		if hparams.write_results:
-			writer = build_writer(hparams, suffix="%s_%s_%s" % (suffix_tag, str(hparams.scheduler), hparams.suffix))
+		if args.write_results:
+			writer = build_writer(args, suffix="%s_%s_%s" % (suffix_tag, str(args.scheduler), args.suffix))
 		else:
 			writer = None
 
-		if hparams.experimental.lower() != "v4":
+		if args.experimental.lower() != "v4":
 			trainer = FixMatchTrainer(
 				model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-				criterion, writer, hparams.mode, hparams.threshold_multihot
+				criterion, writer, args.mode, args.threshold_multihot
 			)
 		else:
 			trainer = FixMatchTrainerV4(
 				model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-				criterion, writer, hparams.mode, hparams.threshold_multihot, hparams.nb_classes
+				criterion, writer, args.mode, args.threshold_multihot, args.nb_classes
 			)
 
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer
 		)
-		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs, scheduler)
+		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
 		learner.start()
 
 		if writer is not None:
-			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
+			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
 	if "mm" in args.run or "mixmatch" in args.run:
@@ -325,7 +324,7 @@ def main():
 		dataset_train_u_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_u_augm)
 		dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm)
 
-		dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * hparams.nb_augms)
+		dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * args.nb_augms)
 
 		loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm, **args_loader_train_s)
 		loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
@@ -336,33 +335,34 @@ def main():
 
 		model = model_factory()
 		optim = optim_factory(model)
+		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		hparams.train_name = "MixMatch"
-		criterion = MixMatchLossMultiHot.from_edict(hparams)
+		args.train_name = "MixMatch"
+		criterion = MixMatchLossMultiHot.from_edict(args)
 		mixer = MixMatchMixer(
 			model, acti_fn,
-			hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha, hparams.mode, hparams.sharpen_threshold_multihot
+			args.nb_augms, args.sharpen_temp, args.mixup_alpha, args.mode, args.sharpen_threshold_multihot
 		)
-		nb_rampup_steps = hparams.nb_epochs * len(loader_train_u_augms)
-		lambda_u_rampup = RampUp(hparams.lambda_u, nb_rampup_steps)
+		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
+		rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
 
-		if hparams.write_results:
-			writer = build_writer(hparams, suffix="%s_%s_%s" % (suffix_tag, hparams.criterion_name_u, hparams.suffix))
+		if args.write_results:
+			writer = build_writer(args, suffix="%s_%s_%s" % (suffix_tag, args.criterion_name_u, args.suffix))
 		else:
 			writer = None
 
 		trainer = MixMatchTrainer(
 			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-			criterion, writer, mixer, lambda_u_rampup
+			criterion, writer, mixer, rampup_lambda_u
 		)
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer
 		)
-		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
+		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
 		learner.start()
 
 		if writer is not None:
-			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
+			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
 	if "rmm" in args.run or "remixmatch" in args.run:
@@ -375,7 +375,7 @@ def main():
 		dataset_train_u_augm_strong = DESEDDataset(augments=[augm_strong_fn], **args_dataset_train_u_augm)
 		dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
 
-		dataset_train_u_augms_strongs = MultipleDataset([dataset_train_u_augm_strong] * hparams.nb_augms_strong)
+		dataset_train_u_augms_strongs = MultipleDataset([dataset_train_u_augm_strong] * args.nb_augms_strong)
 		dataset_train_u_augms_weak_strongs = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augms_strongs])
 
 		loader_train_s_augm_strong = DataLoader(dataset=dataset_train_s_augm_strong, **args_loader_train_s)
@@ -389,25 +389,26 @@ def main():
 
 		model = model_factory()
 		optim = optim_factory(model)
+		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		hparams.train_name = "ReMixMatch"
+		args.train_name = "ReMixMatch"
 
-		criterion = ReMixMatchLossMultiHot.from_edict(hparams)
-		distributions = AvgDistributions.from_edict(hparams)
+		criterion = ReMixMatchLossMultiHot.from_edict(args)
+		distributions = AvgDistributions.from_edict(args)
 
 		mixer = ReMixMatchMixer(
 			model,
 			acti_fn,
 			distributions,
-			hparams.nb_augms_strong,
-			hparams.sharpen_temp,
-			hparams.mixup_alpha,
-			hparams.mode,
-			hparams.sharpen_threshold_multihot,
+			args.nb_augms_strong,
+			args.sharpen_temp,
+			args.mixup_alpha,
+			args.mode,
+			args.sharpen_threshold_multihot,
 		)
 
-		if hparams.write_results:
-			writer = build_writer(hparams, suffix="%s_%s" % (suffix_tag, hparams.suffix))
+		if args.write_results:
+			writer = build_writer(args, suffix="%s_%s" % (suffix_tag, args.suffix))
 		else:
 			writer = None
 
@@ -418,11 +419,11 @@ def main():
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer
 		)
-		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
+		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
 		learner.start()
 
 		if writer is not None:
-			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
+			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
 	if "su" in args.run or "supervised" in args.run:
@@ -433,13 +434,13 @@ def main():
 
 		model = model_factory()
 		optim = optim_factory(model)
+		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		hparams.train_name = "Supervised"
-
+		args.train_name = "Supervised"
 		criterion = BCELoss(reduction="mean")
 
-		if hparams.write_results:
-			writer = build_writer(hparams, suffix="%s_%s" % (suffix_tag, hparams.suffix))
+		if args.write_results:
+			writer = build_writer(args, suffix="%s_%s" % (suffix_tag, args.suffix))
 		else:
 			writer = None
 
@@ -449,11 +450,11 @@ def main():
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer
 		)
-		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
+		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
 		learner.start()
 
 		if writer is not None:
-			writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
+			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
 	exec_time = time() - start_time
@@ -462,13 +463,13 @@ def main():
 	print("Total execution time: %.2fs" % exec_time)
 
 
-def get_desed_managers(hparams: edict) -> (DESEDManager, DESEDManager):
-	desed_metadata_root = osp.join(hparams.dataset, "dataset", "metadata")
-	desed_audio_root = osp.join(hparams.dataset, "dataset", "audio")
+def get_desed_managers(args) -> (DESEDManager, DESEDManager):
+	desed_metadata_root = osp.join(args.dataset, "dataset", "metadata")
+	desed_audio_root = osp.join(args.dataset, "dataset", "audio")
 
 	manager_s = DESEDManager(
 		desed_metadata_root, desed_audio_root,
-		from_disk=hparams.from_disk,
+		from_disk=args.from_disk,
 		sampling_rate=22050,
 		verbose=1
 	)
@@ -478,7 +479,7 @@ def get_desed_managers(hparams: edict) -> (DESEDManager, DESEDManager):
 
 	manager_u = DESEDManager(
 		desed_metadata_root, desed_audio_root,
-		from_disk=hparams.from_disk,
+		from_disk=args.from_disk,
 		sampling_rate=22050,
 		verbose=1
 	)

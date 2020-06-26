@@ -45,3 +45,6 @@ class FixMatchLossOneHot(FixMatchLossTagABC):
 	def get_confidence_mask(self, pred_weak: Tensor) -> Tensor:
 		max_values, _ = pred_weak.max(dim=1)
 		return (max_values > self.threshold_confidence).float()
+
+	def get_lambda_u(self) -> float:
+		return self.lambda_u

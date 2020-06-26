@@ -31,7 +31,7 @@ class MixMatchTrainerLoc(SSTrainerABC):
 		criterion: MixMatchLossLocABC,
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
-		lambda_u_rampup: RampUp
+		rampup_lambda_u: RampUp
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -45,7 +45,7 @@ class MixMatchTrainerLoc(SSTrainerABC):
 		self.criterion = criterion
 		self.writer = writer
 		self.mixer = mixer
-		self.lambda_u_rampup = lambda_u_rampup
+		self.rampup_lambda_u = rampup_lambda_u
 
 		self.metrics_recorder = MetricsRecorder(
 			"train/",
@@ -97,8 +97,8 @@ class MixMatchTrainerLoc(SSTrainerABC):
 
 			# Compute metrics
 			with torch.no_grad():
-				self.criterion.lambda_u = self.lambda_u_rampup.value()
-				self.lambda_u_rampup.step()
+				self.criterion.lambda_u = self.rampup_lambda_u.value()
+				self.rampup_lambda_u.step()
 
 				self.metrics_recorder.add_value("loss", loss.item())
 				self.metrics_recorder.add_value("loss_s_weak", loss_s_weak.item())

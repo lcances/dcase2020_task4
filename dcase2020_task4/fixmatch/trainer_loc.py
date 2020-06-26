@@ -32,7 +32,7 @@ class FixMatchTrainerLoc(SSTrainerABC):
 		metrics_u_strong: Dict[str, Metrics],
 		criterion: FixMatchLossLocABC,
 		writer: Optional[SummaryWriter],
-		rampup: Optional[RampUp],
+		rampup_lambda_u: Optional[RampUp],
 		threshold_multihot: float,
 		distributions: Optional[AvgDistributions],
 	):
@@ -47,7 +47,7 @@ class FixMatchTrainerLoc(SSTrainerABC):
 		self.metrics_u_strong = metrics_u_strong
 		self.criterion = criterion
 		self.writer = writer
-		self.rampup = rampup
+		self.rampup_lambda_u = rampup_lambda_u
 		self.threshold_multihot = threshold_multihot
 		self.distributions = distributions
 
@@ -116,9 +116,9 @@ class FixMatchTrainerLoc(SSTrainerABC):
 
 			# Compute metrics
 			with torch.no_grad():
-				if self.rampup is not None:
-					self.criterion.lambda_u = self.rampup.value()
-					self.rampup.step()
+				if self.rampup_lambda_u is not None:
+					self.criterion.lambda_u = self.rampup_lambda_u.value()
+					self.rampup_lambda_u.step()
 
 				self.metrics_recorder.add_value("loss", loss.item())
 				self.metrics_recorder.add_value("loss_s_weak", loss_s_weak.item())

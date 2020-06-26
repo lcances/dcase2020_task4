@@ -4,14 +4,14 @@ os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
 import numpy as np
+import os.path as osp
 import torch
 
 from argparse import ArgumentParser, Namespace
-from easydict import EasyDict as edict
 from time import time
 from torch.nn import Module
 from torch.nn.functional import one_hot
-from torch.optim import Adam
+from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader, Subset
 from torchvision.datasets import CIFAR10
@@ -43,7 +43,7 @@ from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_augments import Gray, Inversion, RandCrop, UniColor
 from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.rampup import RampUp
-from dcase2020_task4.util.utils_match import cross_entropy, build_writer, filter_hparams
+from dcase2020_task4.util.utils_match import cross_entropy, build_writer, filter_hparams, get_nb_parameters
 
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.resnet import ResNet18
@@ -52,11 +52,11 @@ from dcase2020_task4.vgg import VGG
 
 
 def create_args() -> Namespace:
-	bool_fn = lambda x: str(x).lower() in ['true', '1', 'yes']  # TODO
+	bool_fn = lambda x: str(x).lower() in ["true", "1", "yes", "y"]
+	optional_str = lambda x: None if str(x).lower() == "none" else str(x)
 
 	parser = ArgumentParser()
-	# TODO : help for acronyms
-	parser.add_argument("--run", type=str, nargs="*", default=["fm", "mm", "rmm", "sf", "sp"])
+	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch"])
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--debug_mode", type=bool_fn, default=False)
 	parser.add_argument("--begin_date", type=str, default=get_datetime(),
@@ -77,6 +77,20 @@ def create_args() -> Namespace:
 	parser.add_argument("--num_workers_s", type=int, default=1)
 	parser.add_argument("--num_workers_u", type=int, default=1)
 
+	parser.add_argument("--optim_name", type=str, default="Adam", choices=["Adam", "SGD"],
+						help="Optimizer used.")
+	parser.add_argument("--scheduler", "--sched", type=optional_str, default="CosineLRScheduler",
+						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
+	parser.add_argument("--lr", type=float, default=1e-3,
+						help="Learning rate used.")
+	parser.add_argument("--weight_decay", type=float, default=0.0,
+						help="Weight decay used.")
+
+	parser.add_argument("--write_results", type=bool_fn, default=True,
+						help="Write results in a tensorboard SummaryWriter.")
+	parser.add_argument("--suffix", type=str, default="",
+						help="Suffix to Tensorboard log dir.")
+
 	parser.add_argument("--dataset_ratio", type=float, default=1.0)
 	parser.add_argument("--supervised_ratio", type=float, default=0.1)
 
@@ -91,13 +105,6 @@ def create_args() -> Namespace:
 						help="FixMatch threshold for compute mask.")
 	parser.add_argument("--threshold_multihot", type=float, default=0.5,
 						help="FixMatch threshold use to replace argmax() in multihot mode.")
-
-	parser.add_argument("--lr", type=float, default=1e-3,
-						help="Learning rate used.")
-	parser.add_argument("--weight_decay", type=float, default=0.0,
-						help="Weight decay used.")
-	parser.add_argument("--optim_name", type=str, default="Adam", choices=["Adam"],
-						help="Optimizer used.")
 	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy", choices=["sq_diff", "cross_entropy"],
 						help="MixMatch unsupervised loss component.")
 
@@ -109,6 +116,15 @@ def create_args() -> Namespace:
 	return parser.parse_args()
 
 
+def check_args(args: Namespace):
+	if not osp.isdir(args.dataset):
+		raise RuntimeError("Invalid dirpath %s" % args.dataset)
+
+	if args.write_results:
+		if not osp.isdir(args.logdir):
+			raise RuntimeError("Invalid dirpath %s" % args.logdir)
+
+
 def main():
 	start_time = time()
 	start_date = get_datetime()
@@ -117,30 +133,26 @@ def main():
 	print("Start match_cifar10.")
 	print("- run:", " ".join(args.run))
 
-	hparams = edict()
-	hparams.update(args.__dict__)
-
-	reset_seed(hparams.seed)
+	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
 
 	# Create model
-	if hparams.model_name == "VGG11":
+	if args.model_name == "VGG11":
 		model_factory = lambda: VGG("VGG11").cuda()
-	elif hparams.model_name == "ResNet18":
+	elif args.model_name == "ResNet18":
 		model_factory = lambda: ResNet18().cuda()
 	else:
-		raise RuntimeError("Unknown model %s" % hparams.model_name)
+		raise RuntimeError("Unknown model %s" % args.model_name)
 
 	acti_fn = lambda batch, dim: batch.softmax(dim=dim)
 
 	def optim_factory(model: Module) -> Optimizer:
-		if hparams.optim_name.lower() == "adam":
-			return Adam(model.parameters(), lr=hparams.lr, weight_decay=hparams.weight_decay)
+		if args.optim_name.lower() == "adam":
+			return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+		elif args.optim_name.lower() == "sgd":
+			return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 		else:
-			raise RuntimeError("Unknown optimizer %s" % str(hparams.optim_name))
-
-	print("Model selected : %s (%d parameters)." % (
-		hparams.model_name, get_nb_parameters(model_factory())))
+			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
 
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	weak_augm_fn = RandomChoice([
@@ -177,100 +189,105 @@ def main():
 	# Add preprocessing before each augmentation
 	preprocess_fn = lambda img: np.array(img).transpose()  # Transpose img [3, 32, 32] to [32, 32, 3]
 
-	metrics_s = {"s_acc": CategoricalConfidenceAccuracy(hparams.confidence)}
-	metrics_u = {"u_acc": CategoricalConfidenceAccuracy(hparams.confidence)}
-	metrics_u1 = {"u1_acc": CategoricalConfidenceAccuracy(hparams.confidence)}
-	metrics_r = {"r_acc": CategoricalConfidenceAccuracy(hparams.confidence)}
+	metrics_s = {"s_acc": CategoricalConfidenceAccuracy(args.confidence)}
+	metrics_u = {"u_acc": CategoricalConfidenceAccuracy(args.confidence)}
+	metrics_u1 = {"u1_acc": CategoricalConfidenceAccuracy(args.confidence)}
+	metrics_r = {"r_acc": CategoricalConfidenceAccuracy(args.confidence)}
 	metrics_val = {
-		"acc": CategoricalConfidenceAccuracy(hparams.confidence),
+		"acc": CategoricalConfidenceAccuracy(args.confidence),
 		"ce": FnMetric(cross_entropy),
-		"eq": EqConfidenceMetric(hparams.confidence),
+		"eq": EqConfidenceMetric(args.confidence),
 		"max": MaxMetric(),
 	}
 
 	# Prepare data
-	dataset_train = CIFAR10(hparams.dataset, train=True, download=True, transform=preprocess_fn)
-	dataset_val = CIFAR10(hparams.dataset, train=False, download=True, transform=preprocess_fn)
+	dataset_train = CIFAR10(args.dataset, train=True, download=True, transform=preprocess_fn)
+	dataset_val = CIFAR10(args.dataset, train=False, download=True, transform=preprocess_fn)
 
-	dataset_train_weak = CIFAR10(
-		hparams.dataset, train=True, download=True, transform=Compose([preprocess_fn, weak_augm_fn]))
-	dataset_train_strong = CIFAR10(
-		hparams.dataset, train=True, download=True, transform=Compose([preprocess_fn, strong_augm_fn]))
+	dataset_train_augm_weak = CIFAR10(
+		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, weak_augm_fn]))
+	dataset_train_augm_strong = CIFAR10(
+		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, strong_augm_fn]))
 	dataset_train_augm = CIFAR10(
-		hparams.dataset, train=True, download=True, transform=Compose([preprocess_fn, augment_fn]))
+		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, augment_fn]))
 
 	# Compute sub-indexes for split CIFAR train dataset
-	sub_loaders_ratios = [hparams.supervised_ratio, 1.0 - hparams.supervised_ratio]
+	sub_loaders_ratios = [args.supervised_ratio, 1.0 - args.supervised_ratio]
 
-	cls_idx_all = get_classes_idx(dataset_train, hparams.nb_classes)
+	cls_idx_all = get_classes_idx(dataset_train, args.nb_classes)
 	cls_idx_all = shuffle_classes_idx(cls_idx_all)
-	cls_idx_all = reduce_classes_idx(cls_idx_all, hparams.dataset_ratio)
+	cls_idx_all = reduce_classes_idx(cls_idx_all, args.dataset_ratio)
 	idx_train = split_classes_idx(cls_idx_all, sub_loaders_ratios)
 
 	idx_train_s, idx_train_u = idx_train
-	idx_val = list(range(int(len(dataset_val) * hparams.dataset_ratio)))
+	idx_val = list(range(int(len(dataset_val) * args.dataset_ratio)))
 
-	label_one_hot = lambda item: (item[0], one_hot(torch.as_tensor(item[1]), hparams.nb_classes).numpy())
+	label_one_hot = lambda item: (item[0], one_hot(torch.as_tensor(item[1]), args.nb_classes).numpy())
 	dataset_train = FnDataset(dataset_train, label_one_hot)
 	dataset_val = FnDataset(dataset_val, label_one_hot)
 
-	dataset_train_weak = FnDataset(dataset_train_weak, label_one_hot)
-	dataset_train_strong = FnDataset(dataset_train_strong, label_one_hot)
+	dataset_train_augm_weak = FnDataset(dataset_train_augm_weak, label_one_hot)
+	dataset_train_augm_strong = FnDataset(dataset_train_augm_strong, label_one_hot)
 	dataset_train_augm = FnDataset(dataset_train_augm, label_one_hot)
 
 	dataset_val = Subset(dataset_val, idx_val)
-	loader_val = DataLoader(dataset_val, batch_size=hparams.batch_size, shuffle=False, drop_last=True)
+	loader_val = DataLoader(dataset_val, batch_size=args.batch_size, shuffle=False, drop_last=True)
 
 	args_loader_train_s = dict(
-		batch_size=hparams.batch_size_s, shuffle=True, num_workers=hparams.num_workers_s, drop_last=True)
+		batch_size=args.batch_size_s, shuffle=True, num_workers=args.num_workers_s, drop_last=True)
 	args_loader_train_u = dict(
-		batch_size=hparams.batch_size_u, shuffle=True, num_workers=hparams.num_workers_u, drop_last=True)
+		batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
 	if "fm" in args.run or "fixmatch" in args.run:
-		dataset_train_s_augm_weak = Subset(dataset_train_weak, idx_train_s)
-		dataset_train_u_weak = Subset(dataset_train_weak, idx_train_u)
-		dataset_train_u_strong = Subset(dataset_train_strong, idx_train_u)
+		dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
+		dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
+		dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
 
-		dataset_train_u_weak = NoLabelDataset(dataset_train_u_weak)
-		dataset_train_u_strong = NoLabelDataset(dataset_train_u_strong)
+		dataset_train_u_augm_weak = NoLabelDataset(dataset_train_u_augm_weak)
+		dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
 
-		dataset_train_u_weak_strong = MultipleDataset([dataset_train_u_weak, dataset_train_u_strong])
+		dataset_train_u_augms_weak_strong = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augm_strong])
 
 		loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
-		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_weak_strong, **args_loader_train_u)
+		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
 		model = model_factory()
 		optim = optim_factory(model)
+		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		if hparams.scheduler == "CosineLRScheduler":
-			scheduler = CosineLRScheduler(optim, nb_epochs=hparams.nb_epochs, lr0=hparams.lr)
+		if args.scheduler == "CosineLRScheduler":
+			scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
 		else:
 			scheduler = None
 
-		hparams.train_name = "FixMatch"
-		writer = build_writer(hparams, suffix="%s_%s" % (str(hparams.scheduler), hparams.suffix))
+		args.train_name = "FixMatch"
+		criterion = FixMatchLossOneHot.from_edict(args)
 
-		criterion = FixMatchLossOneHot.from_edict(hparams)
+		if args.write_results:
+			writer = build_writer(args, suffix="%s_%s" % (str(args.scheduler), args.suffix))
+		else:
+			writer = None
 
 		trainer = FixMatchTrainer(
 			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-			criterion, writer, hparams.mode, hparams.threshold_multihot
+			criterion, writer, args.mode, args.threshold_multihot
 		)
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer
 		)
-		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs, scheduler)
+		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
-		writer.close()
+		if writer is not None:
+			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
+			writer.close()
 
 	if "mm" in args.run or "mixmatch" in args.run:
 		dataset_train_s_augm = Subset(dataset_train_augm, idx_train_s)
 		dataset_train_u_augm = Subset(dataset_train_augm, idx_train_u)
 
 		dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm)
-		dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * hparams.nb_augms)
+		dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * args.nb_augms)
 
 		loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm, **args_loader_train_s)
 		loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
@@ -281,40 +298,46 @@ def main():
 
 		model = model_factory()
 		optim = optim_factory(model)
+		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		hparams.train_name = "MixMatch"
-		writer = build_writer(hparams, suffix=hparams.criterion_name_u)
+		args.train_name = "MixMatch"
 
-		nb_rampup_steps = hparams.nb_epochs * len(loader_train_u_augms)
+		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
 
-		criterion = MixMatchLossOneHot.from_edict(hparams)
-		mixer = MixMatchMixer(model, acti_fn, hparams.nb_augms, hparams.sharpen_temp, hparams.mixup_alpha,
-							  hparams.sharpen_threshold_multihot)
-		lambda_u_rampup = RampUp(hparams.lambda_u, nb_rampup_steps)
+		criterion = MixMatchLossOneHot.from_edict(args)
+		mixer = MixMatchMixer(model, acti_fn, args.nb_augms, args.sharpen_temp, args.mixup_alpha,
+							  args.sharpen_threshold_multihot)
+		rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
+
+		if args.write_results:
+			writer = build_writer(args, suffix=args.criterion_name_u)
+		else:
+			writer = None
 
 		trainer = MixMatchTrainer(
 			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-			criterion, writer, mixer, lambda_u_rampup
+			criterion, writer, mixer, rampup_lambda_u
 		)
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer
 		)
-		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
+		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
-		writer.close()
+		if writer is not None:
+			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
+			writer.close()
 
 	if "rmm" in args.run or "remixmatch" in args.run:
-		dataset_train_s_augm_strong = Subset(dataset_train_strong, idx_train_s)
-		dataset_train_u_weak = Subset(dataset_train_weak, idx_train_u)
-		dataset_train_u_strong = Subset(dataset_train_strong, idx_train_u)
+		dataset_train_s_augm_strong = Subset(dataset_train_augm_strong, idx_train_s)
+		dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
+		dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
 
-		dataset_train_u_weak = NoLabelDataset(dataset_train_u_weak)
-		dataset_train_u_strong = NoLabelDataset(dataset_train_u_strong)
+		dataset_train_u_augm_weak = NoLabelDataset(dataset_train_u_augm_weak)
+		dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
 
-		dataset_train_u_strongs = MultipleDataset([dataset_train_u_strong] * hparams.nb_augms_strong)
-		dataset_train_u_weak_strongs = MultipleDataset([dataset_train_u_weak, dataset_train_u_strongs])
+		dataset_train_u_strongs = MultipleDataset([dataset_train_u_augm_strong] * args.nb_augms_strong)
+		dataset_train_u_weak_strongs = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_strongs])
 
 		loader_train_s_strong = DataLoader(dataset_train_s_augm_strong, **args_loader_train_s)
 		loader_train_u_augms_weak_strongs = DataLoader(dataset_train_u_weak_strongs, **args_loader_train_u)
@@ -325,22 +348,28 @@ def main():
 
 		model = model_factory()
 		optim = optim_factory(model)
+		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
 		rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
-		hparams.train_name = "ReMixMatch"
-		writer = build_writer(hparams)
+		args.train_name = "ReMixMatch"
 
-		criterion = ReMixMatchLossOneHot.from_edict(hparams)
-		distributions = AvgDistributions.from_edict(hparams)
+		criterion = ReMixMatchLossOneHot.from_edict(args)
+		distributions = AvgDistributions.from_edict(args)
 		mixer = ReMixMatchMixer(
 			model,
 			acti_fn,
 			distributions,
-			hparams.nb_augms_strong,
-			hparams.sharpen_temp,
-			hparams.mixup_alpha,
-			hparams.mode
+			args.nb_augms_strong,
+			args.sharpen_temp,
+			args.mixup_alpha,
+			args.mode
 		)
+
+		if args.write_results:
+			writer = build_writer(args, suffix="%s" % args.suffix)
+		else:
+			writer = None
+
 		trainer = ReMixMatchTrainer(
 			model, acti_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs, metrics_s, metrics_u,
 			metrics_u1, metrics_r, criterion, writer, mixer, distributions, rot_angles
@@ -348,11 +377,12 @@ def main():
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer
 		)
-		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
+		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
-		writer.close()
+		if writer is not None:
+			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
+			writer.close()
 
 	if "sf" in args.run or "supervised_full" in args.run:
 		dataset_train_full = Subset(dataset_train, idx_train_s + idx_train_u)
@@ -360,11 +390,16 @@ def main():
 
 		model = model_factory()
 		optim = optim_factory(model)
+		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		hparams.train_name = "Supervised"
-		writer = build_writer(hparams, suffix="full_100")
+		args.train_name = "Supervised"
 
 		criterion = cross_entropy
+
+		if args.write_results:
+			writer = build_writer(args, suffix="full_100_%s" % args.suffix)
+		else:
+			writer = None
 
 		trainer = SupervisedTrainer(
 			model, acti_fn, optim, loader_train_full, metrics_s, criterion, writer
@@ -372,11 +407,12 @@ def main():
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer
 		)
-		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
+		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
-		writer.close()
+		if writer is not None:
+			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
+			writer.close()
 
 	if "sp" in args.run or "supervised_part" in args.run:
 		dataset_train_part = Subset(dataset_train, idx_train_s)
@@ -384,11 +420,16 @@ def main():
 
 		model = model_factory()
 		optim = optim_factory(model)
+		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		hparams.train_name = "Supervised"
-		writer = build_writer(hparams, suffix="part_%d" % int(100 * hparams.supervised_ratio))
+		args.train_name = "Supervised"
 
 		criterion = cross_entropy
+
+		if args.write_results:
+			writer = build_writer(args, suffix="part_%d_%s" % (int(100 * args.supervised_ratio), args.suffix))
+		else:
+			writer = None
 
 		trainer = SupervisedTrainer(
 			model, acti_fn, optim, loader_train_part, metrics_s, criterion, writer
@@ -396,24 +437,17 @@ def main():
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer
 		)
-		learner = DefaultLearner(hparams.train_name, trainer, validator, hparams.nb_epochs)
+		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
 		learner.start()
 
-		writer.add_hparams(hparam_dict=filter_hparams(hparams), metric_dict={})
-		writer.close()
+		if writer is not None:
+			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
+			writer.close()
 
 	exec_time = time() - start_time
 	print("")
 	print("Program started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)
-
-
-def get_nb_parameters(model: Module) -> int:
-	return sum(p.numel() for p in model.parameters())
-
-
-def get_nb_trainable_parameters(model: Module) -> int:
-	return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
 if __name__ == "__main__":
