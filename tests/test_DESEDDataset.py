@@ -1,12 +1,20 @@
 import os.path as osp
+
+from argparse import ArgumentParser, Namespace
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
 
+def create_args() -> Namespace:
+	parser = ArgumentParser()
+	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
+	return parser.parse_args()
+
+
 def test():
-	dataset = "./dataset/DESED"
-	desed_metadata_root = osp.join(dataset, "dataset", "metadata")
-	desed_audio_root = osp.join(dataset, "dataset", "audio")
+	args = create_args()
+	desed_metadata_root = osp.join(args.dataset, "dataset", "metadata")
+	desed_audio_root = osp.join(args.dataset, "dataset", "audio")
 
 	manager = DESEDManager(
 		desed_metadata_root, desed_audio_root,
@@ -21,11 +29,12 @@ def test():
 
 	ds = DESEDDataset(manager, train=True, val=False, augments=[], cached=False, weak=False, strong=True)
 
-	# print("len : ", len(ds))  # 11808
+	print("len : ", len(ds))  # weak = 11808, synthetic20 = 2584
+
 	print("Strong sizes : ")
 	x, y = ds[0]
-	print(x.shape)
-	print(y[0].shape)
+	print("x = ", x.shape)  # (64, 431)
+	print("y[0] = ", y[0].shape)  # (10, 431)
 
 
 if __name__ == "__main__":

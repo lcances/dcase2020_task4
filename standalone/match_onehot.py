@@ -22,7 +22,8 @@ from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRando
 from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, Noise, RandomTimeDropout, RandomFreqDropout
 from dcase2020.util.utils import get_datetime, reset_seed
 
-from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
+from dcase2020_task4.baseline.models import WeakBaseline
+
 from dcase2020_task4.fixmatch.losses.onehot import FixMatchLossOneHot
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 
@@ -30,13 +31,17 @@ from dcase2020_task4.mixmatch.losses.onehot import MixMatchLossOneHot
 from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 
+from dcase2020_task4.other_models.resnet import ResNet18
+from dcase2020_task4.other_models.vgg import VGG
+
 from dcase2020_task4.remixmatch.losses.onehot import ReMixMatchLossOneHot
 from dcase2020_task4.remixmatch.mixer import ReMixMatchMixer
-from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 
+from dcase2020_task4.util.avg_distributions import AvgDistributions
+from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
@@ -48,9 +53,7 @@ from dcase2020_task4.util.types import str_to_bool, str_to_optional_str
 from dcase2020_task4.util.utils_match import cross_entropy, build_writer, filter_hparams, get_nb_parameters
 
 from dcase2020_task4.learner import DefaultLearner
-from dcase2020_task4.other_models.resnet import ResNet18
 from dcase2020_task4.validator import DefaultValidator
-from dcase2020_task4.other_models.vgg import VGG
 
 from ubs8k.datasets import Dataset as UBS8KDataset
 from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
@@ -69,7 +72,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--dataset_name", type=str, default="CIFAR10", choices=["CIFAR10", "UBS8K"])
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
 
-	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18"])
+	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18", "WeakBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.3)
@@ -149,15 +152,15 @@ def main():
 		"max": MaxMetric(),
 	}
 
-	# Create model
-	if args.model_name == "VGG11":
-		model_factory = lambda: VGG("VGG11").cuda()
-	elif args.model_name == "ResNet18":
-		model_factory = lambda: ResNet18().cuda()
-	else:
-		raise RuntimeError("Unknown model %s" % args.model_name)
-
-	acti_fn = torch.softmax
+	def model_factory() -> Module:
+		if args.model_name.lower() == "vgg11":
+			return VGG("VGG11").cuda()
+		elif args.model_name.lower() == "resnet18":
+			return ResNet18().cuda()
+		elif args.optim_name.lower() == "weakbaseline":
+			return WeakBaseline().cuda()
+		else:
+			raise RuntimeError("Unknown model %s" % args.model_name)
 
 	def optim_factory(model: Module) -> Optimizer:
 		if args.optim_name.lower() == "adam":
@@ -166,6 +169,8 @@ def main():
 			return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 		else:
 			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
+
+	acti_fn = torch.softmax
 
 	if args.dataset_name.lower() == "cifar10":
 		dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = get_cifar10_datasets(args)

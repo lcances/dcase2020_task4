@@ -174,14 +174,13 @@ def main():
 	print("- threshold_multihot:", args.threshold_multihot)
 	print("- threshold_confidence:", args.threshold_confidence)
 
-	if args.model_name == "dcase2019":
-		model_factory = lambda: dcase2019_model().cuda()
-	elif args.model_name == "WeakStrongBaseline":
-		model_factory = lambda: WeakStrongBaselineRot().cuda()
-	else:
-		raise RuntimeError("Unknown model name %s" % args.model_name)
-
-	acti_fn = lambda batch, dim: batch.sigmoid()
+	def model_factory() -> Module:
+		if args.model_name == "dcase2019":
+			return dcase2019_model().cuda()
+		elif args.model_name == "WeakStrongBaseline":
+			return WeakStrongBaselineRot().cuda()
+		else:
+			raise RuntimeError("Unknown model name %s" % args.model_name)
 
 	def optim_factory(model: Module) -> Optimizer:
 		if args.optim_name.lower() == "adam":
@@ -190,6 +189,8 @@ def main():
 			return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 		else:
 			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
+
+	acti_fn = lambda batch, dim: batch.sigmoid()
 
 	metrics_s_weak = {
 		"s_acc_weak": BinaryConfidenceAccuracy(args.confidence),

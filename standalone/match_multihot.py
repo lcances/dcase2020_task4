@@ -157,14 +157,13 @@ def main():
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
 
-	if args.model_name == "WeakBaseline":
-		model_factory = lambda: WeakBaselineRot().cuda()
-	elif args.model_name == "dcase2019":
-		model_factory = lambda: dcase2019_model().cuda()
-	else:
-		raise RuntimeError("Invalid model %s" % args.model_name)
-
-	acti_fn = lambda batch, dim: batch.sigmoid()
+	def model_factory() -> Module:
+		if args.model_name == "WeakBaseline":
+			return WeakBaselineRot().cuda()
+		elif args.model_name == "dcase2019":
+			return dcase2019_model().cuda()
+		else:
+			raise RuntimeError("Invalid model %s" % args.model_name)
 
 	def optim_factory(model: Module) -> Optimizer:
 		if args.optim_name.lower() == "adam":
@@ -173,6 +172,8 @@ def main():
 			return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 		else:
 			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
+
+	acti_fn = lambda batch, dim: batch.sigmoid()
 
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	ratio = 0.1
