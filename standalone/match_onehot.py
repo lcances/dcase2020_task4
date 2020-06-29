@@ -474,12 +474,12 @@ def get_ubs8k_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, 
 
 	manager = UBS8KDatasetManager(metadata_root, audio_root)
 
-	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=[], cached=False)
-	dataset_val = UBS8KDataset(manager, folds=folds_val, augments=[], cached=True)
+	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(), cached=False)
+	dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
 
-	dataset_train_augm_weak = UBS8KDataset(manager, folds=folds_train, augments=[weak_augm_fn], cached=False)
-	dataset_train_augm_strong = UBS8KDataset(manager, folds=folds_train, augments=[strong_augm_fn], cached=False)
-	dataset_train_augm = UBS8KDataset(manager, folds=folds_train, augments=[augment_fn], cached=False)
+	dataset_train_augm_weak = UBS8KDataset(manager, folds=folds_train, augments=(weak_augm_fn,), cached=False)
+	dataset_train_augm_strong = UBS8KDataset(manager, folds=folds_train, augments=(strong_augm_fn,), cached=False)
+	dataset_train_augm = UBS8KDataset(manager, folds=folds_train, augments=(augment_fn,), cached=False)
 
 	breakpoint()
 	print(dataset_train[0][0].shape, dataset_train[0][1].shape)
