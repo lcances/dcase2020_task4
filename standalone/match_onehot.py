@@ -18,7 +18,8 @@ from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose
 
 from augmentation_utils.img_augmentations import Transform
-from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip
+from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion
+from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, Noise, RandomTimeDropout, RandomFreqDropout
 from dcase2020.util.utils import get_datetime, reset_seed
 
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
@@ -192,7 +193,7 @@ def main():
 	dataset_train_augm = FnDataset(dataset_train_augm, label_one_hot)
 
 	dataset_val = Subset(dataset_val, idx_val)
-	loader_val = DataLoader(dataset_val, batch_size=args.batch_size, shuffle=False, drop_last=True)
+	loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
 
 	args_loader_train_s = dict(
 		batch_size=args.batch_size_s, shuffle=True, num_workers=args.num_workers_s, drop_last=True)
@@ -413,13 +414,13 @@ def main():
 
 def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	weak_augm_fn = RandomChoice([
+	augm_weak_fn = RandomChoice([
 		HorizontalFlip(0.5),
 		VerticalFlip(0.5),
 		Transform(0.5, scale=(0.75, 1.25)),
 		Transform(0.5, rotation=(-np.pi, np.pi)),
 	])
-	strong_augm_fn = Compose([
+	augm_strong_fn = Compose([
 		RandomChoice([
 			Transform(1.0, scale=(0.5, 1.5)),
 			Transform(1.0, rotation=(-np.pi, np.pi)),
@@ -433,7 +434,7 @@ def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset
 	])
 	# Augmentation used by MixMatch
 	mm_ratio = 0.5
-	augment_fn = RandomChoice([
+	augm_fn = RandomChoice([
 		HorizontalFlip(mm_ratio),
 		VerticalFlip(mm_ratio),
 		Transform(mm_ratio, scale=(0.75, 1.25)),
@@ -452,19 +453,48 @@ def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset
 	dataset_val = CIFAR10(args.dataset, train=False, download=True, transform=preprocess_fn)
 
 	dataset_train_augm_weak = CIFAR10(
-		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, weak_augm_fn]))
+		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, augm_weak_fn]))
 	dataset_train_augm_strong = CIFAR10(
-		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, strong_augm_fn]))
+		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, augm_strong_fn]))
 	dataset_train_augm = CIFAR10(
-		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, augment_fn]))
+		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, augm_fn]))
 
 	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
 
 
 def get_ubs8k_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
-	weak_augm_fn = Transform(0.1, scale=(0.75, 1.25))
-	strong_augm_fn = Transform(1.0, scale=(0.75, 1.25))
-	augment_fn = Transform(0.5, scale=(0.75, 1.25))
+	# Weak and strong augmentations used by FixMatch and ReMixMatch
+	ratio = 0.1
+	augm_weak_fn = RandomChoice([
+		Transform(ratio, scale=(0.9, 1.1)),
+		Transform(0.5, rotation=(-np.pi / 8.0, np.pi / 8.0)),
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio),
+		Occlusion(ratio, max_size=1.0),
+		Noise(ratio=ratio, snr=10.0),
+		RandomFreqDropout(ratio, dropout=0.5),
+		RandomTimeDropout(ratio, dropout=0.5),
+	])
+	ratio = 0.5
+	augm_strong_fn = Compose([
+		Transform(ratio, scale=(0.9, 1.1)),
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio),
+		Occlusion(ratio, max_size=1.0),
+		Noise(ratio=ratio, snr=10.0),
+		RandomFreqDropout(ratio, dropout=0.5),
+		RandomTimeDropout(ratio, dropout=0.5),
+	])
+	ratio = 0.5
+	augm_fn = RandomChoice([
+		Transform(ratio, scale=(0.9, 1.1)),
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio),
+		Occlusion(ratio, max_size=1.0),
+		Noise(ratio=ratio, snr=10.0),
+		RandomFreqDropout(ratio, dropout=0.5),
+		RandomTimeDropout(ratio, dropout=0.5),
+	])
 
 	metadata_root = osp.join(args.dataset, "metadata")
 	audio_root = osp.join(args.dataset, "audio")
@@ -474,16 +504,13 @@ def get_ubs8k_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, 
 
 	manager = UBS8KDatasetManager(metadata_root, audio_root)
 
+	# Shapes : (64, 173), (1)
 	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(), cached=False)
 	dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
 
-	dataset_train_augm_weak = UBS8KDataset(manager, folds=folds_train, augments=(weak_augm_fn,), cached=False)
-	dataset_train_augm_strong = UBS8KDataset(manager, folds=folds_train, augments=(strong_augm_fn,), cached=False)
-	dataset_train_augm = UBS8KDataset(manager, folds=folds_train, augments=(augment_fn,), cached=False)
-
-	breakpoint()
-	print(dataset_train[0][0].shape, dataset_train[0][1].shape)
-	breakpoint()
+	dataset_train_augm_weak = UBS8KDataset(manager, folds=folds_train, augments=(augm_weak_fn,), cached=False)
+	dataset_train_augm_strong = UBS8KDataset(manager, folds=folds_train, augments=(augm_strong_fn,), cached=False)
+	dataset_train_augm = UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False)
 
 	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
 
