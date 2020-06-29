@@ -296,6 +296,7 @@ def main():
 	suffix_loc = "LOC"
 
 	if "fm" in args.run or "fixmatch" in args.run:
+		args.train_name = "FixMatch"
 		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_weak = FnDataset(dataset_train_s_augm_weak, get_batch_label)
 
@@ -328,8 +329,6 @@ def main():
 			distributions = AvgDistributions.from_edict(args)
 		else:
 			distributions = None
-
-		args.train_name = "FixMatch"
 
 		if args.experimental is None:
 			criterion = FixMatchLossMultiHotLoc.from_edict(args)
@@ -377,6 +376,7 @@ def main():
 			writer.close()
 
 	if "mm" in args.run or "mixmatch" in args.run:
+		args.train_name = "MixMatch"
 		dataset_train_s_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm = FnDataset(dataset_train_s_augm, get_batch_label)
 
@@ -395,8 +395,6 @@ def main():
 		model = model_factory()
 		optim = optim_factory(model)
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-		args.train_name = "MixMatch"
 
 		criterion = MixMatchLossMultiHotLoc.from_edict(args)
 		mixer = MixMatchMixerMultiHotLoc(
@@ -435,6 +433,7 @@ def main():
 			writer.close()
 
 	if "su" in args.run or "supervised" in args.run:
+		args.train_name = "Supervised"
 		dataset_train_s = DESEDDataset(**args_dataset_train_s)
 		dataset_train_s = FnDataset(dataset_train_s, get_batch_label)
 
@@ -444,7 +443,6 @@ def main():
 		optim = optim_factory(model)
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		args.train_name = "Supervised"
 		criterion = SupervisedLossLoc()
 
 		if args.write_results:

@@ -266,6 +266,7 @@ def main():
 	suffix_tag = "TAG"
 
 	if "fm" in args.run or "fixmatch" in args.run:
+		args.train_name = "FixMatch"
 		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_weak = FnDataset(dataset_train_s_augm_weak, get_batch_label)
 
@@ -288,8 +289,6 @@ def main():
 			scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
 		else:
 			scheduler = None
-
-		args.train_name = "FixMatch"
 
 		if args.experimental.lower() == "v1":
 			criterion = FixMatchLossMultiHotV1.from_edict(args)
@@ -329,6 +328,7 @@ def main():
 			writer.close()
 
 	if "mm" in args.run or "mixmatch" in args.run:
+		args.train_name = "MixMatch"
 		dataset_train_s_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm = FnDataset(dataset_train_s_augm, get_batch_label)
 
@@ -348,7 +348,6 @@ def main():
 		optim = optim_factory(model)
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		args.train_name = "MixMatch"
 		criterion = MixMatchLossMultiHot.from_edict(args)
 		mixer = MixMatchMixer(
 			model, acti_fn,
@@ -377,6 +376,7 @@ def main():
 			writer.close()
 
 	if "rmm" in args.run or "remixmatch" in args.run:
+		args.train_name = "ReMixMatch"
 		dataset_train_s_augm_strong = DESEDDataset(augments=[augm_strong_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_strong = FnDataset(dataset_train_s_augm_strong, get_batch_label)
 
@@ -401,8 +401,6 @@ def main():
 		model = model_factory()
 		optim = optim_factory(model)
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-		args.train_name = "ReMixMatch"
 
 		criterion = ReMixMatchLossMultiHot.from_edict(args)
 		distributions = AvgDistributions.from_edict(args)
@@ -438,6 +436,7 @@ def main():
 			writer.close()
 
 	if "su" in args.run or "supervised" in args.run:
+		args.train_name = "Supervised"
 		dataset_train_s = DESEDDataset(**args_dataset_train_s)
 		dataset_train_s = FnDataset(dataset_train_s, get_batch_label)
 
@@ -447,7 +446,6 @@ def main():
 		optim = optim_factory(model)
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		args.train_name = "Supervised"
 		criterion = BCELoss(reduction="mean")
 
 		if args.write_results:

@@ -115,10 +115,17 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--lambda_u", type=float, default=10.0,
 						help="MixMatch \"lambda_u\" hyperparameter.")
+	parser.add_argument("--lambda_u1", type=float, default=0.5,
+						help="ReMixMatch \"lambda_u1\" hyperparameter.")
+	parser.add_argument("--lambda_r", type=float, default=0.5,
+						help="ReMixMatch \"lambda_r\" hyperparameter.")
+
 	parser.add_argument("--nb_augms", type=int, default=2,
 						help="Nb of augmentations used in MixMatch.")
 	parser.add_argument("--nb_augms_strong", type=int, default=2,
 						help="Nb of strong augmentations used in ReMixMatch.")
+	parser.add_argument("--history_size", type=int, default=128,
+						help="Nb of prediction kept in AvgDistributions used in ReMixMatch.")
 
 	parser.add_argument("--threshold_confidence", type=float, default=0.95,
 						help="FixMatch threshold for compute confidence mask in loss.")
@@ -226,6 +233,7 @@ def main():
 		batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
 	if "fm" in args.run or "fixmatch" in args.run:
+		args.train_name = "FixMatch"
 		dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
 		dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
 		dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
@@ -247,7 +255,6 @@ def main():
 		else:
 			scheduler = None
 
-		args.train_name = "FixMatch"
 		criterion = FixMatchLossOneHot.from_edict(args)
 
 		if args.write_results:
@@ -270,6 +277,7 @@ def main():
 			writer.close()
 
 	if "mm" in args.run or "mixmatch" in args.run:
+		args.train_name = "MixMatch"
 		dataset_train_s_augm = Subset(dataset_train_augm, idx_train_s)
 		dataset_train_u_augm = Subset(dataset_train_augm, idx_train_u)
 
@@ -286,8 +294,6 @@ def main():
 		model = model_factory()
 		optim = optim_factory(model)
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-		args.train_name = "MixMatch"
 
 		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
 
@@ -315,6 +321,7 @@ def main():
 			writer.close()
 
 	if "rmm" in args.run or "remixmatch" in args.run:
+		args.train_name = "ReMixMatch"
 		dataset_train_s_augm_strong = Subset(dataset_train_augm_strong, idx_train_s)
 		dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
 		dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
@@ -337,7 +344,6 @@ def main():
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
 		rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
-		args.train_name = "ReMixMatch"
 
 		criterion = ReMixMatchLossOneHot.from_edict(args)
 		distributions = AvgDistributions.from_edict(args)
@@ -371,14 +377,13 @@ def main():
 			writer.close()
 
 	if "sf" in args.run or "supervised_full" in args.run:
+		args.train_name = "Supervised"
 		dataset_train_full = Subset(dataset_train, idx_train_s + idx_train_u)
 		loader_train_full = DataLoader(dataset_train_full, **args_loader_train_s)
 
 		model = model_factory()
 		optim = optim_factory(model)
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-		args.train_name = "Supervised"
 
 		criterion = cross_entropy
 
@@ -401,14 +406,13 @@ def main():
 			writer.close()
 
 	if "sp" in args.run or "supervised_part" in args.run:
+		args.train_name = "Supervised"
 		dataset_train_part = Subset(dataset_train, idx_train_s)
 		loader_train_part = DataLoader(dataset_train_part, **args_loader_train_s)
 
 		model = model_factory()
 		optim = optim_factory(model)
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-		args.train_name = "Supervised"
 
 		criterion = cross_entropy
 
