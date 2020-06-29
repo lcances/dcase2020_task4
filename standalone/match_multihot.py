@@ -75,12 +75,17 @@ def create_args() -> Namespace:
 	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=1)
 	parser.add_argument("--nb_classes", type=int, default=10)
-	parser.add_argument("--confidence", type=float, default=0.5)
+	parser.add_argument("--confidence", type=float, default=0.5,
+						help="Confidence threshold used in VALIDATION.")
 
-	parser.add_argument("--batch_size_s", type=int, default=8)
-	parser.add_argument("--batch_size_u", type=int, default=8)
-	parser.add_argument("--num_workers_s", type=int, default=1)
-	parser.add_argument("--num_workers_u", type=int, default=1)
+	parser.add_argument("--batch_size_s", type=int, default=8,
+						help="Batch size used for supervised loader.")
+	parser.add_argument("--batch_size_u", type=int, default=8,
+						help="Batch size used for unsupervised loader.")
+	parser.add_argument("--num_workers_s", type=int, default=1,
+						help="Number of workers created by supervised loader.")
+	parser.add_argument("--num_workers_u", type=int, default=1,
+						help="Number of workers created by unsupervised loader.")
 
 	parser.add_argument("--optim_name", type=str, default="Adam", choices=["Adam", "SGD"],
 						help="Optimizer used.")
@@ -150,6 +155,7 @@ def main():
 
 	print("Start match_multihot (%s)." % args.suffix)
 	print("- run:", " ".join(args.run))
+	print("- confidence:", args.confidence)
 	print("- from_disk:", args.from_disk)
 	print("- debug_mode:", args.debug_mode)
 	print("- experimental:", args.experimental)

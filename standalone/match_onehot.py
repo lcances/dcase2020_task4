@@ -59,8 +59,12 @@ from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
 
 
 def create_args() -> Namespace:
+	available_methods = [
+		"fixmatch (fm)", "mixmatch (mm)", "remixmatch (rmm)", "supervised_full (sf)", "supervised_part (sp)"]
+
 	parser = ArgumentParser()
-	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch"])
+	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch"],
+						help="Training method to run. Available method are : %s." % ", ".join(available_methods))
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--debug_mode", type=str_to_bool, default=False)
 	parser.add_argument("--begin_date", type=str, default=get_datetime(),
@@ -74,12 +78,17 @@ def create_args() -> Namespace:
 	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18", "UBS8KBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--nb_classes", type=int, default=10)
-	parser.add_argument("--confidence", type=float, default=0.3)
+	parser.add_argument("--confidence", type=float, default=0.3,
+						help="Confidence threshold used in VALIDATION.")
 
-	parser.add_argument("--batch_size_s", type=int, default=8)
-	parser.add_argument("--batch_size_u", type=int, default=8)
-	parser.add_argument("--num_workers_s", type=int, default=1)
-	parser.add_argument("--num_workers_u", type=int, default=1)
+	parser.add_argument("--batch_size_s", type=int, default=8,
+						help="Batch size used for supervised loader.")
+	parser.add_argument("--batch_size_u", type=int, default=8,
+						help="Batch size used for unsupervised loader.")
+	parser.add_argument("--num_workers_s", type=int, default=1,
+						help="Number of workers created by supervised loader.")
+	parser.add_argument("--num_workers_u", type=int, default=1,
+						help="Number of workers created by unsupervised loader.")
 
 	parser.add_argument("--optim_name", type=str, default="Adam", choices=["Adam", "SGD"],
 						help="Optimizer used.")
@@ -128,6 +137,13 @@ def check_args(args: Namespace):
 		if not osp.isdir(args.logdir):
 			raise RuntimeError("Invalid dirpath %s" % args.logdir)
 
+	if args.dataset_name == "CIFAR10":
+		if args.model_name not in ["VGG11", "ResNet18"]:
+			raise RuntimeError("Invalid model %s for dataset %s" % (args.model_name, args.dataset_name))
+	elif args.dataset_name == "UBS8K":
+		if args.model_name not in ["UBS8KBaseline"]:
+			raise RuntimeError("Invalid model %s for dataset %s" % (args.model_name, args.dataset_name))
+
 
 def main():
 	start_time = time()
@@ -136,6 +152,7 @@ def main():
 	args = create_args()
 	print("Start match_onehot. (%s)" % args.suffix)
 	print("- run:", " ".join(args.run))
+	print("- confidence:", args.confidence)
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
