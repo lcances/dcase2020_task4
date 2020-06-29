@@ -1,16 +1,21 @@
+# Folders
 .idea/
 .vs/
 .vscode/
 dataset/
 tensorboard/
 .ipynb_checkpoints/
-
 __pycache__
 *.egg-info
 results/
 models
 
+# Filetypes
 *.pyc
-notes.txt
 *.err
 *.out
+*.torch
+
+# Specific files
+notes.txt
+.tmp_sbatch.sh
