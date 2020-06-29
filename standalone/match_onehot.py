@@ -22,8 +22,6 @@ from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRando
 from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, Noise, RandomTimeDropout, RandomFreqDropout
 from dcase2020.util.utils import get_datetime, reset_seed
 
-from dcase2020_task4.baseline.models import WeakBaseline
-
 from dcase2020_task4.fixmatch.losses.onehot import FixMatchLossOneHot
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 
@@ -32,6 +30,7 @@ from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 
 from dcase2020_task4.other_models.resnet import ResNet18
+from dcase2020_task4.other_models.UBS8KBaseline import UBS8KBaseline
 from dcase2020_task4.other_models.vgg import VGG
 
 from dcase2020_task4.remixmatch.losses.onehot import ReMixMatchLossOneHot
@@ -72,7 +71,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--dataset_name", type=str, default="CIFAR10", choices=["CIFAR10", "UBS8K"])
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
 
-	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18", "WeakBaseline"])
+	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18", "UBS8KBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.3)
@@ -157,8 +156,8 @@ def main():
 			return VGG("VGG11").cuda()
 		elif args.model_name.lower() == "resnet18":
 			return ResNet18().cuda()
-		elif args.model_name.lower() == "weakbaseline":
-			return WeakBaseline().cuda()
+		elif args.model_name.lower() == "ubs8kbaseline":
+			return UBS8KBaseline().cuda()
 		else:
 			raise RuntimeError("Unknown model %s" % args.model_name)
 
