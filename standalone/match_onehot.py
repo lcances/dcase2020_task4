@@ -13,7 +13,7 @@ from torch.nn import Module
 from torch.nn.functional import one_hot
 from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
-from torch.utils.data import DataLoader, Subset
+from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose
 
@@ -43,28 +43,29 @@ from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_augments import Gray, Inversion, RandCrop, UniColor
 from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.rampup import RampUp
+from dcase2020_task4.util.types import str_to_bool, str_to_optional_str
 from dcase2020_task4.util.utils_match import cross_entropy, build_writer, filter_hparams, get_nb_parameters
 
 from dcase2020_task4.learner import DefaultLearner
-from dcase2020_task4.resnet import ResNet18
+from dcase2020_task4.models.resnet import ResNet18
 from dcase2020_task4.validator import DefaultValidator
-from dcase2020_task4.vgg import VGG
+from dcase2020_task4.models.vgg import VGG
+
+from ubs8k.datasets import Dataset as UBS8KDataset
+from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
 
 
 def create_args() -> Namespace:
-	bool_fn = lambda x: str(x).lower() in ["true", "1", "yes", "y"]
-	optional_str = lambda x: None if str(x).lower() == "none" else str(x)
-
 	parser = ArgumentParser()
 	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch"])
 	parser.add_argument("--seed", type=int, default=123)
-	parser.add_argument("--debug_mode", type=bool_fn, default=False)
+	parser.add_argument("--debug_mode", type=str_to_bool, default=False)
 	parser.add_argument("--begin_date", type=str, default=get_datetime(),
 						help="Date used in SummaryWriter name.")
 
 	parser.add_argument("--mode", type=str, default="onehot")
 	parser.add_argument("--dataset", type=str, default="../dataset/CIFAR10")
-	parser.add_argument("--dataset_name", type=str, default="CIFAR10")
+	parser.add_argument("--dataset_name", type=str, default="CIFAR10", choices=["CIFAR10", "UBS8K"])
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
 
 	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18"])
@@ -79,14 +80,14 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--optim_name", type=str, default="Adam", choices=["Adam", "SGD"],
 						help="Optimizer used.")
-	parser.add_argument("--scheduler", "--sched", type=optional_str, default="CosineLRScheduler",
+	parser.add_argument("--scheduler", "--sched", type=str_to_optional_str, default="CosineLRScheduler",
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 	parser.add_argument("--lr", type=float, default=1e-3,
 						help="Learning rate used.")
 	parser.add_argument("--weight_decay", type=float, default=0.0,
 						help="Weight decay used.")
 
-	parser.add_argument("--write_results", type=bool_fn, default=True,
+	parser.add_argument("--write_results", type=str_to_bool, default=True,
 						help="Write results in a tensorboard SummaryWriter.")
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
@@ -130,64 +131,11 @@ def main():
 	start_date = get_datetime()
 
 	args = create_args()
-	print("Start match_cifar10.")
+	print("Start match_onehot. (%s)" % args.suffix)
 	print("- run:", " ".join(args.run))
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
-
-	# Create model
-	if args.model_name == "VGG11":
-		model_factory = lambda: VGG("VGG11").cuda()
-	elif args.model_name == "ResNet18":
-		model_factory = lambda: ResNet18().cuda()
-	else:
-		raise RuntimeError("Unknown model %s" % args.model_name)
-
-	acti_fn = lambda batch, dim: batch.softmax(dim=dim)
-
-	def optim_factory(model: Module) -> Optimizer:
-		if args.optim_name.lower() == "adam":
-			return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-		elif args.optim_name.lower() == "sgd":
-			return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-		else:
-			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
-
-	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	weak_augm_fn = RandomChoice([
-		HorizontalFlip(0.5),
-		VerticalFlip(0.5),
-		Transform(0.5, scale=(0.75, 1.25)),
-		Transform(0.5, rotation=(-np.pi, np.pi)),
-	])
-	strong_augm_fn = Compose([
-		RandomChoice([
-			Transform(1.0, scale=(0.5, 1.5)),
-			Transform(1.0, rotation=(-np.pi, np.pi)),
-		]),
-		RandomChoice([
-			Gray(1.0),
-			RandCrop(1.0),
-			UniColor(1.0),
-			Inversion(1.0),
-		]),
-	])
-	# Augmentation used by MixMatch
-	mm_ratio = 0.5
-	augment_fn = RandomChoice([
-		HorizontalFlip(mm_ratio),
-		VerticalFlip(mm_ratio),
-		Transform(mm_ratio, scale=(0.75, 1.25)),
-		Transform(mm_ratio, rotation=(-np.pi, np.pi)),
-		Gray(mm_ratio),
-		RandCrop(mm_ratio, rect_max_scale=(0.2, 0.2)),
-		UniColor(mm_ratio),
-		Inversion(mm_ratio),
-	])
-
-	# Add preprocessing before each augmentation
-	preprocess_fn = lambda img: np.array(img).transpose()  # Transpose img [3, 32, 32] to [32, 32, 3]
 
 	metrics_s = {"s_acc": CategoricalConfidenceAccuracy(args.confidence)}
 	metrics_u = {"u_acc": CategoricalConfidenceAccuracy(args.confidence)}
@@ -200,16 +148,30 @@ def main():
 		"max": MaxMetric(),
 	}
 
-	# Prepare data
-	dataset_train = CIFAR10(args.dataset, train=True, download=True, transform=preprocess_fn)
-	dataset_val = CIFAR10(args.dataset, train=False, download=True, transform=preprocess_fn)
+	# Create model
+	if args.model_name == "VGG11":
+		model_factory = lambda: VGG("VGG11").cuda()
+	elif args.model_name == "ResNet18":
+		model_factory = lambda: ResNet18().cuda()
+	else:
+		raise RuntimeError("Unknown model %s" % args.model_name)
 
-	dataset_train_augm_weak = CIFAR10(
-		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, weak_augm_fn]))
-	dataset_train_augm_strong = CIFAR10(
-		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, strong_augm_fn]))
-	dataset_train_augm = CIFAR10(
-		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, augment_fn]))
+	acti_fn = torch.softmax
+
+	def optim_factory(model: Module) -> Optimizer:
+		if args.optim_name.lower() == "adam":
+			return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+		elif args.optim_name.lower() == "sgd":
+			return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+		else:
+			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
+
+	if args.dataset_name.lower() == "cifar10":
+		dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = get_cifar10_datasets(args)
+	elif args.dataset_name.lower() == "ubs8k":
+		dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = get_ubs8k_datasets(args)
+	else:
+		raise RuntimeError("Unknown dataset %s" % args.dataset_name)
 
 	# Compute sub-indexes for split CIFAR train dataset
 	sub_loaders_ratios = [args.supervised_ratio, 1.0 - args.supervised_ratio]
@@ -217,9 +179,8 @@ def main():
 	cls_idx_all = get_classes_idx(dataset_train, args.nb_classes)
 	cls_idx_all = shuffle_classes_idx(cls_idx_all)
 	cls_idx_all = reduce_classes_idx(cls_idx_all, args.dataset_ratio)
-	idx_train = split_classes_idx(cls_idx_all, sub_loaders_ratios)
+	idx_train_s, idx_train_u = split_classes_idx(cls_idx_all, sub_loaders_ratios)
 
-	idx_train_s, idx_train_u = idx_train
 	idx_val = list(range(int(len(dataset_val) * args.dataset_ratio)))
 
 	label_one_hot = lambda item: (item[0], one_hot(torch.as_tensor(item[1]), args.nb_classes).numpy())
@@ -448,6 +409,83 @@ def main():
 	print("")
 	print("Program started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)
+
+
+def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
+	# Weak and strong augmentations used by FixMatch and ReMixMatch
+	weak_augm_fn = RandomChoice([
+		HorizontalFlip(0.5),
+		VerticalFlip(0.5),
+		Transform(0.5, scale=(0.75, 1.25)),
+		Transform(0.5, rotation=(-np.pi, np.pi)),
+	])
+	strong_augm_fn = Compose([
+		RandomChoice([
+			Transform(1.0, scale=(0.5, 1.5)),
+			Transform(1.0, rotation=(-np.pi, np.pi)),
+		]),
+		RandomChoice([
+			Gray(1.0),
+			RandCrop(1.0),
+			UniColor(1.0),
+			Inversion(1.0),
+		]),
+	])
+	# Augmentation used by MixMatch
+	mm_ratio = 0.5
+	augment_fn = RandomChoice([
+		HorizontalFlip(mm_ratio),
+		VerticalFlip(mm_ratio),
+		Transform(mm_ratio, scale=(0.75, 1.25)),
+		Transform(mm_ratio, rotation=(-np.pi, np.pi)),
+		Gray(mm_ratio),
+		RandCrop(mm_ratio, rect_max_scale=(0.2, 0.2)),
+		UniColor(mm_ratio),
+		Inversion(mm_ratio),
+	])
+
+	# Add preprocessing before each augmentation
+	preprocess_fn = lambda img: np.array(img).transpose()  # Transpose img [3, 32, 32] to [32, 32, 3]
+
+	# Prepare data
+	dataset_train = CIFAR10(args.dataset, train=True, download=True, transform=preprocess_fn)
+	dataset_val = CIFAR10(args.dataset, train=False, download=True, transform=preprocess_fn)
+
+	dataset_train_augm_weak = CIFAR10(
+		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, weak_augm_fn]))
+	dataset_train_augm_strong = CIFAR10(
+		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, strong_augm_fn]))
+	dataset_train_augm = CIFAR10(
+		args.dataset, train=True, download=True, transform=Compose([preprocess_fn, augment_fn]))
+
+	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
+
+
+def get_ubs8k_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
+	weak_augm_fn = Transform(0.1, scale=(0.75, 1.25))
+	strong_augm_fn = Transform(1.0, scale=(0.75, 1.25))
+	augment_fn = Transform(0.5, scale=(0.75, 1.25))
+
+	metadata_root = osp.join(args.dataset, "metadata")
+	audio_root = osp.join(args.dataset, "audio")
+
+	folds_train = (1, 2, 3, 4, 5, 6, 7, 8, 9)
+	folds_val = (10,)
+
+	manager = UBS8KDatasetManager(metadata_root, audio_root)
+
+	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=[], cached=False)
+	dataset_val = UBS8KDataset(manager, folds=folds_val, augments=[], cached=True)
+
+	dataset_train_augm_weak = UBS8KDataset(manager, folds=folds_train, augments=[weak_augm_fn], cached=False)
+	dataset_train_augm_strong = UBS8KDataset(manager, folds=folds_train, augments=[strong_augm_fn], cached=False)
+	dataset_train_augm = UBS8KDataset(manager, folds=folds_train, augments=[augment_fn], cached=False)
+
+	breakpoint()
+	print(dataset_train[0][0].shape, dataset_train[0][1].shape)
+	breakpoint()
+
+	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
 
 
 if __name__ == "__main__":

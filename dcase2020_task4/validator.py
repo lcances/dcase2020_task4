@@ -58,6 +58,10 @@ class DefaultValidator(ValidatorABC):
 			if self.writer is not None:
 				self.metrics_recorder.store_in_writer(self.writer, epoch)
 
+				for name in self.metrics.keys():
+					self.writer.add_scalar("val_min/%s" % name, self.metrics_recorder.get_min(name), epoch)
+					self.writer.add_scalar("val_max/%s" % name, self.metrics_recorder.get_max(name), epoch)
+
 	def nb_examples(self) -> int:
 		return len(self.loader) * self.loader.batch_size
 
