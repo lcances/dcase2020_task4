@@ -48,13 +48,13 @@ from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
-from dcase2020_task4.util.rampup import RampUp
+from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_match import build_writer, filter_hparams, get_nb_parameters
 
 from dcase2020_task4.validator_loc import DefaultValidatorLoc
-from dcase2020_task4.models.weak_baseline_rot import WeakStrongBaselineRot
+from dcase2020_task4.other_models.weak_baseline_rot import WeakStrongBaselineRot
 
 from metric_utils.metrics import FScore
 

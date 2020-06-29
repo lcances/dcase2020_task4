@@ -142,14 +142,13 @@ class MetricsRecorder(MetricsRecorderABC):
 		self.can_update_min_max = False
 
 	def _old_print_metrics(self, epoch: int, i: int, len_: int):
-		prints_buffer = [
-			"{:s}: {:.4e}".format(name, np.mean(values))
-			for name, values in self.data.items()
-		]
-		prints_buffer.append("took: {:.2f}s".format(time() - self.start))
+		""" Unused method. """
+		
+		content = ["{:s}: {:.4e}".format(name, np.mean(values)) for name, values in self.data.items()]
+		content += ["took: {:.2f}s".format(time() - self.start)]
 
 		print("Epoch {:3d}, {:3d}% \t {:s}".format(
 			epoch + 1,
 			int(100 * (i + 1) / len_),
-			" - ".join(prints_buffer)
+			" - ".join(content)
 		), end="\r")

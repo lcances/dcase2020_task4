@@ -23,7 +23,6 @@ from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
 from dcase2020_task4.dcase2019.models import dcase2019_model
-from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.fixmatch.losses.tag_only.v1 import FixMatchLossMultiHotV1
 from dcase2020_task4.fixmatch.losses.tag_only.v2 import FixMatchLossMultiHotV2
 from dcase2020_task4.fixmatch.losses.tag_only.v3 import FixMatchLossMultiHotV3
@@ -31,27 +30,29 @@ from dcase2020_task4.fixmatch.losses.tag_only.v4 import FixMatchLossMultiHotV4
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 from dcase2020_task4.fixmatch.trainer_v4 import FixMatchTrainerV4
 
+from dcase2020_task4.other_models.weak_baseline_rot import WeakBaselineRot
+
 from dcase2020_task4.mixmatch.losses.multihot import MixMatchLossMultiHot
 from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 
 from dcase2020_task4.remixmatch.losses.multihot import ReMixMatchLossMultiHot
 from dcase2020_task4.remixmatch.mixer import ReMixMatchMixer
-from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 
+from dcase2020_task4.util.avg_distributions import AvgDistributions
+from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, CategoricalConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
-from dcase2020_task4.util.rampup import RampUp
+from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_match import build_writer, filter_hparams, get_nb_parameters
 
-from dcase2020_task4.models.weak_baseline_rot import WeakBaselineRot
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.validator import DefaultValidator
 

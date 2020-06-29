@@ -13,7 +13,7 @@ from dcase2020_task4.trainer_abc import SSTrainerABC
 from dcase2020_task4.metrics_recorder import MetricsRecorder
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
-from dcase2020_task4.util.rampup import RampUp
+from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.util.zip_cycle import ZipCycle
 

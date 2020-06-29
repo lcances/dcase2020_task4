@@ -42,14 +42,14 @@ from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_augments import Gray, Inversion, RandCrop, UniColor
 from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, MaxMetric, FnMetric, EqConfidenceMetric
-from dcase2020_task4.util.rampup import RampUp
+from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str
 from dcase2020_task4.util.utils_match import cross_entropy, build_writer, filter_hparams, get_nb_parameters
 
 from dcase2020_task4.learner import DefaultLearner
-from dcase2020_task4.models.resnet import ResNet18
+from dcase2020_task4.other_models.resnet import ResNet18
 from dcase2020_task4.validator import DefaultValidator
-from dcase2020_task4.models.vgg import VGG
+from dcase2020_task4.other_models.vgg import VGG
 
 from ubs8k.datasets import Dataset as UBS8KDataset
 from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
