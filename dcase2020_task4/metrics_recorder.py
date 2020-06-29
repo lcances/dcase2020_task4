@@ -126,7 +126,7 @@ class MetricsRecorder(MetricsRecorderABC):
 				return name[:KEY_MAX_LENGTH]
 
 		content = ["{:s}".format(self.prefix.center(16))]
-		content += [filter_(name) for name in self.keys]
+		content += [filter_(name) for name in sorted(self.keys)]
 		content += ["took (s)".center(KEY_MAX_LENGTH)]
 
 		print("\n- {:s} -".format(" - ".join(content)))
