@@ -2,7 +2,7 @@ import torch
 
 from torch import Tensor
 from torch.nn import Module
-from typing import Callable
+from typing import Callable, Optional
 
 from dcase2020_task4.mixup.mixers.monolabel import MixUpMixer
 from dcase2020_task4.util.utils_match import same_shuffle, sharpen, merge_first_dimension, sharpen_multi
@@ -21,7 +21,7 @@ class MixMatchMixer(Callable):
 		sharpen_temp: float = 0.5,
 		mixup_alpha: float = 0.75,
 		mode: str = "onehot",
-		sharpen_threshold_multihot: float = 0.5,
+		sharpen_threshold_multihot: Optional[float] = None,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -30,6 +30,9 @@ class MixMatchMixer(Callable):
 		self.mixup_mixer = MixUpMixer(alpha=mixup_alpha, apply_max=True)
 		self.mode = mode
 		self.sharpen_threshold_multihot = sharpen_threshold_multihot
+
+		if self.mode == "multihot" and self.sharpen_threshold_multihot is None:
+			raise RuntimeError("Multihot Sharpen threshold cannot be None in multihot mode.")
 
 	def __call__(self, s_batch_augm: Tensor, s_label: Tensor, u_batch_augms: Tensor) -> (Tensor, Tensor, Tensor, Tensor):
 		return self.mix(s_batch_augm, s_label, u_batch_augms)

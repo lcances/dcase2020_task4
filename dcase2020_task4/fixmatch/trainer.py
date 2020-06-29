@@ -28,7 +28,7 @@ class FixMatchTrainer(SSTrainerABC):
 		criterion: FixMatchLossTagABC,
 		writer: Optional[SummaryWriter],
 		mode: str,
-		threshold_multihot: float,
+		threshold_multihot: Optional[float] = None,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -48,6 +48,9 @@ class FixMatchTrainer(SSTrainerABC):
 			list(self.metrics_u.keys()) +
 			["loss", "loss_s", "loss_u"]
 		)
+
+		if self.mode == "multihot" and self.threshold_multihot is None:
+			raise RuntimeError("Multihot threshold cannot be None in multihot mode.")
 
 	def train(self, epoch: int):
 		self.reset_all_metrics()

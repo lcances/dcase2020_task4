@@ -40,7 +40,7 @@ from dcase2020_task4.other_models.UBS8KBaseline import UBS8KBaseline
 from dcase2020_task4.other_models.vgg import VGG
 
 from dcase2020_task4.remixmatch.losses.onehot import ReMixMatchLossOneHot
-from dcase2020_task4.remixmatch.mixer import ReMixMatchMixer
+from dcase2020_task4.remixmatch.mixers.tag import ReMixMatchMixer
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
@@ -121,9 +121,7 @@ def create_args() -> Namespace:
 						help="Nb of strong augmentations used in ReMixMatch.")
 
 	parser.add_argument("--threshold_confidence", type=float, default=0.95,
-						help="FixMatch threshold for compute mask.")
-	parser.add_argument("--threshold_multihot", type=float, default=0.5,
-						help="FixMatch threshold use to replace argmax() in multihot mode.")
+						help="FixMatch threshold for compute confidence mask in loss.")
 	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy", choices=["sq_diff", "cross_entropy"],
 						help="MixMatch unsupervised loss component.")
 
@@ -259,7 +257,7 @@ def main():
 
 		trainer = FixMatchTrainer(
 			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-			criterion, writer, args.mode, args.threshold_multihot
+			criterion, writer, args.mode
 		)
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer
@@ -294,8 +292,7 @@ def main():
 		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
 
 		criterion = MixMatchLossOneHot.from_edict(args)
-		mixer = MixMatchMixer(model, acti_fn, args.nb_augms, args.sharpen_temp, args.mixup_alpha,
-							  args.sharpen_threshold_multihot)
+		mixer = MixMatchMixer(model, acti_fn, args.nb_augms, args.sharpen_temp, args.mixup_alpha)
 		rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
 
 		if args.write_results:

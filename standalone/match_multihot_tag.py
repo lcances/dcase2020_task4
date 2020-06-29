@@ -42,7 +42,7 @@ from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 
 from dcase2020_task4.remixmatch.losses.multihot import ReMixMatchLossMultiHot
-from dcase2020_task4.remixmatch.mixer import ReMixMatchMixer
+from dcase2020_task4.remixmatch.mixers.tag import ReMixMatchMixer
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
@@ -127,8 +127,8 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--threshold_multihot", type=float, default=0.5,
 						help="FixMatch threshold used to replace argmax() in multihot mode.")
-	parser.add_argument("--threshold_confidence", type=float, default=0.5,
-						help="FixMatch threshold for compute mask in loss.")
+	parser.add_argument("--threshold_confidence", type=float, default=0.95,
+						help="FixMatch threshold for compute confidence mask in loss.")
 	parser.add_argument("--sharpen_threshold_multihot", type=float, default=0.5,
 						help="MixMatch threshold for multihot sharpening.")
 
@@ -352,7 +352,7 @@ def main():
 		criterion = MixMatchLossMultiHot.from_edict(args)
 		mixer = MixMatchMixer(
 			model, acti_fn,
-			args.nb_augms, args.sharpen_temp, args.mixup_alpha, args.mode
+			args.nb_augms, args.sharpen_temp, args.mixup_alpha, args.mode, args.sharpen_threshold_multihot
 		)
 		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
 		rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
@@ -415,6 +415,7 @@ def main():
 			args.sharpen_temp,
 			args.mixup_alpha,
 			args.mode,
+			args.sharpen_threshold_multihot,
 		)
 
 		if args.write_results:
