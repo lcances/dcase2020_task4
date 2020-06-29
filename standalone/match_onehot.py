@@ -157,7 +157,7 @@ def main():
 			return VGG("VGG11").cuda()
 		elif args.model_name.lower() == "resnet18":
 			return ResNet18().cuda()
-		elif args.optim_name.lower() == "weakbaseline":
+		elif args.model_name.lower() == "weakbaseline":
 			return WeakBaseline().cuda()
 		else:
 			raise RuntimeError("Unknown model %s" % args.model_name)
