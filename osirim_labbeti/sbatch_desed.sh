@@ -7,7 +7,7 @@ suffix=$3
 path_torch="/logiciels/containerCollections/CUDA10/pytorch.sif"
 path_py="$HOME/miniconda3/envs/dcase2020/bin/python"
 
-path_script="$HOME/root/task4/standalone/match_desed.py"
+path_script="$HOME/root/task4/standalone/match_multihot_tag.py"
 path_dataset="/projets/samova/leocances/dcase2020/DESED/"
 path_board="$HOME/root/tensorboard/"
 

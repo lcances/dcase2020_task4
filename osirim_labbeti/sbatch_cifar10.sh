@@ -3,7 +3,7 @@
 path_torch="/logiciels/containerCollections/CUDA10/pytorch.sif"
 path_py="$HOME/miniconda3/envs/dcase2020/bin/python"
 
-path_script="$HOME/root/task4/standalone/match_cifar10.py"
+path_script="$HOME/root/task4/standalone/match_onehot_tag.py"
 path_dataset="/projets/samova/leocances/CIFAR10/"
 path_board="$HOME/root/tensorboard/"
 
