@@ -1,3 +1,9 @@
+"""
+	Main script for testing MixMatch, ReMixMatch, FixMatch or supervised training on a mono-label dataset.
+	Available datasets are CIFAR10 and UrbanSound8k.
+	They do not have a supervised/unsupervised separation, so we need to create it.
+"""
+
 import os
 os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"

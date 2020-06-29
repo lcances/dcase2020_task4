@@ -1,3 +1,8 @@
+"""
+	Main script for testing MixMatch, FixMatch or supervised training on a multi-label dataset with localisation labels (also called strong labels).
+	Only DESED dataset is available.
+"""
+
 import os
 os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"

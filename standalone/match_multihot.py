@@ -1,3 +1,8 @@
+"""
+	Main script for testing MixMatch, ReMixMatch, FixMatch or supervised training on a multi-label dataset.
+	Only DESED dataset is available.
+"""
+
 import os
 os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
@@ -347,7 +352,7 @@ def main():
 		criterion = MixMatchLossMultiHot.from_edict(args)
 		mixer = MixMatchMixer(
 			model, acti_fn,
-			args.nb_augms, args.sharpen_temp, args.mixup_alpha, args.mode, args.sharpen_threshold_multihot
+			args.nb_augms, args.sharpen_temp, args.mixup_alpha, args.mode
 		)
 		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
 		rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
@@ -410,7 +415,6 @@ def main():
 			args.sharpen_temp,
 			args.mixup_alpha,
 			args.mode,
-			args.sharpen_threshold_multihot,
 		)
 
 		if args.write_results:
