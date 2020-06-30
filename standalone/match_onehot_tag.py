@@ -206,7 +206,7 @@ def main():
 		else:
 			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
 
-	acti_fn = torch.softmax
+	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
 
 	if args.dataset_name.lower() == "cifar10":
 		dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = get_cifar10_datasets(args)

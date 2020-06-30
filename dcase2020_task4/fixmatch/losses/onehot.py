@@ -40,10 +40,6 @@ class FixMatchLossOneHot(FixMatchLossTagABC):
 
 		loss = loss_s + self.lambda_u * loss_u
 
-		import torch
-		if torch.isnan(loss):
-			breakpoint()
-
 		return loss, loss_s, loss_u
 
 	def get_confidence_mask(self, pred_weak: Tensor) -> Tensor:

@@ -89,6 +89,7 @@ class FixMatchTrainer(SSTrainerABC):
 			# Update model
 			loss, loss_s, loss_u = self.criterion(
 				s_pred_augm_weak, s_labels, u_pred_augm_weak, u_pred_augm_strong, u_labels_weak_guessed)
+
 			self.optim.zero_grad()
 			loss.backward()
 			self.optim.step()
