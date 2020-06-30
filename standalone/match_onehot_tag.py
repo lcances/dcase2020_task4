@@ -26,6 +26,7 @@ from torchvision.transforms import RandomChoice, Compose
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion
 from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, Noise, RandomTimeDropout, RandomFreqDropout
+
 from dcase2020.util.utils import get_datetime, reset_seed
 
 from dcase2020_task4.fixmatch.losses.onehot import FixMatchLossOneHot
@@ -168,10 +169,18 @@ def main():
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
 
-	metrics_s = {"s_acc": CategoricalConfidenceAccuracy(args.confidence)}
-	metrics_u = {"u_acc": CategoricalConfidenceAccuracy(args.confidence)}
-	metrics_u1 = {"u1_acc": CategoricalConfidenceAccuracy(args.confidence)}
-	metrics_r = {"r_acc": CategoricalConfidenceAccuracy(args.confidence)}
+	metrics_s = {
+		"s_acc": CategoricalConfidenceAccuracy(args.confidence),
+	}
+	metrics_u = {
+		"u_acc": CategoricalConfidenceAccuracy(args.confidence),
+	}
+	metrics_u1 = {
+		"u1_acc": CategoricalConfidenceAccuracy(args.confidence),
+	}
+	metrics_r = {
+		"r_acc": CategoricalConfidenceAccuracy(args.confidence),
+	}
 	metrics_val = {
 		"acc": CategoricalConfidenceAccuracy(args.confidence),
 		"ce": FnMetric(cross_entropy),
