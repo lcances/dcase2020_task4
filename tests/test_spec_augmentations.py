@@ -25,12 +25,15 @@ def test():
 		# TimeStretch(ratio),
 		# HorizontalFlip(ratio),
 		# VerticalFlip(ratio),
+		# PitchShiftRandom(ratio),
+		# PitchShiftRandom(ratio, steps=(-1, 1)),
 		Noise(ratio=ratio, snr=15.0),
+		Noise(ratio=ratio, snr=5.0),
 		Noise2(ratio, noise_factor=(10.0, 10.0)),
-		PitchShiftRandom(ratio),
-		Occlusion(ratio, max_size=1.0),
-		RandomFreqDropout(ratio, dropout=0.25),
-		RandomTimeDropout(ratio, dropout=0.25),
+		Noise2(ratio, noise_factor=(5.0, 5.0)),
+		# Occlusion(ratio, max_size=1.0),
+		# RandomFreqDropout(ratio, dropout=0.25),
+		# RandomTimeDropout(ratio, dropout=0.25),
 	]
 
 	plt.imshow(spec)

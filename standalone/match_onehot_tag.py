@@ -23,6 +23,7 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose
+from typing import Callable
 
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2
@@ -298,7 +299,7 @@ def main():
 
 		if writer is not None:
 			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args, file, indent="\t")
+				json.dump(args.__dict__, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
@@ -345,7 +346,7 @@ def main():
 
 		if writer is not None:
 			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args, file, indent="\t")
+				json.dump(args.__dict__, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
@@ -404,7 +405,7 @@ def main():
 
 		if writer is not None:
 			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args, file, indent="\t")
+				json.dump(args.__dict__, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
@@ -435,7 +436,7 @@ def main():
 
 		if writer is not None:
 			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args, file, indent="\t")
+				json.dump(args.__dict__, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
@@ -467,7 +468,7 @@ def main():
 
 		if writer is not None:
 			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args, file, indent="\t")
+				json.dump(args.__dict__, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
@@ -477,7 +478,7 @@ def main():
 	print("Total execution time: %.2fs" % exec_time)
 
 
-def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
+def get_cifar10_augms() -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	augm_weak_fn = RandomChoice([
 		HorizontalFlip(0.5),
@@ -510,6 +511,12 @@ def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset
 		Inversion(mm_ratio),
 	])
 
+	return augm_weak_fn, augm_strong_fn, augm_fn
+
+
+def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
+	augm_weak_fn, augm_strong_fn, augm_fn = get_cifar10_augms()
+
 	# Add preprocessing before each augmentation
 	preprocess_fn = lambda img: np.array(img).transpose()  # Transpose img [3, 32, 32] to [32, 32, 3]
 
@@ -527,15 +534,15 @@ def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset
 	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
 
 
-def get_ubs8k_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
+def get_ubs8k_augms() -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	ratio = 1.0
 	# TimeStretch(ratio),
 	augm_weak_fn = RandomChoice([
 		RandomChoice([
-			PitchShiftRandom(ratio),
-			Noise(ratio=ratio, snr=15.0),
-			Noise2(ratio, noise_factor=(10.0, 10.0)),
+			PitchShiftRandom(ratio, steps=(-1, 1)),
+			Noise(ratio=ratio, snr=5.0),
+			Noise2(ratio, noise_factor=(5.0, 5.0)),
 		]),
 	])
 	augm_strong_fn = Compose([
@@ -560,6 +567,11 @@ def get_ubs8k_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, 
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
 
+	return augm_weak_fn, augm_strong_fn, augm_fn
+
+
+def get_ubs8k_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
+	augm_weak_fn, augm_strong_fn, augm_fn = get_ubs8k_augms()
 	metadata_root = osp.join(args.dataset, "metadata")
 	audio_root = osp.join(args.dataset, "audio")
 

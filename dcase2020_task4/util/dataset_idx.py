@@ -1,6 +1,6 @@
 import numpy as np
 
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, Subset
 from typing import List
 
 
@@ -55,3 +55,26 @@ def split_classes_idx(classes_idx: List[List[int]], ratios: List[float]) -> List
 		for i in range(len(ratios)):
 			result[i] += indexes_split[i]
 	return result
+
+
+def collapse_classes_idx(classes_idx: List[List[int]]) -> List[int]:
+	indexes = []
+	for idx in classes_idx:
+		indexes += idx
+	return indexes
+
+
+def get_reduced_dataset(dataset: Dataset, nb_classes: int, ratio: float) -> Dataset:
+	cls_idx_all = get_classes_idx(dataset, nb_classes)
+	cls_idx_all = shuffle_classes_idx(cls_idx_all)
+	cls_idx_all = reduce_classes_idx(cls_idx_all, ratio)
+	indexes = collapse_classes_idx(cls_idx_all)
+	return Subset(dataset, indexes)
+
+
+def get_split_datasets(dataset: Dataset, nb_classes: int, sub_loaders_ratios: List[float]) -> List[Dataset]:
+	cls_idx_all = get_classes_idx(dataset, nb_classes)
+	cls_idx_all = shuffle_classes_idx(cls_idx_all)
+	idx_split = split_classes_idx(cls_idx_all, sub_loaders_ratios)
+
+	return [Subset(dataset, idx) for idx in idx_split]

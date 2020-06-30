@@ -20,6 +20,7 @@ from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torchvision.transforms import RandomChoice, Compose
+from typing import Callable
 
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2
 from augmentation_utils.spec_augmentations import Noise, RandomTimeDropout, RandomFreqDropout
@@ -200,6 +201,7 @@ def main():
 			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
 
 	acti_fn = lambda batch, dim: batch.sigmoid()
+	augm_weak_fn, augm_strong_fn, augm_fn = get_desed_augms()
 
 	metrics_s_weak = {
 		"s_acc_weak": BinaryConfidenceAccuracy(args.confidence),
@@ -234,38 +236,6 @@ def main():
 		"max_strong": MaxMetric(),
 		"fscore_strong": FScore(),
 	}
-
-	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	ratio = 0.1
-	augm_weak_fn = RandomChoice([
-		TimeStretch(ratio),
-		PitchShiftRandom(ratio),
-		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=15.0),
-		Noise2(ratio, noise_factor=(10.0, 10.0)),
-		RandomFreqDropout(ratio, dropout=0.5),
-		RandomTimeDropout(ratio, dropout=0.5),
-	])
-	ratio = 0.5
-	augm_strong_fn = Compose([
-		TimeStretch(ratio),
-		PitchShiftRandom(ratio),
-		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=15.0),
-		Noise2(ratio, noise_factor=(10.0, 10.0)),
-		RandomFreqDropout(ratio, dropout=0.5),
-		RandomTimeDropout(ratio, dropout=0.5),
-	])
-	ratio = 0.5
-	augm_fn = RandomChoice([
-		TimeStretch(ratio),
-		PitchShiftRandom(ratio),
-		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=15.0),
-		Noise2(ratio, noise_factor=(10.0, 10.0)),
-		RandomFreqDropout(ratio, dropout=0.5),
-		RandomTimeDropout(ratio, dropout=0.5),
-	])
 
 	manager_s, manager_u = get_desed_managers(args)
 
@@ -367,7 +337,7 @@ def main():
 
 		if writer is not None:
 			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args, file, indent="\t")
+				json.dump(args.__dict__, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.flush()
 			writer.close()
@@ -425,7 +395,7 @@ def main():
 
 		if writer is not None:
 			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args, file, indent="\t")
+				json.dump(args.__dict__, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.flush()
 			writer.close()
@@ -464,7 +434,7 @@ def main():
 
 		if writer is not None:
 			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args, file, indent="\t")
+				json.dump(args.__dict__, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.flush()
 			writer.close()
@@ -498,6 +468,42 @@ def get_desed_managers(args: Namespace) -> (DESEDManager, DESEDManager):
 	manager_u.add_subset("unlabel_in_domain")
 
 	return manager_s, manager_u
+
+
+def get_desed_augms() -> (Callable, Callable, Callable):
+	# Weak and strong augmentations used by FixMatch and ReMixMatch
+	ratio = 0.1
+	augm_weak_fn = RandomChoice([
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio),
+		Occlusion(ratio, max_size=1.0),
+		Noise(ratio=ratio, snr=15.0),
+		Noise2(ratio, noise_factor=(10.0, 10.0)),
+		RandomFreqDropout(ratio, dropout=0.5),
+		RandomTimeDropout(ratio, dropout=0.5),
+	])
+	ratio = 0.5
+	augm_strong_fn = Compose([
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio),
+		Occlusion(ratio, max_size=1.0),
+		Noise(ratio=ratio, snr=15.0),
+		Noise2(ratio, noise_factor=(10.0, 10.0)),
+		RandomFreqDropout(ratio, dropout=0.5),
+		RandomTimeDropout(ratio, dropout=0.5),
+	])
+	ratio = 0.5
+	augm_fn = RandomChoice([
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio),
+		Occlusion(ratio, max_size=1.0),
+		Noise(ratio=ratio, snr=15.0),
+		Noise2(ratio, noise_factor=(10.0, 10.0)),
+		RandomFreqDropout(ratio, dropout=0.5),
+		RandomTimeDropout(ratio, dropout=0.5),
+	])
+
+	return augm_weak_fn, augm_strong_fn, augm_fn
 
 
 if __name__ == "__main__":
