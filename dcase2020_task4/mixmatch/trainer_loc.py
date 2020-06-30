@@ -112,7 +112,7 @@ class MixMatchTrainerLoc(SSTrainerABC):
 					(self.metrics_s_strong, s_pred_strong_mixed, s_labels_strong_mixed),
 					(self.metrics_u_strong, u_pred_strong_mixed, u_labels_strong_mixed),
 				]
-				self.metrics_recorder.apply_metrics(metrics_preds_labels)
+				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
 
 		print("")

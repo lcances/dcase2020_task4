@@ -118,7 +118,7 @@ class FixMatchTrainerV4(SSTrainerABC):
 					(self.metrics_s, s_pred_augm_weak, s_labels),
 					(self.metrics_u, u_pred_augm_strong, u_labels_weak_guessed),
 				]
-				self.metrics_recorder.apply_metrics(metrics_preds_labels)
+				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
 
 			print("")

@@ -50,7 +50,7 @@ class DefaultValidator(ValidatorABC):
 					metrics_preds_labels = [
 						(self.metrics, x_pred, x_label)
 					]
-					self.metrics_recorder.apply_metrics(metrics_preds_labels)
+					self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 					self.metrics_recorder.print_metrics(epoch, i, len(self.loader))
 
 			print("")

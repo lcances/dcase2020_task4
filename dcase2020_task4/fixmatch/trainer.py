@@ -9,10 +9,11 @@ from typing import Callable, Dict, List, Optional
 from metric_utils.metrics import Metrics
 
 from dcase2020_task4.fixmatch.losses.abc import FixMatchLossTagABC
-from dcase2020_task4.util.zip_cycle import ZipCycle
-from dcase2020_task4.util.utils_match import binarize_onehot_labels, get_lr
-from dcase2020_task4.trainer_abc import SSTrainerABC
 from dcase2020_task4.metrics_recorder import MetricsRecorder
+from dcase2020_task4.trainer_abc import SSTrainerABC
+from dcase2020_task4.util.ramp_up import RampUp
+from dcase2020_task4.util.utils_match import binarize_onehot_labels, get_lr
+from dcase2020_task4.util.zip_cycle import ZipCycle
 
 
 class FixMatchTrainer(SSTrainerABC):
@@ -28,6 +29,7 @@ class FixMatchTrainer(SSTrainerABC):
 		criterion: FixMatchLossTagABC,
 		writer: Optional[SummaryWriter],
 		mode: str,
+		rampup_lambda_u: Optional[RampUp],
 		threshold_multihot: Optional[float] = None,
 	):
 		self.model = model
@@ -40,6 +42,7 @@ class FixMatchTrainer(SSTrainerABC):
 		self.criterion = criterion
 		self.writer = writer
 		self.mode = mode
+		self.rampup_lambda_u = rampup_lambda_u
 		self.threshold_multihot = threshold_multihot
 
 		self.metrics_recorder = MetricsRecorder(
@@ -96,6 +99,10 @@ class FixMatchTrainer(SSTrainerABC):
 
 			# Compute metrics
 			with torch.no_grad():
+				if self.rampup_lambda_u is not None:
+					self.criterion.lambda_u = self.rampup_lambda_u.value()
+					self.rampup_lambda_u.step()
+
 				self.metrics_recorder.add_value("loss", loss.item())
 				self.metrics_recorder.add_value("loss_s", loss_s.item())
 				self.metrics_recorder.add_value("loss_u", loss_u.item())
@@ -104,7 +111,7 @@ class FixMatchTrainer(SSTrainerABC):
 					(self.metrics_s, s_pred_augm_weak, s_labels),
 					(self.metrics_u, u_pred_augm_strong, u_labels_weak_guessed),
 				]
-				self.metrics_recorder.apply_metrics(metrics_preds_labels)
+				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
 
 		print("")

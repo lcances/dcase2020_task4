@@ -17,7 +17,7 @@ class MetricsRecorderABC:
 		""" Store a value of a metric. """
 		raise NotImplementedError("Abstract method")
 
-	def apply_metrics(self, metrics_preds_labels: List[Tuple[Dict[str, Metrics], Tensor, Tensor]]):
+	def apply_metrics_and_add(self, metrics_preds_labels: List[Tuple[Dict[str, Metrics], Tensor, Tensor]]):
 		""" Call metrics with predictions and labels and store their values. """
 		raise NotImplementedError("Abstract method")
 
@@ -73,7 +73,7 @@ class MetricsRecorder(MetricsRecorderABC):
 								   "\"accept_unknown_metrics\" to True." % name)
 		self.data[name].append(value)
 
-	def apply_metrics(self, metrics_preds_labels: List[Tuple[Dict[str, Metrics], Tensor, Tensor]]):
+	def apply_metrics_and_add(self, metrics_preds_labels: List[Tuple[Dict[str, Metrics], Tensor, Tensor]]):
 		with torch.no_grad():
 			for metrics, pred, label in metrics_preds_labels:
 				for metric_name, metric in metrics.items():

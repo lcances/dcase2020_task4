@@ -132,7 +132,7 @@ class FixMatchTrainerLoc(SSTrainerABC):
 					(self.metrics_s_strong, s_pred_strong_augm_weak, s_labels_strong),
 					(self.metrics_u_strong, u_pred_strong_augm_strong, u_labels_strong_guessed),
 				]
-				self.metrics_recorder.apply_metrics(metrics_preds_labels)
+				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
 
 		print("")

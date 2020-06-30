@@ -66,12 +66,13 @@ from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
 
 
 def create_args() -> Namespace:
-	available_methods = [
-		"fixmatch (fm)", "mixmatch (mm)", "remixmatch (rmm)", "supervised_full (sf)", "supervised_part (sp)"]
+	available_methods = ", ".join([
+		"fixmatch (fm)", "mixmatch (mm)", "remixmatch (rmm)", "supervised_full (sf)", "supervised_part (sp)"
+	])
 
 	parser = ArgumentParser()
 	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch"],
-						help="Training method to run. Available method are : %s." % ", ".join(available_methods))
+						help="Training method to run. Available method are : %s." % available_methods)
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--debug_mode", type=str_to_bool, default=False)
 	parser.add_argument("--begin_date", type=str, default=get_datetime(),
@@ -80,11 +81,11 @@ def create_args() -> Namespace:
 	parser.add_argument("--mode", type=str, default="onehot")
 	parser.add_argument("--dataset", type=str, default="../dataset/CIFAR10")
 	parser.add_argument("--dataset_name", type=str, default="CIFAR10", choices=["CIFAR10", "UBS8K"])
-	parser.add_argument("--logdir", type=str, default="../../tensorboard")
+	parser.add_argument("--nb_classes", type=int, default=10)
 
+	parser.add_argument("--logdir", type=str, default="../../tensorboard")
 	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18", "UBS8KBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
-	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.3,
 						help="Confidence threshold used in VALIDATION.")
 
@@ -111,10 +112,14 @@ def create_args() -> Namespace:
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
 
-	parser.add_argument("--dataset_ratio", type=float, default=1.0)
-	parser.add_argument("--supervised_ratio", type=float, default=0.1)
+	parser.add_argument("--dataset_ratio", type=float, default=1.0,
+						help="Ratio of the dataset used for training.")
+	parser.add_argument("--supervised_ratio", type=float, default=0.1,
+						help="Supervised ratio used for split dataset.")
+	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
+						help="Use RampUp or not for lambda_u FixMatch or MixMatch loss hyperparameter.")
 
-	parser.add_argument("--lambda_u", type=float, default=10.0,
+	parser.add_argument("--lambda_u", type=float, default=1.0,
 						help="MixMatch \"lambda_u\" hyperparameter.")
 	parser.add_argument("--lambda_u1", type=float, default=0.5,
 						help="ReMixMatch \"lambda_u1\" hyperparameter.")
@@ -271,9 +276,15 @@ def main():
 		else:
 			writer = None
 
+		if args.use_rampup:
+			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strong)
+			rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
+		else:
+			rampup_lambda_u = None
+
 		trainer = FixMatchTrainer(
 			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-			criterion, writer, args.mode
+			criterion, writer, args.mode, rampup_lambda_u
 		)
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer
@@ -304,11 +315,13 @@ def main():
 		optim = optim_factory(model)
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
-
 		criterion = MixMatchLossOneHot.from_edict(args)
 		mixer = MixMatchMixer(model, acti_fn, args.nb_augms, args.sharpen_temp, args.mixup_alpha)
-		rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
+		if args.use_rampup:
+			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
+			rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
+		else:
+			rampup_lambda_u = None
 
 		if args.write_results:
 			writer = build_writer(args, suffix=args.criterion_name_u)

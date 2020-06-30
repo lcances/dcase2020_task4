@@ -66,7 +66,7 @@ class SupervisedTrainer(TrainerABC):
 				metrics_preds_labels = [
 					(self.metrics, pred, y),
 				]
-				self.metrics_recorder.apply_metrics(metrics_preds_labels)
+				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 				self.metrics_recorder.print_metrics(epoch, i, len(self.loader_train_s))
 
 		print("")

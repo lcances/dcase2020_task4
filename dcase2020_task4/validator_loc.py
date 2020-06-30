@@ -62,7 +62,7 @@ class DefaultValidatorLoc(ValidatorABC):
 						(self.metrics_weak, pred_weak, labels_weak),
 						(self.metrics_strong, pred_strong, labels_strong),
 					]
-					self.metrics_recorder.apply_metrics(metrics_preds_labels)
+					self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 					self.metrics_recorder.print_metrics(epoch, i, len(self.loader))
 
 			print("")

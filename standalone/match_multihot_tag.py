@@ -75,11 +75,11 @@ def create_args() -> Namespace:
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
 	parser.add_argument("--dataset_name", type=str, default="DESED")
-	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
+	parser.add_argument("--nb_classes", type=int, default=10)
 
+	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
 	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=1)
-	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--confidence", type=float, default=0.5,
 						help="Confidence threshold used in VALIDATION.")
 
