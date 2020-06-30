@@ -8,6 +8,7 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
+import json
 import numpy as np
 import os.path as osp
 import torch
@@ -20,8 +21,7 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torchvision.transforms import RandomChoice, Compose
 
-from augmentation_utils.img_augmentations import Transform
-from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion
+from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2
 from augmentation_utils.spec_augmentations import Noise, RandomTimeDropout, RandomFreqDropout
 
 from dcase2020.datasetManager import DESEDManager
@@ -78,7 +78,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--nb_classes", type=int, default=10)
 
 	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
-	parser.add_argument("--model_name", type=str, default="WeakBaseline", choices=["WeakBaseline"])
+	parser.add_argument("--model_name", type=str, default="WeakBaseline",
+						choices=["WeakBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=1)
 	parser.add_argument("--confidence", type=float, default=0.5,
 						help="Confidence threshold used in VALIDATION.")
@@ -92,7 +93,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--num_workers_u", type=int, default=1,
 						help="Number of workers created by unsupervised loader.")
 
-	parser.add_argument("--optim_name", type=str, default="Adam", choices=["Adam", "SGD"],
+	parser.add_argument("--optim_name", type=str, default="Adam",
+						choices=["Adam", "SGD"],
 						help="Optimizer used.")
 	parser.add_argument("--scheduler", "--sched", type=str_to_optional_str, default="CosineLRScheduler",
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
@@ -108,7 +110,8 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--from_disk", type=str_to_bool, default=True,
 						help="Select False if you want ot load all data into RAM.")
-	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy", choices=["sq_diff", "cross_entropy"],
+	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy",
+						choices=["sq_diff", "cross_entropy"],
 						help="MixMatch unsupervised loss component.")
 
 	parser.add_argument("--lambda_u", type=float, default=1.0,
@@ -137,7 +140,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--mixup_alpha", type=float, default=0.75,
 						help="MixMatch and ReMixMatch hyperparameter \"alpha\" used by MixUp.")
 
-	parser.add_argument("--experimental", type=str_to_optional_str, default="", choices=["", "None", "V1", "V2", "V3", "V4"])
+	parser.add_argument("--experimental", type=str_to_optional_str, default="",
+						choices=["", "None", "V1", "V2", "V3", "V4"])
 
 	return parser.parse_args()
 
@@ -176,11 +180,11 @@ def main():
 		else:
 			raise RuntimeError("Invalid model %s" % args.model_name)
 
-	def optim_factory(model: Module) -> Optimizer:
+	def optim_factory(model_: Module) -> Optimizer:
 		if args.optim_name.lower() == "adam":
-			return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+			return Adam(model_.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 		elif args.optim_name.lower() == "sgd":
-			return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+			return SGD(model_.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 		else:
 			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
 
@@ -189,32 +193,31 @@ def main():
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	ratio = 0.1
 	augm_weak_fn = RandomChoice([
-		Transform(ratio, scale=(0.9, 1.1)),
-		Transform(0.5, rotation=(-np.pi / 8.0, np.pi / 8.0)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
 		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=10.0),
+		Noise(ratio=ratio, snr=15.0),
+		Noise2(ratio, noise_factor=(10.0, 10.0)),
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
 	ratio = 0.5
 	augm_strong_fn = Compose([
-		Transform(ratio, scale=(0.9, 1.1)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
 		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=10.0),
+		Noise(ratio=ratio, snr=15.0),
+		Noise2(ratio, noise_factor=(10.0, 10.0)),
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
 	ratio = 0.5
 	augm_fn = RandomChoice([
-		Transform(ratio, scale=(0.9, 1.1)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
 		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=10.0),
+		Noise(ratio=ratio, snr=15.0),
+		Noise2(ratio, noise_factor=(10.0, 10.0)),
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
@@ -302,7 +305,7 @@ def main():
 			raise RuntimeError("Unknown experimental mode %s" % str(args.experimental))
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%s_%s" % (suffix_tag, str(args.scheduler), args.suffix))
+			writer = build_writer(args, suffix="%s_%s_%.2f_%s" % (suffix_tag, str(args.scheduler), args.lambda_u, args.suffix))
 		else:
 			writer = None
 
@@ -324,6 +327,8 @@ def main():
 		learner.start()
 
 		if writer is not None:
+			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+				json.dump(args, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
@@ -357,7 +362,7 @@ def main():
 		rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%s_%s" % (suffix_tag, args.criterion_name_u, args.suffix))
+			writer = build_writer(args, suffix="%s_%s_%.2f_%s" % (suffix_tag, args.criterion_name_u, args.lambda_u, args.suffix))
 		else:
 			writer = None
 
@@ -372,6 +377,8 @@ def main():
 		learner.start()
 
 		if writer is not None:
+			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+				json.dump(args, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
@@ -417,7 +424,8 @@ def main():
 		)
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%s" % (suffix_tag, args.suffix))
+			writer = build_writer(args, suffix="%s_%.2f_%.2f_%.2f_%s" % (
+				suffix_tag, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
 		else:
 			writer = None
 
@@ -432,6 +440,8 @@ def main():
 		learner.start()
 
 		if writer is not None:
+			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+				json.dump(args, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
@@ -463,6 +473,8 @@ def main():
 		learner.start()
 
 		if writer is not None:
+			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+				json.dump(args, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 

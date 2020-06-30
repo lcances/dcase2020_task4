@@ -9,6 +9,7 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
+import json
 import numpy as np
 import os.path as osp
 import torch
@@ -24,7 +25,7 @@ from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose
 
 from augmentation_utils.img_augmentations import Transform
-from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion
+from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2
 from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, Noise, RandomTimeDropout, RandomFreqDropout
 
 from dcase2020.util.utils import get_datetime, reset_seed
@@ -203,26 +204,28 @@ def main():
 		else:
 			raise RuntimeError("Unknown model %s" % args.model_name)
 
-	def optim_factory(model: Module) -> Optimizer:
+	def optim_factory(model_: Module) -> Optimizer:
 		if args.optim_name.lower() == "adam":
-			return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+			return Adam(model_.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 		elif args.optim_name.lower() == "sgd":
-			return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+			return SGD(model_.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 		else:
 			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
 
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
 
 	if args.dataset_name.lower() == "cifar10":
-		dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = get_cifar10_datasets(args)
+		dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = \
+			get_cifar10_datasets(args)
 	elif args.dataset_name.lower() == "ubs8k":
-		dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = get_ubs8k_datasets(args)
+		dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = \
+			get_ubs8k_datasets(args)
 	else:
 		raise RuntimeError("Unknown dataset %s" % args.dataset_name)
 
-	# Compute sub-indexes for split CIFAR train dataset
 	sub_loaders_ratios = [args.supervised_ratio, 1.0 - args.supervised_ratio]
 
+	# Compute sub-indexes for split train dataset
 	cls_idx_all = get_classes_idx(dataset_train, args.nb_classes)
 	cls_idx_all = shuffle_classes_idx(cls_idx_all)
 	cls_idx_all = reduce_classes_idx(cls_idx_all, args.dataset_ratio)
@@ -272,7 +275,7 @@ def main():
 		criterion = FixMatchLossOneHot.from_edict(args)
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%s" % (str(args.scheduler), args.suffix))
+			writer = build_writer(args, suffix="%s_%.2f_%s" % (str(args.scheduler), args.lambda_u, args.suffix))
 		else:
 			writer = None
 
@@ -293,6 +296,8 @@ def main():
 		learner.start()
 
 		if writer is not None:
+			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+				json.dump(args, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
@@ -324,7 +329,7 @@ def main():
 			rampup_lambda_u = None
 
 		if args.write_results:
-			writer = build_writer(args, suffix=args.criterion_name_u)
+			writer = build_writer(args, suffix="%s_%.2f_%s" % (args.criterion_name_u, args.lambda_u, args.suffix))
 		else:
 			writer = None
 
@@ -339,6 +344,8 @@ def main():
 		learner.start()
 
 		if writer is not None:
+			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+				json.dump(args, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
@@ -380,7 +387,7 @@ def main():
 		)
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s" % args.suffix)
+			writer = build_writer(args, suffix="%.2f_%.2f_%.2f_%s" % (args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
 		else:
 			writer = None
 
@@ -395,6 +402,8 @@ def main():
 		learner.start()
 
 		if writer is not None:
+			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+				json.dump(args, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
@@ -410,7 +419,7 @@ def main():
 		criterion = cross_entropy
 
 		if args.write_results:
-			writer = build_writer(args, suffix="full_100_%s" % args.suffix)
+			writer = build_writer(args, suffix="%s_%s" % ("full_100", args.suffix))
 		else:
 			writer = None
 
@@ -424,6 +433,8 @@ def main():
 		learner.start()
 
 		if writer is not None:
+			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+				json.dump(args, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
@@ -439,7 +450,7 @@ def main():
 		criterion = cross_entropy
 
 		if args.write_results:
-			writer = build_writer(args, suffix="part_%d_%s" % (int(100 * args.supervised_ratio), args.suffix))
+			writer = build_writer(args, suffix="%s_%d_%s" % ("part", int(100 * args.supervised_ratio), args.suffix))
 		else:
 			writer = None
 
@@ -453,6 +464,8 @@ def main():
 		learner.start()
 
 		if writer is not None:
+			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+				json.dump(args, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.close()
 
@@ -516,32 +529,31 @@ def get_ubs8k_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, 
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	ratio = 0.1
 	augm_weak_fn = RandomChoice([
-		Transform(ratio, scale=(0.9, 1.1)),
-		Transform(0.5, rotation=(-np.pi / 8.0, np.pi / 8.0)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
 		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=10.0),
+		Noise(ratio=ratio, snr=15.0),
+		Noise2(ratio, noise_factor=(10.0, 10.0)),
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
 	ratio = 0.5
 	augm_strong_fn = Compose([
-		Transform(ratio, scale=(0.9, 1.1)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
 		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=10.0),
+		Noise(ratio=ratio, snr=15.0),
+		Noise2(ratio, noise_factor=(10.0, 10.0)),
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
 	ratio = 0.5
 	augm_fn = RandomChoice([
-		Transform(ratio, scale=(0.9, 1.1)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
 		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=10.0),
+		Noise(ratio=ratio, snr=15.0),
+		Noise2(ratio, noise_factor=(10.0, 10.0)),
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])

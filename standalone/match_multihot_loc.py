@@ -8,7 +8,6 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
-import numpy as np
 import json
 import os.path as osp
 import torch
@@ -22,8 +21,7 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torchvision.transforms import RandomChoice, Compose
 
-from augmentation_utils.img_augmentations import Transform
-from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion
+from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2
 from augmentation_utils.spec_augmentations import Noise, RandomTimeDropout, RandomFreqDropout
 
 from dcase2020.datasetManager import DESEDManager
@@ -193,11 +191,11 @@ def main():
 		else:
 			raise RuntimeError("Unknown model name %s" % args.model_name)
 
-	def optim_factory(model: Module) -> Optimizer:
+	def optim_factory(model_: Module) -> Optimizer:
 		if args.optim_name.lower() == "adam":
-			return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+			return Adam(model_.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 		elif args.optim_name.lower() == "sgd":
-			return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+			return SGD(model_.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 		else:
 			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
 
@@ -240,32 +238,31 @@ def main():
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	ratio = 0.1
 	augm_weak_fn = RandomChoice([
-		Transform(ratio, scale=(0.9, 1.1)),
-		Transform(0.5, rotation=(-np.pi / 8.0, np.pi / 8.0)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
 		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=10.0),
+		Noise(ratio=ratio, snr=15.0),
+		Noise2(ratio, noise_factor=(10.0, 10.0)),
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
 	ratio = 0.5
 	augm_strong_fn = Compose([
-		Transform(ratio, scale=(0.9, 1.1)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
 		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=10.0),
+		Noise(ratio=ratio, snr=15.0),
+		Noise2(ratio, noise_factor=(10.0, 10.0)),
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
 	ratio = 0.5
 	augm_fn = RandomChoice([
-		Transform(ratio, scale=(0.9, 1.1)),
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
 		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=10.0),
+		Noise(ratio=ratio, snr=15.0),
+		Noise2(ratio, noise_factor=(10.0, 10.0)),
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
@@ -370,7 +367,8 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			json.dump(args, open(osp.join(writer.log_dir, "args.json")), indent="\t")
+			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+				json.dump(args, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.flush()
 			writer.close()
@@ -405,7 +403,7 @@ def main():
 		lambda_u_rampup = RampUp(args.lambda_u, nb_rampup_steps)
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%s" % (suffix_loc, args.suffix))
+			writer = build_writer(args, suffix="%s_%.2f_%s" % (suffix_loc, args.lambda_u, args.suffix))
 			checkpoint = CheckPoint(
 				model, optim, name=osp.join(args.path_checkpoint, "%s_%s_%s.torch" % (
 					args.model_name, args.train_name, args.suffix))
@@ -427,7 +425,8 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			json.dump(args, open(osp.join(writer.log_dir, "args.json")), indent="\t")
+			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+				json.dump(args, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.flush()
 			writer.close()
@@ -446,7 +445,7 @@ def main():
 		criterion = SupervisedLossLoc()
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s" % suffix_loc)
+			writer = build_writer(args, suffix="%s_%s" % (suffix_loc, args.suffix))
 			checkpoint = CheckPoint(
 				model, optim, name=osp.join(args.path_checkpoint, "%s_%s_%s.torch" % (
 					args.model_name, args.train_name, args.suffix))
@@ -465,7 +464,8 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			json.dump(args, open(osp.join(writer.log_dir, "args.json")), indent="\t")
+			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+				json.dump(args, file, indent="\t")
 			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 			writer.flush()
 			writer.close()
