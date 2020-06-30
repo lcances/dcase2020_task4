@@ -121,7 +121,7 @@ def create_args() -> Namespace:
 						help="Use RampUp or not for lambda_u FixMatch or MixMatch loss hyperparameter.")
 
 	parser.add_argument("--lambda_u", type=float, default=1.0,
-						help="MixMatch \"lambda_u\" hyperparameter.")
+						help="MixMatch, FixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
 	parser.add_argument("--lambda_u1", type=float, default=0.5,
 						help="ReMixMatch \"lambda_u1\" hyperparameter.")
 	parser.add_argument("--lambda_r", type=float, default=0.5,
@@ -527,27 +527,27 @@ def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset
 
 def get_ubs8k_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	ratio = 0.1
+	ratio = 1.0
+	# TimeStretch(ratio),
 	augm_weak_fn = RandomChoice([
-		TimeStretch(ratio),
-		PitchShiftRandom(ratio),
-		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=15.0),
-		Noise2(ratio, noise_factor=(10.0, 10.0)),
-		RandomFreqDropout(ratio, dropout=0.5),
-		RandomTimeDropout(ratio, dropout=0.5),
+		RandomChoice([
+			PitchShiftRandom(ratio),
+			Noise(ratio=ratio, snr=15.0),
+			Noise2(ratio, noise_factor=(10.0, 10.0)),
+		]),
 	])
-	ratio = 0.5
 	augm_strong_fn = Compose([
-		TimeStretch(ratio),
-		PitchShiftRandom(ratio),
-		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=15.0),
-		Noise2(ratio, noise_factor=(10.0, 10.0)),
-		RandomFreqDropout(ratio, dropout=0.5),
-		RandomTimeDropout(ratio, dropout=0.5),
+		RandomChoice([
+			PitchShiftRandom(ratio),
+			Noise(ratio=ratio, snr=15.0),
+			Noise2(ratio, noise_factor=(10.0, 10.0)),
+		]),
+		RandomChoice([
+			Occlusion(ratio, max_size=1.0),
+			RandomFreqDropout(ratio, dropout=0.5),
+			RandomTimeDropout(ratio, dropout=0.5),
+		]),
 	])
-	ratio = 0.5
 	augm_fn = RandomChoice([
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
