@@ -305,7 +305,8 @@ def main():
 			raise RuntimeError("Unknown experimental mode %s" % str(args.experimental))
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%s_%.2f_%s" % (suffix_tag, str(args.scheduler), args.lambda_u, args.suffix))
+			writer = build_writer(args, suffix="%s_%d_%d_%s_%.2f_%s" % (
+				suffix_tag, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.lambda_u, args.suffix))
 		else:
 			writer = None
 
@@ -362,7 +363,8 @@ def main():
 		rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%s_%.2f_%s" % (suffix_tag, args.criterion_name_u, args.lambda_u, args.suffix))
+			writer = build_writer(args, suffix="%s_%d_%d_%s_%.2f_%s" % (
+				suffix_tag, args.batch_size_s, args.batch_size_u, args.criterion_name_u, args.lambda_u, args.suffix))
 		else:
 			writer = None
 
@@ -424,8 +426,8 @@ def main():
 		)
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%.2f_%.2f_%.2f_%s" % (
-				suffix_tag, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
+			writer = build_writer(args, suffix="%s_%d_%d_%.2f_%.2f_%.2f_%s" % (
+				suffix_tag, args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
 		else:
 			writer = None
 
@@ -459,7 +461,8 @@ def main():
 		criterion = BCELoss(reduction="mean")
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%s" % (suffix_tag, args.suffix))
+			writer = build_writer(args, suffix="%s_%d_%d_%s" % (
+				suffix_tag, args.batch_size_s, args.batch_size_u, args.suffix))
 		else:
 			writer = None
 

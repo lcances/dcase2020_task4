@@ -85,8 +85,9 @@ class MixMatchTrainer(SSTrainerABC):
 
 			# Compute metrics
 			with torch.no_grad():
-				self.criterion.lambda_u = self.rampup_lambda_u.value()
-				self.rampup_lambda_u.step()
+				if self.rampup_lambda_u is not None:
+					self.criterion.lambda_u = self.rampup_lambda_u.value()
+					self.rampup_lambda_u.step()
 
 				self.metrics_recorder.add_value("loss", loss.item())
 				self.metrics_recorder.add_value("loss_s", loss_s.item())

@@ -341,10 +341,9 @@ def main():
 			raise RuntimeError("Unknown experimental mode %s" % str(args.experimental))
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%s_%s_%.2f_%.2f_%d_%d_%s" % (
-				suffix_loc, str(args.scheduler), args.experimental,
-				args.threshold_multihot, args.threshold_confidence,
-				args.batch_size_s, args.batch_size_u, args.suffix,
+			writer = build_writer(args, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%s" % (
+				suffix_loc, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.experimental,
+				args.threshold_multihot, args.threshold_confidence, args.suffix,
 			))
 
 			checkpoint = CheckPoint(

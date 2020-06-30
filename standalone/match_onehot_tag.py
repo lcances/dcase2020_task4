@@ -275,7 +275,8 @@ def main():
 		criterion = FixMatchLossOneHot.from_edict(args)
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%.2f_%s" % (str(args.scheduler), args.lambda_u, args.suffix))
+			writer = build_writer(args, suffix="%d_%d_%s_%.2f_%.2f_%s" % (
+				args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence, args.lambda_u, args.suffix))
 		else:
 			writer = None
 
@@ -322,14 +323,13 @@ def main():
 
 		criterion = MixMatchLossOneHot.from_edict(args)
 		mixer = MixMatchMixer(model, acti_fn, args.nb_augms, args.sharpen_temp, args.mixup_alpha)
-		if args.use_rampup:
-			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
-			rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
-		else:
-			rampup_lambda_u = None
+
+		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
+		rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%.2f_%s" % (args.criterion_name_u, args.lambda_u, args.suffix))
+			writer = build_writer(args, suffix="%d_%d_%s_%.2f_%s" % (
+				args.batch_size_s, args.batch_size_u, args.criterion_name_u, args.lambda_u, args.suffix))
 		else:
 			writer = None
 
@@ -387,7 +387,8 @@ def main():
 		)
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%.2f_%.2f_%.2f_%s" % (args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
+			writer = build_writer(args, suffix="%d_%d_%.2f_%.2f_%.2f_%s" % (
+				args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
 		else:
 			writer = None
 
@@ -419,7 +420,7 @@ def main():
 		criterion = cross_entropy
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%s" % ("full_100", args.suffix))
+			writer = build_writer(args, suffix="%s_%d_%d_%s" % ("full_100", args.batch_size_s, args.batch_size_u, args.suffix))
 		else:
 			writer = None
 
@@ -450,7 +451,8 @@ def main():
 		criterion = cross_entropy
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%d_%s" % ("part", int(100 * args.supervised_ratio), args.suffix))
+			writer = build_writer(args, suffix="%s_%d_%d_%d_%s" % (
+				"part", int(100 * args.supervised_ratio), args.batch_size_s, args.batch_size_u, args.suffix))
 		else:
 			writer = None
 
