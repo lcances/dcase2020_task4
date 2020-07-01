@@ -14,8 +14,8 @@ class CategoricalConfidenceAccuracy(CategoricalAccuracy):
 
 	def __call__(self, pred: Tensor, labels: Tensor) -> Tensor:
 		with torch.no_grad():
-			y_pred = (pred > self.confidence).float()
-			y_true = (labels > self.confidence).float()
+			y_pred = pred.argmax(dim=1)
+			y_true = labels.argmax(dim=1)
 			return super().__call__(y_pred, y_true)
 
 
