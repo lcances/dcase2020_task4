@@ -24,6 +24,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		self,
 		model: Module,
 		acti_fn: Callable,
+		acti_rot_fn: Callable,
 		optim: Optimizer,
 		loader_train_s: DataLoader,
 		loader_train_u: DataLoader,
@@ -56,7 +57,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		self.distributions = distributions
 		self.rot_angles = rot_angles
 
-		self.acti_fn_rot = lambda batch, dim: batch.softmax(dim=dim)
+		self.acti_rot_fn = acti_rot_fn
 		self.metrics_recorder = MetricsRecorder(
 			"train/",
 			list(self.metrics_s.keys()) +
@@ -106,7 +107,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 			# Predict rotation for strong augment u1
 			r_logits = self.model.forward_rot(u1_batch_rotated)
-			r_pred = self.acti_fn_rot(r_logits, dim=1)
+			r_pred = self.acti_rot_fn(r_logits, dim=1)
 
 			# Update model
 			loss, loss_s, loss_u, loss_u1, loss_r = self.criterion(

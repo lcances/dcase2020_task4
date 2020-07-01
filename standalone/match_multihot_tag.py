@@ -395,6 +395,8 @@ def main():
 			args.sharpen_threshold_multihot,
 		)
 
+		acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
+
 		if args.write_results:
 			writer = build_writer(args, suffix="%s_%d_%d_%.2f_%.2f_%.2f_%s" % (
 				suffix_tag, args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
@@ -402,7 +404,7 @@ def main():
 			writer = None
 
 		trainer = ReMixMatchTrainer(
-			model, acti_fn, optim, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs, metrics_s, metrics_u,
+			model, acti_fn, acti_rot_fn, optim, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs, metrics_s, metrics_u,
 			metrics_u1, metrics_r, criterion, writer, mixer, distributions, rot_angles
 		)
 		validator = DefaultValidator(
