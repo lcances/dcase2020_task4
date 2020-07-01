@@ -53,7 +53,7 @@ from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
-from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, CategoricalConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
+from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, CategoricalAccuracyOnehot, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import SharpenMulti
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str
@@ -204,7 +204,7 @@ def main():
 		"u1_acc_weak": BinaryConfidenceAccuracy(args.confidence)
 	}
 	metrics_r = {
-		"r_acc": CategoricalConfidenceAccuracy(args.confidence)
+		"r_acc": CategoricalAccuracyOnehot()
 	}
 	metrics_val = {
 		"acc_weak": BinaryConfidenceAccuracy(args.confidence),
@@ -387,6 +387,7 @@ def main():
 
 		distributions = AvgDistributions.from_edict(args)
 		acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
+		rampup_lambda_u = None
 
 		if args.write_results:
 			writer = build_writer(args, suffix="%s_%d_%d_%.2f_%.2f_%.2f_%s" % (
@@ -397,7 +398,7 @@ def main():
 		trainer = ReMixMatchTrainer(
 			model, acti_fn, acti_rot_fn, optim, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs,
 			metrics_s, metrics_u, metrics_u1, metrics_r,
-			criterion, writer, mixer, distributions, rot_angles, sharpen_fn
+			criterion, writer, mixer, distributions, rot_angles, sharpen_fn, rampup_lambda_u
 		)
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer

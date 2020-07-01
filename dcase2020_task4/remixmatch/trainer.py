@@ -17,7 +17,7 @@ from dcase2020_task4.remixmatch.losses.abc import ReMixMatchLossTagABC
 from dcase2020_task4.trainer_abc import SSTrainerABC
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
-from dcase2020_task4.util.sharpen import sharpen, sharpen_multi
+from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.util.zip_cycle import ZipCycle
 
@@ -41,6 +41,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		distributions: Optional[AvgDistributions],
 		rot_angles: np.array,
 		sharpen_fn: Callable,
+		rampup_lambda_u: Optional[RampUp],
 	):
 		"""
 			Note: model must implements torch.nn.Module and implements a method "forward_rot".
@@ -60,6 +61,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		self.distributions = distributions
 		self.rot_angles = rot_angles
 		self.sharpen_fn = sharpen_fn
+		self.rampup_lambda_u = rampup_lambda_u
 
 		self.acti_rot_fn = acti_rot_fn
 		self.metrics_recorder = MetricsRecorder(
@@ -135,6 +137,10 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 			# Compute metrics
 			with torch.no_grad():
+				if self.rampup_lambda_u is not None:
+					self.criterion.lambda_u = self.rampup_lambda_u.value()
+					self.rampup_lambda_u.step()
+
 				self.metrics_recorder.add_value("loss", loss.item())
 				self.metrics_recorder.add_value("loss_s", loss_s.item())
 				self.metrics_recorder.add_value("loss_u", loss_u.item())

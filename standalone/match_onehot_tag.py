@@ -55,7 +55,7 @@ from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_augments import Gray, Inversion, RandCrop, UniColor
-from dcase2020_task4.util.other_metrics import CategoricalConfidenceAccuracy, MaxMetric, FnMetric, EqConfidenceMetric
+from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import Sharpen
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str
@@ -178,19 +178,19 @@ def main():
 	torch.autograd.set_detect_anomaly(args.debug_mode)
 
 	metrics_s = {
-		"s_acc": CategoricalConfidenceAccuracy(args.confidence),
+		"s_acc": CategoricalAccuracyOnehot(),
 	}
 	metrics_u = {
-		"u_acc": CategoricalConfidenceAccuracy(args.confidence),
+		"u_acc": CategoricalAccuracyOnehot(),
 	}
 	metrics_u1 = {
-		"u1_acc": CategoricalConfidenceAccuracy(args.confidence),
+		"u1_acc": CategoricalAccuracyOnehot(),
 	}
 	metrics_r = {
-		"r_acc": CategoricalConfidenceAccuracy(args.confidence),
+		"r_acc": CategoricalAccuracyOnehot(),
 	}
 	metrics_val = {
-		"acc": CategoricalConfidenceAccuracy(args.confidence),
+		"acc": CategoricalAccuracyOnehot(),
 		"ce": FnMetric(cross_entropy),
 		"eq": EqConfidenceMetric(args.confidence),
 		"max": MaxMetric(),
@@ -383,6 +383,7 @@ def main():
 
 		distributions = AvgDistributions.from_edict(args)
 		acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
+		rampup_lambda_u = None
 
 		if args.write_results:
 			writer = build_writer(args, suffix="%d_%d_%.2f_%.2f_%.2f_%s" % (
@@ -391,8 +392,9 @@ def main():
 			writer = None
 
 		trainer = ReMixMatchTrainer(
-			model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs, metrics_s, metrics_u,
-			metrics_u1, metrics_r, criterion, writer, mixer, distributions, rot_angles, sharpen_fn,
+			model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs,
+			metrics_s, metrics_u, metrics_u1, metrics_r,
+			criterion, writer, mixer, distributions, rot_angles, sharpen_fn, rampup_lambda_u
 		)
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer

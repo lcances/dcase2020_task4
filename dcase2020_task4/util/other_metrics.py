@@ -5,12 +5,11 @@ from typing import Callable
 from metric_utils.metrics import CategoricalAccuracy, Metrics
 
 
-class CategoricalConfidenceAccuracy(CategoricalAccuracy):
+class CategoricalAccuracyOnehot(CategoricalAccuracy):
 	""" Just Categorical Accuracy with a binarization with threshold. """
 
-	def __init__(self, confidence: float, epsilon: float = 1e-10):
+	def __init__(self, epsilon: float = 1e-10):
 		super().__init__(epsilon)
-		self.confidence = confidence
 
 	def __call__(self, pred: Tensor, labels: Tensor) -> Tensor:
 		with torch.no_grad():
