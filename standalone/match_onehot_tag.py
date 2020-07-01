@@ -533,17 +533,17 @@ def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset
 
 def get_ubs8k_augms() -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	ratio = 1.0
-	# TimeStretch(ratio),
+	ratio = 0.5
 	augm_weak_fn = RandomChoice([
-		RandomChoice([
-			PitchShiftRandom(ratio, steps=(-1, 1)),
-			Noise(ratio=ratio, snr=5.0),
-			Noise2(ratio, noise_factor=(5.0, 5.0)),
-		]),
+		TimeStretch(ratio),
+		PitchShiftRandom(ratio, steps=(-1, 1)),
+		Noise(ratio=ratio, snr=5.0),
+		Noise2(ratio, noise_factor=(5.0, 5.0)),
 	])
+	ratio = 1.0
 	augm_strong_fn = Compose([
 		RandomChoice([
+			TimeStretch(ratio),
 			PitchShiftRandom(ratio),
 			Noise(ratio=ratio, snr=15.0),
 			Noise2(ratio, noise_factor=(10.0, 10.0)),
@@ -554,12 +554,13 @@ def get_ubs8k_augms() -> (Callable, Callable, Callable):
 			RandomTimeDropout(ratio, dropout=0.5),
 		]),
 	])
+	ratio = 0.5
 	augm_fn = RandomChoice([
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
 		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=15.0),
-		Noise2(ratio, noise_factor=(10.0, 10.0)),
+		Noise(ratio=ratio, snr=5.0),
+		Noise2(ratio, noise_factor=(5.0, 5.0)),
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])
