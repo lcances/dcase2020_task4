@@ -29,7 +29,8 @@ class MixMatchTrainer(SSTrainerABC):
 		criterion: MixMatchLossTagABC,
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
-		rampup_lambda_u: RampUp
+		rampup_lambda_u: RampUp,
+		sharpen_fn: Callable,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -42,6 +43,7 @@ class MixMatchTrainer(SSTrainerABC):
 		self.writer = writer
 		self.mixer = mixer
 		self.rampup_lambda_u = rampup_lambda_u
+		self.sharpen_fn = sharpen_fn
 
 		self.metrics_recorder = MetricsRecorder(
 			"train/",
@@ -59,16 +61,26 @@ class MixMatchTrainer(SSTrainerABC):
 		iter_train = iter(loaders_zip)
 
 		for i, item in enumerate(iter_train):
-			(s_batch_augm, s_labels_weak), u_batch_augms = item
+			(s_batch_augm, s_labels), u_batch_augms = item
 
 			s_batch_augm = s_batch_augm.cuda().float()
-			s_labels_weak = s_labels_weak.cuda().float()
+			s_labels = s_labels.cuda().float()
 			u_batch_augms = torch.stack(u_batch_augms).cuda().float()
 
-			# Apply mix
-			s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed = self.mixer(
-				s_batch_augm, s_labels_weak, u_batch_augms
-			)
+			with torch.no_grad():
+				# Compute guessed label
+				nb_augms = u_batch_augms.shape[0]
+				u_logits_augms = torch.zeros([nb_augms] + list(s_labels.size())).cuda()
+				for k in range(nb_augms):
+					u_logits_augms[k] = self.model(u_batch_augms[k])
+				u_pred_augms = self.acti_fn(u_logits_augms, dim=2)
+				u_label_guessed = u_pred_augms.mean(dim=0)
+				u_label_guessed = self.sharpen_fn(u_label_guessed, dim=1)
+
+				# Apply mix
+				s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed = self.mixer(
+					s_batch_augm, s_labels, u_batch_augms, u_label_guessed
+				)
 
 			# Compute logits
 			s_logits_mixed = self.model(s_batch_mixed)

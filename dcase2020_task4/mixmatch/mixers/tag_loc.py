@@ -4,7 +4,7 @@ from torch import Tensor
 from torch.nn import Module
 from typing import Callable
 
-from dcase2020_task4.mixup.mixers.multilabel import MixUpMixerMultiLabel
+from dcase2020_task4.mixup.mixers.tag_loc import MixUpMixerLoc
 from dcase2020_task4.util.utils_match import same_shuffle, merge_first_dimension, sharpen_multi
 
 
@@ -26,7 +26,7 @@ class MixMatchMixerMultiHotLoc(Callable):
 		self.acti_fn = acti_fn
 		self.nb_augms = nb_augms
 		self.sharpen_temp = sharpen_temp
-		self.mixup_mixer = MixUpMixerMultiLabel(alpha=mixup_alpha, apply_max=True)
+		self.mixup_mixer = MixUpMixerLoc(alpha=mixup_alpha, apply_max=True)
 		self.sharpen_threshold_multihot = sharpen_threshold_multihot
 
 	def __call__(self, s_batch_augm: Tensor, s_label_weak: Tensor, s_label_strong: Tensor, u_batch_augms: Tensor) -> (Tensor, Tensor, Tensor, Tensor):

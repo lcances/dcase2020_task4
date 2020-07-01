@@ -55,6 +55,7 @@ from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, CategoricalConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
 from dcase2020_task4.util.ramp_up import RampUp
+from dcase2020_task4.util.sharpen import SharpenMulti
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_match import build_writer, filter_hparams, get_nb_parameters
@@ -136,7 +137,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--sharpen_threshold_multihot", type=float, default=0.5,
 						help="MixMatch threshold for multihot sharpening.")
 
-	parser.add_argument("--sharpen_temp", type=float, default=0.5,
+	parser.add_argument("--sharpen_temperature", type=float, default=0.5,
 						help="MixMatch and ReMixMatch hyperparameter \"temperature\" used by sharpening.")
 	parser.add_argument("--mixup_alpha", type=float, default=0.75,
 						help="MixMatch and ReMixMatch hyperparameter \"alpha\" used by MixUp.")
@@ -325,10 +326,9 @@ def main():
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
 		criterion = MixMatchLossMultiHot.from_edict(args)
-		mixer = MixMatchMixer(
-			model, acti_fn,
-			args.nb_augms, args.sharpen_temp, args.mixup_alpha, args.mode, args.sharpen_threshold_multihot
-		)
+		mixer = MixMatchMixer(args.mixup_alpha)
+		sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
+
 		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
 		rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
 
@@ -340,7 +340,7 @@ def main():
 
 		trainer = MixMatchTrainer(
 			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-			criterion, writer, mixer, rampup_lambda_u
+			criterion, writer, mixer, rampup_lambda_u, sharpen_fn
 		)
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer
@@ -382,19 +382,10 @@ def main():
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
 		criterion = ReMixMatchLossMultiHot.from_edict(args)
+		mixer = ReMixMatchMixer(args.mixup_alpha)
+		sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
+
 		distributions = AvgDistributions.from_edict(args)
-
-		mixer = ReMixMatchMixer(
-			model,
-			acti_fn,
-			distributions,
-			args.nb_augms_strong,
-			args.sharpen_temp,
-			args.mixup_alpha,
-			args.mode,
-			args.sharpen_threshold_multihot,
-		)
-
 		acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
 
 		if args.write_results:
@@ -404,8 +395,9 @@ def main():
 			writer = None
 
 		trainer = ReMixMatchTrainer(
-			model, acti_fn, acti_rot_fn, optim, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs, metrics_s, metrics_u,
-			metrics_u1, metrics_r, criterion, writer, mixer, distributions, rot_angles
+			model, acti_fn, acti_rot_fn, optim, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs,
+			metrics_s, metrics_u, metrics_u1, metrics_r,
+			criterion, writer, mixer, distributions, rot_angles, sharpen_fn
 		)
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer

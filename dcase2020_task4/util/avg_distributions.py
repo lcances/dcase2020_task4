@@ -34,6 +34,9 @@ class AvgDistributions:
 			names=["labeled", "unlabeled"],
 		)
 
+	def __call__(self, batch: Tensor, dim: Union[int, tuple]) -> Tensor:
+		return self.apply_distribution_alignment(batch, dim)
+
 	def apply_distribution_alignment(self, batch: Tensor, dim: Union[int, tuple]) -> Tensor:
 		batch = batch.clone()
 		coefficients = self.get_avg_pred("labeled") / self.get_avg_pred("unlabeled")

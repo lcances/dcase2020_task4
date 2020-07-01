@@ -29,15 +29,19 @@ class ReMixMatchLossMultiHot(ReMixMatchLossTagABC):
 		pred_u1: Tensor, targets_u1: Tensor,
 		pred_r: Tensor, targets_r: Tensor,
 	) -> (Tensor, Tensor, Tensor, Tensor, Tensor):
+		# Supervised loss
 		loss_s = self.criterion_s(pred_s, targets_x)
 		loss_s = loss_s.mean()
 
+		# Unsupervised loss
 		loss_u = self.criterion_u(pred_u, targets_u)
 		loss_u = loss_u.mean()
 
+		# Strong Unsupervised loss
 		loss_u1 = self.criterion_u1(pred_u1, targets_u1)
 		loss_u1 = loss_u1.mean()
 
+		# Rotation loss
 		loss_r = self.criterion_r(pred_r, targets_r)
 		loss_r = loss_r.mean()
 

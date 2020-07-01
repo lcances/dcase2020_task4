@@ -12,11 +12,14 @@ from typing import Callable, Dict, List, Optional
 from augmentation_utils.img_augmentations import Transform
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.util.avg_distributions import AvgDistributions
-from dcase2020_task4.trainer_abc import SSTrainerABC
-from dcase2020_task4.util.zip_cycle import ZipCycle
-from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.metrics_recorder import MetricsRecorder
+from dcase2020_task4.remixmatch.losses.abc import ReMixMatchLossTagABC
+from dcase2020_task4.trainer_abc import SSTrainerABC
+
+from dcase2020_task4.util.avg_distributions import AvgDistributions
+from dcase2020_task4.util.sharpen import sharpen, sharpen_multi
+from dcase2020_task4.util.utils_match import get_lr
+from dcase2020_task4.util.zip_cycle import ZipCycle
 
 
 class ReMixMatchTrainer(SSTrainerABC):
@@ -32,14 +35,14 @@ class ReMixMatchTrainer(SSTrainerABC):
 		metrics_u: Dict[str, Metrics],
 		metrics_u1: Dict[str, Metrics],
 		metrics_r: Dict[str, Metrics],
-		criterion: Callable,
+		criterion: ReMixMatchLossTagABC,
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
-		distributions: AvgDistributions,
+		distributions: Optional[AvgDistributions],
 		rot_angles: np.array,
+		sharpen_fn: Callable,
 	):
 		"""
-			TODO : doc
 			Note: model must implements torch.nn.Module and implements a method "forward_rot".
 		"""
 		self.model = model
@@ -56,6 +59,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		self.mixer = mixer
 		self.distributions = distributions
 		self.rot_angles = rot_angles
+		self.sharpen_fn = sharpen_fn
 
 		self.acti_rot_fn = acti_rot_fn
 		self.metrics_recorder = MetricsRecorder(
@@ -84,13 +88,22 @@ class ReMixMatchTrainer(SSTrainerABC):
 			u_batch_augm_strongs = torch.stack(u_batch_augm_strongs).cuda().float()
 
 			with torch.no_grad():
-				self.distributions.add_batch_pred(s_labels_weak, "labeled")
-				u_pred_augm_weak = self.acti_fn(self.model(u_batch_augm_weak), dim=1)
-				self.distributions.add_batch_pred(u_pred_augm_weak, "unlabeled")
+				# Compute guessed label
+				u_logits_weak = self.model(u_batch_augm_weak)
+				u_pred_augm_weak = self.acti_fn(u_logits_weak, dim=1)
 
-			# Apply mix
-			s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed, u1_batch, u1_labels = \
-				self.mixer(s_batch_augm_strong, s_labels_weak, u_batch_augm_weak, u_batch_augm_strongs)
+				if self.distributions is not None:
+					self.distributions.add_batch_pred(s_labels_weak, "labeled")
+					self.distributions.add_batch_pred(u_pred_augm_weak, "unlabeled")
+					u_label_guessed = self.distributions.apply_distribution_alignment(u_pred_augm_weak, dim=1)
+				else:
+					u_label_guessed = u_pred_augm_weak
+
+				u_label_guessed = self.sharpen_fn(u_label_guessed, dim=1)
+
+				# Apply mix
+				s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed, u1_batch, u1_labels = \
+					self.mixer(s_batch_augm_strong, s_labels_weak, u_batch_augm_weak, u_batch_augm_strongs, u_label_guessed)
 
 			# Rotate images
 			u1_batch_rotated, r_labels = apply_random_rot(u1_batch, self.rot_angles)
@@ -158,10 +171,9 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 
 def apply_random_rot(batch: Tensor, angles_allowed) -> (Tensor, Tensor):
-	idx = np.random.randint(0, len(angles_allowed), len(batch))
-	angles = angles_allowed[idx]
-	rotate_fn = lambda batch: torch.stack([
+	indexes = np.random.randint(0, len(angles_allowed), len(batch))
+	angles = angles_allowed[indexes]
+	res = torch.stack([
 		Transform(1.0, rotation=(ang, ang))(x) for x, ang in zip(batch, angles)
 	]).cuda()
-	res = rotate_fn(batch)
-	return res, torch.from_numpy(idx)
+	return res, torch.from_numpy(indexes)

@@ -1,70 +1,40 @@
 import torch
 from torch import Tensor
-from torch.nn import Module
-from typing import Callable, Optional
+from typing import Callable
 
-from dcase2020_task4.util.avg_distributions import AvgDistributions
-from dcase2020_task4.mixup.mixers.monolabel import MixUpMixer
-from dcase2020_task4.util.utils_match import same_shuffle, sharpen, merge_first_dimension, sharpen_multi
+from dcase2020_task4.mixup.mixers.tag import MixUpMixerTag
+from dcase2020_task4.util.utils_match import same_shuffle, merge_first_dimension
 
 
 class ReMixMatchMixer(Callable):
-	def __init__(
-		self,
-		model: Module,
-		acti_fn: Callable,
-		distributions: AvgDistributions,
-		nb_augms_strong: int = 2,
-		sharpen_temp: float = 0.5,
-		mixup_alpha: float = 0.75,
-		mode: str = "onehot",
-		sharpen_threshold_multihot: Optional[float] = None,
-	):
-		self.model = model
-		self.acti_fn = acti_fn
-		self.distributions = distributions
-		self.nb_augms_strong = nb_augms_strong
-		self.sharpen_temp = sharpen_temp
-		self.mode = mode
-		self.sharpen_threshold_multihot = sharpen_threshold_multihot
-
-		self.mixup_mixer = MixUpMixer(alpha=mixup_alpha, apply_max=True)
-
-		if self.mode == "multihot" and self.sharpen_threshold_multihot is None:
-			raise RuntimeError("Multihot Sharpen threshold cannot be None in multihot mode.")
+	def __init__(self, mixup_alpha: float = 0.75):
+		self.mixup_mixer = MixUpMixerTag(alpha=mixup_alpha, apply_max=True)
 
 	def __call__(
-		self, s_batch_strong: Tensor, s_label: Tensor, u_batch_weak: Tensor, u_batch_strongs: Tensor
+		self,
+		s_batch_strong: Tensor, s_label: Tensor,
+		u_batch_weak: Tensor, u_batch_strongs: Tensor, u_label_guessed: Tensor,
 	) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor):
-		return self.mix(s_batch_strong, s_label, u_batch_weak, u_batch_strongs)
+		return self.mix(s_batch_strong, s_label, u_batch_weak, u_batch_strongs, u_label_guessed)
 
 	def mix(
-		self, s_batch_strong: Tensor, s_label: Tensor, u_batch_weak: Tensor, u_batch_strongs: Tensor
+		self,
+		s_batch_strong: Tensor, s_label: Tensor,
+		u_batch_weak: Tensor, u_batch_strongs: Tensor, u_label_guessed: Tensor,
 	) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor):
 		"""
 			s_batch_strong of size (bsize, feat_size, ...)
 			s_labels_weak of size (bsize, label_size)
 			u_batch_weak of size (bsize, feat_size, ...)
-			u_batch_strongs of size (nb_augms, bsize, feat_size, ...)
+			u_batch_strongs of size (nb_augms_strong, bsize, feat_size, ...)
 		"""
 		with torch.no_grad():
-			# Compute guessed label
-			u_logits_weak = self.model(u_batch_weak)
-			u_label_guessed = self.acti_fn(u_logits_weak, dim=1)
-			u_label_guessed = self.distributions.apply_distribution_alignment(u_label_guessed, dim=1)
-
-			if self.mode == "onehot":
-				u_label_guessed = sharpen(u_label_guessed, self.sharpen_temp, dim=1)
-			elif self.mode == "multihot":
-				u_label_guessed = sharpen_multi(u_label_guessed, self.sharpen_temp, self.sharpen_threshold_multihot)
-			else:
-				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
-
 			# Get strongly augmented batch "batch_u1"
 			batch_u1 = u_batch_strongs[0, :].clone()
 			labels_u1 = u_label_guessed.clone()
 
-			repeated_size = [self.nb_augms_strong] + [1] * (len(u_label_guessed.size()) - 1)
+			nb_augms_strong = u_batch_strongs.shape[0]
+			repeated_size = [nb_augms_strong] + [1] * (len(u_label_guessed.size()) - 1)
 			labels_u_guessed_repeated = u_label_guessed.repeat(repeated_size)
 			u_batch_strongs = merge_first_dimension(u_batch_strongs)
 
