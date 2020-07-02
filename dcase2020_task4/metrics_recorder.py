@@ -33,6 +33,14 @@ class MetricsRecorderABC:
 		""" Store current metrics means in tensorboard SummaryWriter. """
 		raise NotImplementedError("Abstract method")
 
+	def get_min(self, name: str) -> float:
+		""" Get the min of means of metric called name. """
+		raise NotImplementedError("Abstract method")
+
+	def get_max(self, name: str) -> float:
+		""" Get the max of means of metric called name. """
+		raise NotImplementedError("Abstract method")
+
 
 class MetricsRecorder(MetricsRecorderABC):
 	"""

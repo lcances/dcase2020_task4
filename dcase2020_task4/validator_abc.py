@@ -1,6 +1,7 @@
 
 from abc import ABC
 from typing import Dict, List
+from dcase2020_task4.metrics_recorder import MetricsRecorderABC
 from metric_utils.metrics import Metrics
 
 
@@ -19,3 +20,6 @@ class ValidatorABC(ABC):
 		for metrics in all_metrics:
 			for metric in metrics.values():
 				metric.reset()
+
+	def get_metrics_recorder(self) -> MetricsRecorderABC:
+		raise NotImplementedError("Abstract method")

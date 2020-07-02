@@ -21,6 +21,7 @@ from torch.nn.functional import one_hot
 from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader, Dataset, Subset
+from torch.utils.tensorboard import SummaryWriter
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose
 from typing import Callable
@@ -63,6 +64,7 @@ from dcase2020_task4.util.utils_match import cross_entropy, build_writer, filter
 
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.validator import DefaultValidator
+from dcase2020_task4.validator_abc import ValidatorABC
 
 from ubs8k.datasets import Dataset as UBS8KDataset
 from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
@@ -319,10 +321,7 @@ def main():
 			learner.start()
 
 			if writer is not None:
-				with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-					json.dump(args.__dict__, file, indent="\t")
-				writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
-				writer.close()
+				save_results(writer, args, validator)
 
 		if "mm" in args.run or "mixmatch" in args.run:
 			args.train_name = "MixMatch"
@@ -367,10 +366,7 @@ def main():
 			learner.start()
 
 			if writer is not None:
-				with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-					json.dump(args.__dict__, file, indent="\t")
-				writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
-				writer.close()
+				save_results(writer, args, validator)
 
 		if "rmm" in args.run or "remixmatch" in args.run:
 			args.train_name = "ReMixMatch"
@@ -429,10 +425,7 @@ def main():
 			learner.start()
 
 			if writer is not None:
-				with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-					json.dump(args.__dict__, file, indent="\t")
-				writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
-				writer.close()
+				save_results(writer, args, validator)
 
 		if "sf" in args.run or "supervised_full" in args.run:
 			args.train_name = "Supervised"
@@ -461,10 +454,7 @@ def main():
 			learner.start()
 
 			if writer is not None:
-				with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-					json.dump(args.__dict__, file, indent="\t")
-				writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
-				writer.close()
+				save_results(writer, args, validator)
 
 		if "sp" in args.run or "supervised_part" in args.run:
 			args.train_name = "Supervised"
@@ -493,10 +483,7 @@ def main():
 			learner.start()
 
 			if writer is not None:
-				with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-					json.dump(args.__dict__, file, indent="\t")
-				writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
-				writer.close()
+				save_results(writer, args, validator)
 
 		exec_time = time() - start_time
 		print("")
@@ -624,6 +611,24 @@ def get_ubs8k_datasets(args: Namespace, fold_val: int) -> (Dataset, Dataset, Dat
 	dataset_train_augm = UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False)
 
 	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
+
+
+def save_results(writer: SummaryWriter, args: Namespace, validator: ValidatorABC):
+	with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+		json.dump(args.__dict__, file, indent="\t")
+
+	keys = []
+	metrics_recorder = validator.get_metrics_recorder()
+	for metrics in validator.get_all_metrics():
+		keys += list(metrics.keys())
+	metric_dict = {}
+	metric_dict.update(
+		{"val_max/%s" % name: metrics_recorder.get_max(name) for name in keys})
+	metric_dict.update(
+		{"val_min/%s" % name: metrics_recorder.get_min(name) for name in keys})
+
+	writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict=metric_dict)
+	writer.close()
 
 
 if __name__ == "__main__":

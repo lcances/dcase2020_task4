@@ -67,3 +67,6 @@ class DefaultValidator(ValidatorABC):
 
 	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
 		return [self.metrics]
+
+	def get_metrics_recorder(self) -> MetricsRecorder:
+		return self.metrics_recorder

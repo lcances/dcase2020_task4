@@ -82,3 +82,6 @@ class DefaultValidatorLoc(ValidatorABC):
 
 	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
 		return [self.metrics_weak, self.metrics_strong]
+
+	def get_metrics_recorder(self) -> MetricsRecorder:
+		return self.metrics_recorder
