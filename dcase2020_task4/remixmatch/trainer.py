@@ -42,6 +42,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		rot_angles: np.array,
 		sharpen_fn: Callable,
 		rampup_lambda_u: Optional[RampUp],
+		rampup_lambda_u1: Optional[RampUp],
 	):
 		"""
 			Note: model must implements torch.nn.Module and implements a method "forward_rot".
@@ -62,6 +63,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		self.rot_angles = rot_angles
 		self.sharpen_fn = sharpen_fn
 		self.rampup_lambda_u = rampup_lambda_u
+		self.rampup_lambda_u1 = rampup_lambda_u1
 
 		self.acti_rot_fn = acti_rot_fn
 		self.metrics_recorder = MetricsRecorder(
@@ -140,6 +142,9 @@ class ReMixMatchTrainer(SSTrainerABC):
 				if self.rampup_lambda_u is not None:
 					self.criterion.lambda_u = self.rampup_lambda_u.value()
 					self.rampup_lambda_u.step()
+				if self.rampup_lambda_u1 is not None:
+					self.criterion.lambda_u1 = self.rampup_lambda_u1.value()
+					self.rampup_lambda_u1.step()
 
 				self.metrics_recorder.add_value("loss", loss.item())
 				self.metrics_recorder.add_value("loss_s", loss_s.item())

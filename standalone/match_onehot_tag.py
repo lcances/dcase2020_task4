@@ -148,6 +148,8 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--cross_validation", type=str_to_bool, default=False,
 						help="Use cross validation for UBS8K dataset.")
+	parser.add_argument("--fold_val", type=int, default=10,
+						help="Fold used for validation in UBS8K dataset.")
 
 	return parser.parse_args()
 
@@ -168,6 +170,8 @@ def check_args(args: Namespace):
 	elif args.dataset_name == "UBS8K":
 		if args.model_name not in ["UBS8KBaseline"]:
 			raise RuntimeError("Invalid model %s for dataset %s" % (args.model_name, args.dataset_name))
+		if not(1 <= args.fold_val <= 10):
+			raise RuntimeError("Invalid fold %d (must be in [%d,%d])" % (args.fold_val, 1, 10))
 
 
 def main():
@@ -285,8 +289,9 @@ def main():
 			criterion = FixMatchLossOneHot.from_edict(args)
 
 			if args.write_results:
-				writer = build_writer(args, suffix="%d_%d_%s_%.2f_%.2f_%s" % (
-					args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence, args.lambda_u, args.suffix))
+				writer = build_writer(args, suffix="%d_%d_%d_%s_%.2f_%.2f_%s" % (
+					args.fold_val, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence,
+					args.lambda_u, args.suffix))
 			else:
 				writer = None
 
@@ -339,8 +344,8 @@ def main():
 			rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
 
 			if args.write_results:
-				writer = build_writer(args, suffix="%d_%d_%s_%.2f_%s" % (
-					args.batch_size_s, args.batch_size_u, args.criterion_name_u, args.lambda_u, args.suffix))
+				writer = build_writer(args, suffix="%d_%d_%d_%s_%.2f_%s" % (
+					args.fold_val, args.batch_size_s, args.batch_size_u, args.criterion_name_u, args.lambda_u, args.suffix))
 			else:
 				writer = None
 
@@ -391,18 +396,24 @@ def main():
 
 			distributions = AvgDistributions.from_edict(args)
 			acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
-			rampup_lambda_u = None
+			if args.use_rampup:
+				nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strongs)
+				rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
+				rampup_lambda_u1 = RampUp(args.lambda_u1, nb_rampup_steps)
+			else:
+				rampup_lambda_u = None
+				rampup_lambda_u1 = None
 
 			if args.write_results:
-				writer = build_writer(args, suffix="%d_%d_%.2f_%.2f_%.2f_%s" % (
-					args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
+				writer = build_writer(args, suffix="%d_%d_%d_%.2f_%.2f_%.2f_%s" % (
+					args.fold_val, args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
 			else:
 				writer = None
 
 			trainer = ReMixMatchTrainer(
 				model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs,
 				metrics_s, metrics_u, metrics_u1, metrics_r,
-				criterion, writer, mixer, distributions, rot_angles, sharpen_fn, rampup_lambda_u
+				criterion, writer, mixer, distributions, rot_angles, sharpen_fn, rampup_lambda_u, rampup_lambda_u1
 			)
 			validator = DefaultValidator(
 				model, acti_fn, loader_val, metrics_val, writer
@@ -428,7 +439,8 @@ def main():
 			criterion = cross_entropy
 
 			if args.write_results:
-				writer = build_writer(args, suffix="%s_%d_%d_%s" % ("full_100", args.batch_size_s, args.batch_size_u, args.suffix))
+				writer = build_writer(args, suffix="%s_%d_%d_%d_%s" % (
+					"full_100", args.fold_val, args.batch_size_s, args.batch_size_u, args.suffix))
 			else:
 				writer = None
 
@@ -459,8 +471,8 @@ def main():
 			criterion = cross_entropy
 
 			if args.write_results:
-				writer = build_writer(args, suffix="%s_%d_%d_%d_%s" % (
-					"part", int(100 * args.supervised_ratio), args.batch_size_s, args.batch_size_u, args.suffix))
+				writer = build_writer(args, suffix="%s_%d_%d_%d_%d_%s" % (
+					"part", int(100 * args.supervised_ratio), args.fold_val, args.batch_size_s, args.batch_size_u, args.suffix))
 			else:
 				writer = None
 
@@ -488,7 +500,7 @@ def main():
 		for fold_val_ubs8k in range(1, 11):
 			run(fold_val_ubs8k)
 	else:
-		run(10)
+		run(args.fold_val)
 
 
 def get_cifar10_augms() -> (Callable, Callable, Callable):
