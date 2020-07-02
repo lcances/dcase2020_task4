@@ -10,7 +10,7 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import List, Union
 
 
-def normalize(batch: Tensor, dim: int) -> Tensor:
+def normalized(batch: Tensor, dim: int) -> Tensor:
 	""" Return the vector normalized. """
 	return batch / batch.norm(p=1, dim=dim, keepdim=True)
 

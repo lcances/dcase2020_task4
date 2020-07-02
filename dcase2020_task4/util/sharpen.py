@@ -1,13 +1,13 @@
 import torch
 
 from torch import Tensor
-from dcase2020_task4.util.utils_match import normalize
+from dcase2020_task4.util.utils_match import normalized
 
 
 def sharpen(batch: Tensor, temperature: float, dim: int) -> Tensor:
 	""" Sharpen function. Make a distribution more "one-hot" if temperature -> 0. """
 	batch = batch ** (1.0 / temperature)
-	return normalize(batch, dim=dim)
+	return normalized(batch, dim=dim)
 
 
 def sharpen_multi(batch: Tensor, temperature: float, threshold: float) -> Tensor:

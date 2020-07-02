@@ -133,8 +133,8 @@ def create_args() -> Namespace:
 						help="Nb of augmentations used in MixMatch.")
 	parser.add_argument("--nb_augms_strong", type=int, default=2,
 						help="Nb of strong augmentations used in ReMixMatch.")
-	parser.add_argument("--history_size", type=int, default=128,
-						help="Nb of prediction kept in AvgDistributions used in ReMixMatch.")
+	parser.add_argument("--history_size", type=int, default=128 * 64,
+						help="Nb of predictions kept in AvgDistributions used in ReMixMatch.")
 
 	parser.add_argument("--threshold_confidence", type=float, default=0.95,
 						help="FixMatch threshold for compute confidence mask in loss.")

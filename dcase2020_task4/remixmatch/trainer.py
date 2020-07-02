@@ -82,20 +82,20 @@ class ReMixMatchTrainer(SSTrainerABC):
 		iter_train = iter(loaders_zip)
 
 		for i, item in enumerate(iter_train):
-			(s_batch_augm_strong, s_labels_weak), (u_batch_augm_weak, u_batch_augm_strongs) = item
+			(s_batch_augm_strong, s_labels), (u_batch_augm_weak, u_batch_augm_strongs) = item
 
 			s_batch_augm_strong = s_batch_augm_strong.cuda().float()
-			s_labels_weak = s_labels_weak.cuda().float()
+			s_labels = s_labels.cuda().float()
 			u_batch_augm_weak = u_batch_augm_weak.cuda().float()
 			u_batch_augm_strongs = torch.stack(u_batch_augm_strongs).cuda().float()
 
 			with torch.no_grad():
 				# Compute guessed label
-				u_logits_weak = self.model(u_batch_augm_weak)
-				u_pred_augm_weak = self.acti_fn(u_logits_weak, dim=1)
+				u_logits_augm_weak = self.model(u_batch_augm_weak)
+				u_pred_augm_weak = self.acti_fn(u_logits_augm_weak, dim=1)
 
 				if self.distributions is not None:
-					self.distributions.add_batch_pred(s_labels_weak, "labeled")
+					self.distributions.add_batch_pred(s_labels, "labeled")
 					self.distributions.add_batch_pred(u_pred_augm_weak, "unlabeled")
 					u_label_guessed = self.distributions.apply_distribution_alignment(u_pred_augm_weak, dim=1)
 				else:
@@ -105,11 +105,11 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 				# Apply mix
 				s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed, u1_batch, u1_labels = \
-					self.mixer(s_batch_augm_strong, s_labels_weak, u_batch_augm_weak, u_batch_augm_strongs, u_label_guessed)
+					self.mixer(s_batch_augm_strong, s_labels, u_batch_augm_weak, u_batch_augm_strongs, u_label_guessed)
 
-			# Rotate images
-			u1_batch_rotated, r_labels = apply_random_rot(u1_batch, self.rot_angles)
-			r_labels = one_hot(r_labels, len(self.rot_angles)).float().cuda()
+				# Rotate images
+				u1_batch_rotated, r_labels = apply_random_rot(u1_batch, self.rot_angles)
+				r_labels = one_hot(r_labels, len(self.rot_angles)).float().cuda()
 
 			# Predict labels for x (mixed), u (mixed) and u1 (strong augment)
 			s_logits_mixed = self.model(s_batch_mixed)

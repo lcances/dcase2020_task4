@@ -1,6 +1,9 @@
 import torch
+
 from torch import Tensor
 from typing import List, Union
+
+from dcase2020_task4.util.utils_match import normalized
 
 
 class AvgDistributions:
@@ -43,13 +46,13 @@ class AvgDistributions:
 
 		if self.mode == "onehot":
 			batch = batch * coefficients
-			batch = batch / batch.norm(p=1, dim=dim, keepdim=True)
+			batch = normalized(batch, dim)
 		elif self.mode == "multihot":
 			prev_norm = batch.norm(p=1, dim=dim, keepdim=True)
 			# Apply coefficients
 			batch = batch * coefficients
 			# Normalize
-			batch = batch / batch.norm(p=1, dim=dim, keepdim=True)
+			batch = normalized(batch, dim)
 			# Increase probability with old norm
 			batch = batch * prev_norm
 			# If a distribution contains a value above 1.0, it need to be rescale
