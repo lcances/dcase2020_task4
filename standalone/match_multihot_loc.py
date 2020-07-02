@@ -105,6 +105,8 @@ def create_args() -> Namespace:
 						help="Write results in a tensorboard SummaryWriter.")
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
+	parser.add_argument("--args_file", type=str_to_optional_str, default=None,
+						help="Filepath to args file. Values in this JSON will overwrite other options in terminal.")
 
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
 	parser.add_argument("--from_disk", type=str_to_bool, default=True,
@@ -168,6 +170,9 @@ def main():
 	start_date = get_datetime()
 
 	args = create_args()
+	if args.args_file is not None:
+		args_dict = json.load(open(args.args.file, "r"))
+		args.__dict__.update(args_dict)
 	check_args(args)
 
 	reset_seed(args.seed)
