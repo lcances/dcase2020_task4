@@ -299,7 +299,7 @@ def main():
 
 			if args.write_results:
 				writer = build_writer(args, suffix="%d_%d_%d_%s_%.2f_%.2f_%s" % (
-					args.fold_val, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence,
+					fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence,
 					args.lambda_u, args.suffix))
 			else:
 				writer = None
@@ -351,7 +351,7 @@ def main():
 
 			if args.write_results:
 				writer = build_writer(args, suffix="%d_%d_%d_%s_%.2f_%s" % (
-					args.fold_val, args.batch_size_s, args.batch_size_u, args.criterion_name_u, args.lambda_u, args.suffix))
+					fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, args.criterion_name_u, args.lambda_u, args.suffix))
 			else:
 				writer = None
 
@@ -409,7 +409,7 @@ def main():
 
 			if args.write_results:
 				writer = build_writer(args, suffix="%d_%d_%d_%.2f_%.2f_%.2f_%s" % (
-					args.fold_val, args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
+					fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
 			else:
 				writer = None
 
@@ -440,7 +440,7 @@ def main():
 
 			if args.write_results:
 				writer = build_writer(args, suffix="%s_%d_%d_%d_%s" % (
-					"full_100", args.fold_val, args.batch_size_s, args.batch_size_u, args.suffix))
+					"full_100", fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, args.suffix))
 			else:
 				writer = None
 
@@ -469,7 +469,7 @@ def main():
 
 			if args.write_results:
 				writer = build_writer(args, suffix="%s_%d_%d_%d_%d_%s" % (
-					"part", int(100 * args.supervised_ratio), args.fold_val, args.batch_size_s, args.batch_size_u, args.suffix))
+					"part", int(100 * args.supervised_ratio), fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, args.suffix))
 			else:
 				writer = None
 
