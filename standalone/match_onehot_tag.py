@@ -146,6 +146,9 @@ def create_args() -> Namespace:
 	parser.add_argument("--mixup_alpha", type=float, default=0.75,
 						help="MixMatch and ReMixMatch hyperparameter \"alpha\" used by MixUp.")
 
+	parser.add_argument("--cross_validation", type=str_to_bool, default=False,
+						help="Use cross validation for UBS8K dataset.")
+
 	return parser.parse_args()
 
 
@@ -160,6 +163,8 @@ def check_args(args: Namespace):
 	if args.dataset_name == "CIFAR10":
 		if args.model_name not in ["VGG11", "ResNet18"]:
 			raise RuntimeError("Invalid model %s for dataset %s" % (args.model_name, args.dataset_name))
+		if args.cross_validation:
+			raise RuntimeError("Cross-validation on %s dataset is not supported." % args.dataset_name)
 	elif args.dataset_name == "UBS8K":
 		if args.model_name not in ["UBS8KBaseline"]:
 			raise RuntimeError("Invalid model %s for dataset %s" % (args.model_name, args.dataset_name))
@@ -173,6 +178,8 @@ def main():
 	print("Start match_onehot. (%s)" % args.suffix)
 	print("- run:", " ".join(args.run))
 	print("- confidence:", args.confidence)
+	print("- dataset_name", args.dataset_name)
+	print("- cross_validation:", args.cross_validation)
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
@@ -216,265 +223,272 @@ def main():
 
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
 
-	if args.dataset_name.lower() == "cifar10":
-		dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = \
-			get_cifar10_datasets(args)
-	elif args.dataset_name.lower() == "ubs8k":
-		dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = \
-			get_ubs8k_datasets(args)
-	else:
-		raise RuntimeError("Unknown dataset %s" % args.dataset_name)
-
-	sub_loaders_ratios = [args.supervised_ratio, 1.0 - args.supervised_ratio]
-
-	# Compute sub-indexes for split train dataset
-	cls_idx_all = get_classes_idx(dataset_train, args.nb_classes)
-	cls_idx_all = shuffle_classes_idx(cls_idx_all)
-	cls_idx_all = reduce_classes_idx(cls_idx_all, args.dataset_ratio)
-	idx_train_s, idx_train_u = split_classes_idx(cls_idx_all, sub_loaders_ratios)
-
-	idx_val = list(range(int(len(dataset_val) * args.dataset_ratio)))
-
-	label_one_hot = lambda item: (item[0], one_hot(torch.as_tensor(item[1]), args.nb_classes).numpy())
-	dataset_train = FnDataset(dataset_train, label_one_hot)
-	dataset_val = FnDataset(dataset_val, label_one_hot)
-
-	dataset_train_augm_weak = FnDataset(dataset_train_augm_weak, label_one_hot)
-	dataset_train_augm_strong = FnDataset(dataset_train_augm_strong, label_one_hot)
-	dataset_train_augm = FnDataset(dataset_train_augm, label_one_hot)
-
-	dataset_val = Subset(dataset_val, idx_val)
-	loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
-
-	args_loader_train_s = dict(
-		batch_size=args.batch_size_s, shuffle=True, num_workers=args.num_workers_s, drop_last=True)
-	args_loader_train_u = dict(
-		batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
-
-	if "fm" in args.run or "fixmatch" in args.run:
-		args.train_name = "FixMatch"
-		dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
-		dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
-		dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
-
-		dataset_train_u_augm_weak = NoLabelDataset(dataset_train_u_augm_weak)
-		dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
-
-		dataset_train_u_augms_weak_strong = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augm_strong])
-
-		loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
-		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
-
-		model = model_factory()
-		optim = optim_factory(model)
-		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-		if args.scheduler == "CosineLRScheduler":
-			scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
+	def run(fold_val_ubs8k_: int):
+		if args.dataset_name.lower() == "cifar10":
+			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = \
+				get_cifar10_datasets(args)
+		elif args.dataset_name.lower() == "ubs8k":
+			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = \
+				get_ubs8k_datasets(args, fold_val_ubs8k_)
 		else:
-			scheduler = None
+			raise RuntimeError("Unknown dataset %s" % args.dataset_name)
 
-		criterion = FixMatchLossOneHot.from_edict(args)
+		sub_loaders_ratios = [args.supervised_ratio, 1.0 - args.supervised_ratio]
 
-		if args.write_results:
-			writer = build_writer(args, suffix="%d_%d_%s_%.2f_%.2f_%s" % (
-				args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence, args.lambda_u, args.suffix))
-		else:
-			writer = None
+		# Compute sub-indexes for split train dataset
+		cls_idx_all = get_classes_idx(dataset_train, args.nb_classes)
+		cls_idx_all = shuffle_classes_idx(cls_idx_all)
+		cls_idx_all = reduce_classes_idx(cls_idx_all, args.dataset_ratio)
+		idx_train_s, idx_train_u = split_classes_idx(cls_idx_all, sub_loaders_ratios)
 
-		if args.use_rampup:
-			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strong)
+		idx_val = list(range(int(len(dataset_val) * args.dataset_ratio)))
+
+		label_one_hot = lambda item: (item[0], one_hot(torch.as_tensor(item[1]), args.nb_classes).numpy())
+		dataset_train = FnDataset(dataset_train, label_one_hot)
+		dataset_val = FnDataset(dataset_val, label_one_hot)
+
+		dataset_train_augm_weak = FnDataset(dataset_train_augm_weak, label_one_hot)
+		dataset_train_augm_strong = FnDataset(dataset_train_augm_strong, label_one_hot)
+		dataset_train_augm = FnDataset(dataset_train_augm, label_one_hot)
+
+		dataset_val = Subset(dataset_val, idx_val)
+		loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
+
+		args_loader_train_s = dict(
+			batch_size=args.batch_size_s, shuffle=True, num_workers=args.num_workers_s, drop_last=True)
+		args_loader_train_u = dict(
+			batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
+
+		if "fm" in args.run or "fixmatch" in args.run:
+			args.train_name = "FixMatch"
+			dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
+			dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
+			dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
+
+			dataset_train_u_augm_weak = NoLabelDataset(dataset_train_u_augm_weak)
+			dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
+
+			dataset_train_u_augms_weak_strong = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augm_strong])
+
+			loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
+			loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
+
+			model = model_factory()
+			optim = optim_factory(model)
+			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
+
+			if args.scheduler == "CosineLRScheduler":
+				scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
+			else:
+				scheduler = None
+
+			criterion = FixMatchLossOneHot.from_edict(args)
+
+			if args.write_results:
+				writer = build_writer(args, suffix="%d_%d_%s_%.2f_%.2f_%s" % (
+					args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence, args.lambda_u, args.suffix))
+			else:
+				writer = None
+
+			if args.use_rampup:
+				nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strong)
+				rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
+			else:
+				rampup_lambda_u = None
+
+			trainer = FixMatchTrainer(
+				model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
+				criterion, writer, args.mode, rampup_lambda_u
+			)
+			validator = DefaultValidator(
+				model, acti_fn, loader_val, metrics_val, writer
+			)
+			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
+			learner.start()
+
+			if writer is not None:
+				with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+					json.dump(args.__dict__, file, indent="\t")
+				writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
+				writer.close()
+
+		if "mm" in args.run or "mixmatch" in args.run:
+			args.train_name = "MixMatch"
+			dataset_train_s_augm = Subset(dataset_train_augm, idx_train_s)
+			dataset_train_u_augm = Subset(dataset_train_augm, idx_train_u)
+
+			dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm)
+			dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * args.nb_augms)
+
+			loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm, **args_loader_train_s)
+			loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
+
+			if loader_train_s_augm.batch_size != loader_train_u_augms.batch_size:
+				raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
+					loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
+
+			model = model_factory()
+			optim = optim_factory(model)
+			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
+
+			criterion = MixMatchLossOneHot.from_edict(args)
+			mixer = MixMatchMixer(args.mixup_alpha)
+			sharpen_fn = Sharpen(args.sharpen_temperature)
+
+			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
 			rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
-		else:
+
+			if args.write_results:
+				writer = build_writer(args, suffix="%d_%d_%s_%.2f_%s" % (
+					args.batch_size_s, args.batch_size_u, args.criterion_name_u, args.lambda_u, args.suffix))
+			else:
+				writer = None
+
+			trainer = MixMatchTrainer(
+				model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
+				criterion, writer, mixer, rampup_lambda_u, sharpen_fn
+			)
+			validator = DefaultValidator(
+				model, acti_fn, loader_val, metrics_val, writer
+			)
+			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
+			learner.start()
+
+			if writer is not None:
+				with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+					json.dump(args.__dict__, file, indent="\t")
+				writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
+				writer.close()
+
+		if "rmm" in args.run or "remixmatch" in args.run:
+			args.train_name = "ReMixMatch"
+			dataset_train_s_augm_strong = Subset(dataset_train_augm_strong, idx_train_s)
+			dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
+			dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
+
+			dataset_train_u_augm_weak = NoLabelDataset(dataset_train_u_augm_weak)
+			dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
+
+			dataset_train_u_strongs = MultipleDataset([dataset_train_u_augm_strong] * args.nb_augms_strong)
+			dataset_train_u_weak_strongs = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_strongs])
+
+			loader_train_s_strong = DataLoader(dataset_train_s_augm_strong, **args_loader_train_s)
+			loader_train_u_augms_weak_strongs = DataLoader(dataset_train_u_weak_strongs, **args_loader_train_u)
+
+			if loader_train_s_strong.batch_size != loader_train_u_augms_weak_strongs.batch_size:
+				raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
+					loader_train_s_strong.batch_size, loader_train_u_augms_weak_strongs.batch_size))
+
+			model = model_factory()
+			optim = optim_factory(model)
+			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
+
+			rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
+
+			criterion = ReMixMatchLossOneHot.from_edict(args)
+			mixer = ReMixMatchMixer(args.mixup_alpha)
+			sharpen_fn = Sharpen(args.sharpen_temperature)
+
+			distributions = AvgDistributions.from_edict(args)
+			acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
 			rampup_lambda_u = None
 
-		trainer = FixMatchTrainer(
-			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-			criterion, writer, args.mode, rampup_lambda_u
-		)
-		validator = DefaultValidator(
-			model, acti_fn, loader_val, metrics_val, writer
-		)
-		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
-		learner.start()
+			if args.write_results:
+				writer = build_writer(args, suffix="%d_%d_%.2f_%.2f_%.2f_%s" % (
+					args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
+			else:
+				writer = None
 
-		if writer is not None:
-			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args.__dict__, file, indent="\t")
-			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
-			writer.close()
+			trainer = ReMixMatchTrainer(
+				model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs,
+				metrics_s, metrics_u, metrics_u1, metrics_r,
+				criterion, writer, mixer, distributions, rot_angles, sharpen_fn, rampup_lambda_u
+			)
+			validator = DefaultValidator(
+				model, acti_fn, loader_val, metrics_val, writer
+			)
+			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
+			learner.start()
 
-	if "mm" in args.run or "mixmatch" in args.run:
-		args.train_name = "MixMatch"
-		dataset_train_s_augm = Subset(dataset_train_augm, idx_train_s)
-		dataset_train_u_augm = Subset(dataset_train_augm, idx_train_u)
+			if writer is not None:
+				with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+					json.dump(args.__dict__, file, indent="\t")
+				writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
+				writer.close()
 
-		dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm)
-		dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * args.nb_augms)
+		if "sf" in args.run or "supervised_full" in args.run:
+			args.train_name = "Supervised"
+			dataset_train_full = Subset(dataset_train, idx_train_s + idx_train_u)
+			loader_train_full = DataLoader(dataset_train_full, **args_loader_train_s)
 
-		loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm, **args_loader_train_s)
-		loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
+			model = model_factory()
+			optim = optim_factory(model)
+			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		if loader_train_s_augm.batch_size != loader_train_u_augms.batch_size:
-			raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
-				loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
+			criterion = cross_entropy
 
-		model = model_factory()
-		optim = optim_factory(model)
-		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
+			if args.write_results:
+				writer = build_writer(args, suffix="%s_%d_%d_%s" % ("full_100", args.batch_size_s, args.batch_size_u, args.suffix))
+			else:
+				writer = None
 
-		criterion = MixMatchLossOneHot.from_edict(args)
-		mixer = MixMatchMixer(args.mixup_alpha)
-		sharpen_fn = Sharpen(args.sharpen_temperature)
+			trainer = SupervisedTrainer(
+				model, acti_fn, optim, loader_train_full, metrics_s, criterion, writer
+			)
+			validator = DefaultValidator(
+				model, acti_fn, loader_val, metrics_val, writer
+			)
+			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
+			learner.start()
 
-		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
-		rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
+			if writer is not None:
+				with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+					json.dump(args.__dict__, file, indent="\t")
+				writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
+				writer.close()
 
-		if args.write_results:
-			writer = build_writer(args, suffix="%d_%d_%s_%.2f_%s" % (
-				args.batch_size_s, args.batch_size_u, args.criterion_name_u, args.lambda_u, args.suffix))
-		else:
-			writer = None
+		if "sp" in args.run or "supervised_part" in args.run:
+			args.train_name = "Supervised"
+			dataset_train_part = Subset(dataset_train, idx_train_s)
+			loader_train_part = DataLoader(dataset_train_part, **args_loader_train_s)
 
-		trainer = MixMatchTrainer(
-			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-			criterion, writer, mixer, rampup_lambda_u, sharpen_fn
-		)
-		validator = DefaultValidator(
-			model, acti_fn, loader_val, metrics_val, writer
-		)
-		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
-		learner.start()
+			model = model_factory()
+			optim = optim_factory(model)
+			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
-		if writer is not None:
-			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args.__dict__, file, indent="\t")
-			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
-			writer.close()
+			criterion = cross_entropy
 
-	if "rmm" in args.run or "remixmatch" in args.run:
-		args.train_name = "ReMixMatch"
-		dataset_train_s_augm_strong = Subset(dataset_train_augm_strong, idx_train_s)
-		dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
-		dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
+			if args.write_results:
+				writer = build_writer(args, suffix="%s_%d_%d_%d_%s" % (
+					"part", int(100 * args.supervised_ratio), args.batch_size_s, args.batch_size_u, args.suffix))
+			else:
+				writer = None
 
-		dataset_train_u_augm_weak = NoLabelDataset(dataset_train_u_augm_weak)
-		dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
+			trainer = SupervisedTrainer(
+				model, acti_fn, optim, loader_train_part, metrics_s, criterion, writer
+			)
+			validator = DefaultValidator(
+				model, acti_fn, loader_val, metrics_val, writer
+			)
+			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
+			learner.start()
 
-		dataset_train_u_strongs = MultipleDataset([dataset_train_u_augm_strong] * args.nb_augms_strong)
-		dataset_train_u_weak_strongs = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_strongs])
+			if writer is not None:
+				with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+					json.dump(args.__dict__, file, indent="\t")
+				writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
+				writer.close()
 
-		loader_train_s_strong = DataLoader(dataset_train_s_augm_strong, **args_loader_train_s)
-		loader_train_u_augms_weak_strongs = DataLoader(dataset_train_u_weak_strongs, **args_loader_train_u)
+		exec_time = time() - start_time
+		print("")
+		print("Program started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
+		print("Total execution time: %.2fs" % exec_time)
 
-		if loader_train_s_strong.batch_size != loader_train_u_augms_weak_strongs.batch_size:
-			raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
-				loader_train_s_strong.batch_size, loader_train_u_augms_weak_strongs.batch_size))
-
-		model = model_factory()
-		optim = optim_factory(model)
-		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-		rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
-
-		criterion = ReMixMatchLossOneHot.from_edict(args)
-		mixer = ReMixMatchMixer(args.mixup_alpha)
-		sharpen_fn = Sharpen(args.sharpen_temperature)
-
-		distributions = AvgDistributions.from_edict(args)
-		acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
-		rampup_lambda_u = None
-
-		if args.write_results:
-			writer = build_writer(args, suffix="%d_%d_%.2f_%.2f_%.2f_%s" % (
-				args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
-		else:
-			writer = None
-
-		trainer = ReMixMatchTrainer(
-			model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs,
-			metrics_s, metrics_u, metrics_u1, metrics_r,
-			criterion, writer, mixer, distributions, rot_angles, sharpen_fn, rampup_lambda_u
-		)
-		validator = DefaultValidator(
-			model, acti_fn, loader_val, metrics_val, writer
-		)
-		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
-		learner.start()
-
-		if writer is not None:
-			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args.__dict__, file, indent="\t")
-			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
-			writer.close()
-
-	if "sf" in args.run or "supervised_full" in args.run:
-		args.train_name = "Supervised"
-		dataset_train_full = Subset(dataset_train, idx_train_s + idx_train_u)
-		loader_train_full = DataLoader(dataset_train_full, **args_loader_train_s)
-
-		model = model_factory()
-		optim = optim_factory(model)
-		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-		criterion = cross_entropy
-
-		if args.write_results:
-			writer = build_writer(args, suffix="%s_%d_%d_%s" % ("full_100", args.batch_size_s, args.batch_size_u, args.suffix))
-		else:
-			writer = None
-
-		trainer = SupervisedTrainer(
-			model, acti_fn, optim, loader_train_full, metrics_s, criterion, writer
-		)
-		validator = DefaultValidator(
-			model, acti_fn, loader_val, metrics_val, writer
-		)
-		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
-		learner.start()
-
-		if writer is not None:
-			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args.__dict__, file, indent="\t")
-			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
-			writer.close()
-
-	if "sp" in args.run or "supervised_part" in args.run:
-		args.train_name = "Supervised"
-		dataset_train_part = Subset(dataset_train, idx_train_s)
-		loader_train_part = DataLoader(dataset_train_part, **args_loader_train_s)
-
-		model = model_factory()
-		optim = optim_factory(model)
-		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-		criterion = cross_entropy
-
-		if args.write_results:
-			writer = build_writer(args, suffix="%s_%d_%d_%d_%s" % (
-				"part", int(100 * args.supervised_ratio), args.batch_size_s, args.batch_size_u, args.suffix))
-		else:
-			writer = None
-
-		trainer = SupervisedTrainer(
-			model, acti_fn, optim, loader_train_part, metrics_s, criterion, writer
-		)
-		validator = DefaultValidator(
-			model, acti_fn, loader_val, metrics_val, writer
-		)
-		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
-		learner.start()
-
-		if writer is not None:
-			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args.__dict__, file, indent="\t")
-			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
-			writer.close()
-
-	exec_time = time() - start_time
-	print("")
-	print("Program started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
-	print("Total execution time: %.2fs" % exec_time)
+	if args.cross_validation:
+		for fold_val_ubs8k in range(1, 11):
+			run(fold_val_ubs8k)
+	else:
+		run(10)
 
 
 def get_cifar10_augms() -> (Callable, Callable, Callable):
@@ -570,13 +584,15 @@ def get_ubs8k_augms() -> (Callable, Callable, Callable):
 	return augm_weak_fn, augm_strong_fn, augm_fn
 
 
-def get_ubs8k_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
+def get_ubs8k_datasets(args: Namespace, fold_val: int) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
 	augm_weak_fn, augm_strong_fn, augm_fn = get_ubs8k_augms()
 	metadata_root = osp.join(args.dataset, "metadata")
 	audio_root = osp.join(args.dataset, "audio")
 
-	folds_train = (1, 2, 3, 4, 5, 6, 7, 8, 9)
-	folds_val = (10,)
+	folds_train = list(range(1, 11))
+	folds_train.remove(fold_val)
+	folds_train = tuple(folds_train)
+	folds_val = (fold_val,)
 
 	manager = UBS8KDatasetManager(metadata_root, audio_root)
 
