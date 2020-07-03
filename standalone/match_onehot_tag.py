@@ -71,18 +71,14 @@ from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
 
 
 def create_args() -> Namespace:
-	available_methods = ", ".join([
-
-	])
-
 	parser = ArgumentParser()
 	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch"],
 						choices=["fixmatch", "fm", "mixmatch", "mm", "remixmatch", "rmm", "supervised_full", "sf", "supervised_part", "sp"],
 						help="Training method to run.")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--debug_mode", type=str_to_bool, default=False)
-	parser.add_argument("--begin_date", type=str, default=get_datetime(),
-						help="Date used in SummaryWriter name.")
+	parser.add_argument("--suffix", type=str, default="",
+						help="Suffix to Tensorboard log dir.")
 
 	parser.add_argument("--mode", type=str, default="onehot", choices=["onehot"])
 	parser.add_argument("--dataset", type=str, default="../dataset/CIFAR10")
@@ -115,8 +111,6 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--write_results", type=str_to_bool, default=True,
 						help="Write results in a tensorboard SummaryWriter.")
-	parser.add_argument("--suffix", type=str, default="",
-						help="Suffix to Tensorboard log dir.")
 	parser.add_argument("--args_file", type=str_to_optional_str, default=None,
 						help="Filepath to args file. Values in this JSON will overwrite other options in terminal.")
 
@@ -301,7 +295,7 @@ def main():
 			criterion = FixMatchLossOneHot.from_edict(args)
 
 			if args.write_results:
-				writer = build_writer(args, suffix="%d_%d_%d_%s_%.2f_%.2f_%s" % (
+				writer = build_writer(args, start_date, suffix="%d_%d_%d_%s_%.2f_%.2f_%s" % (
 					fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence,
 					args.lambda_u, args.suffix))
 			else:
@@ -354,7 +348,7 @@ def main():
 			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
 
 			if args.write_results:
-				writer = build_writer(args, suffix="%d_%d_%d_%s_%.2f_%s" % (
+				writer = build_writer(args, start_date, suffix="%d_%d_%d_%s_%.2f_%s" % (
 					fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, args.criterion_name_u, args.lambda_u, args.suffix))
 			else:
 				writer = None
@@ -413,7 +407,7 @@ def main():
 				rampup_lambda_u1 = None
 
 			if args.write_results:
-				writer = build_writer(args, suffix="%d_%d_%d_%.2f_%.2f_%.2f_%s" % (
+				writer = build_writer(args, start_date, suffix="%d_%d_%d_%.2f_%.2f_%.2f_%s" % (
 					fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
 			else:
 				writer = None
@@ -444,7 +438,7 @@ def main():
 			criterion = cross_entropy
 
 			if args.write_results:
-				writer = build_writer(args, suffix="%s_%d_%d_%d_%s" % (
+				writer = build_writer(args, start_date, suffix="%s_%d_%d_%d_%s" % (
 					"full_100", fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, args.suffix))
 			else:
 				writer = None
@@ -473,7 +467,7 @@ def main():
 			criterion = cross_entropy
 
 			if args.write_results:
-				writer = build_writer(args, suffix="%s_%d_%d_%d_%d_%s" % (
+				writer = build_writer(args, start_date, suffix="%s_%d_%d_%d_%d_%s" % (
 					"part", int(100 * args.supervised_ratio), fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, args.suffix))
 			else:
 				writer = None

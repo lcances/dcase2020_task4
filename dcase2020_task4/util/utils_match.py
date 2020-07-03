@@ -77,8 +77,8 @@ def set_lr(optim: Optimizer, new_lr: float):
 		group["lr"] = new_lr
 
 
-def build_writer(args: Namespace, suffix: str = "") -> SummaryWriter:
-	dirname = "%s_%s_%s_%s_%s" % (args.dataset_name, args.train_name, args.model_name, args.begin_date, suffix)
+def build_writer(args: Namespace, start_date: str, suffix: str = "") -> SummaryWriter:
+	dirname = "%s_%s_%s_%s_%s" % (args.dataset_name, args.train_name, args.model_name, start_date, suffix)
 	dirpath = osp.join(args.logdir, dirname)
 	writer = SummaryWriter(log_dir=dirpath, comment=args.train_name)
 	return writer

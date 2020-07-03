@@ -70,8 +70,8 @@ def create_args() -> Namespace:
 						help="Training method to run.")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--debug_mode", "--debug", type=str_to_bool, default=False)
-	parser.add_argument("--begin_date", type=str, default=get_datetime(),
-						help="Date used in SummaryWriter name.")
+	parser.add_argument("--suffix", type=str, default="",
+						help="Suffix to Tensorboard log dir.")
 
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
@@ -104,8 +104,6 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--write_results", type=str_to_bool, default=True,
 						help="Write results in a tensorboard SummaryWriter.")
-	parser.add_argument("--suffix", type=str, default="",
-						help="Suffix to Tensorboard log dir.")
 	parser.add_argument("--args_file", type=str_to_optional_str, default=None,
 						help="Filepath to args file. Values in this JSON will overwrite other options in terminal.")
 
@@ -176,7 +174,6 @@ def main():
 	if args.args_file is not None:
 		args_dict = json.load(open(args.args.file, "r"))
 		args.__dict__.update(args_dict)
-		args.begin_date = start_date()
 	check_args(args)
 	if args.nb_rampup_epochs == "nb_epochs":
 		args.nb_rampup_epochs = args.nb_epochs
@@ -185,7 +182,7 @@ def main():
 	torch.autograd.set_detect_anomaly(args.debug_mode)
 
 	print("Start match_multihot_loc (%s)." % args.suffix)
-	print("- run:", " ".join(args.run))
+	print("- run:", args.run)
 	print("- confidence:", args.confidence)
 	print("- from_disk:", args.from_disk)
 	print("- debug_mode:", args.debug_mode)
@@ -323,7 +320,7 @@ def main():
 			raise RuntimeError("Unknown experimental mode %s" % str(args.experimental))
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%.2f_%s" % (
+			writer = build_writer(args, start_date, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%.2f_%s" % (
 				suffix_loc, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.experimental,
 				args.threshold_multihot, args.threshold_confidence, args.lambda_u, args.suffix,
 			))
@@ -367,7 +364,7 @@ def main():
 		lambda_u_rampup = RampUp(nb_rampup_steps, args.lambda_u)
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%.2f_%s" % (
+			writer = build_writer(args, start_date, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%.2f_%s" % (
 				suffix_loc, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.experimental,
 				args.threshold_multihot, args.threshold_confidence, args.lambda_u, args.suffix,
 			))
@@ -395,7 +392,7 @@ def main():
 		criterion = SupervisedLossLoc()
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%.2f_%s" % (
+			writer = build_writer(args, start_date, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%.2f_%s" % (
 				suffix_loc, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.experimental,
 				args.threshold_multihot, args.threshold_confidence, args.lambda_u, args.suffix,
 			))
