@@ -36,6 +36,9 @@ class DefaultValidator(ValidatorABC):
 			list(self.metrics.keys())
 		)
 
+		if (checkpoint is None) != (checkpoint_metric_key is None):
+			raise RuntimeError("If checkpoint is provided, a metric name must be used for saving best model.")
+
 	def val(self, epoch: int):
 		with torch.no_grad():
 			self.reset_all_metrics()

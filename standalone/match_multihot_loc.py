@@ -118,16 +118,15 @@ def create_args() -> Namespace:
 						help="Use distribution alignment with FixMatch predictions.")
 
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
+	parser.add_argument("--checkpoint_metric_name", type=str, default="fscore_weak",
+						choices=["fscore_weak", "fscore_strong", "acc_weak", "acc_strong"],
+						help="Metric used to compare and save best model during training.")
 	parser.add_argument("--from_disk", type=str_to_bool, default=True,
 						help="Select False if you want ot load all data into RAM. "
 							 "It will be faster but consume a lot of RAM.")
 	parser.add_argument("--experimental", type=str_to_optional_str, default="",
 						choices=["", "None", "V1", "V2", "V3", "V5"],
 						help="Experimental FixMatch mode.")
-
-	parser.add_argument("--checkpoint_metric_name", type=str, default="fscore_weak",
-						choices=["fscore_weak", "fscore_strong", "acc_weak", "acc_strong"],
-						help="Metric used to compare and save best model during training.")
 
 	parser.add_argument("--lambda_u", type=float, default=1.0,
 						help="FixMatch, MixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
@@ -274,6 +273,10 @@ def main():
 
 	suffix_loc = "LOC"
 
+	model = model_factory()
+	optim = optim_factory(model)
+	print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
+
 	if "fm" == args.run or "fixmatch" == args.run:
 		args.train_name = "FixMatch"
 		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
@@ -289,10 +292,6 @@ def main():
 
 		loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
-
-		model = model_factory()
-		optim = optim_factory(model)
-		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
 		if args.scheduler == "CosineLRScheduler":
 			scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
@@ -324,34 +323,20 @@ def main():
 			raise RuntimeError("Unknown experimental mode %s" % str(args.experimental))
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%s" % (
+			writer = build_writer(args, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%.2f_%s" % (
 				suffix_loc, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.experimental,
-				args.threshold_multihot, args.threshold_confidence, args.suffix,
+				args.threshold_multihot, args.threshold_confidence, args.lambda_u, args.suffix,
 			))
-
-			checkpoint = CheckPoint(
-				model, optim, name=osp.join(args.path_checkpoint, "%s_%s_%s.torch" % (
-					args.model_name, args.train_name, args.suffix))
-			)
 		else:
 			writer = None
-			checkpoint = None
 
 		trainer = FixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong,
 			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
 			criterion, writer, rampup_lambda_u, args.threshold_multihot, distributions
 		)
-		validator = DefaultValidatorLoc(
-			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, args.checkpoint_metric_name
-		)
-		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
-		learner.start()
 
-		if writer is not None:
-			save_writer(writer, args, validator)
-
-	if "mm" == args.run or "mixmatch" == args.run:
+	elif "mm" == args.run or "mixmatch" == args.run:
 		args.train_name = "MixMatch"
 		dataset_train_s_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm = FnDataset(dataset_train_s_augm, get_batch_label)
@@ -372,6 +357,7 @@ def main():
 		optim = optim_factory(model)
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
+		scheduler = None
 		criterion = MixMatchLossMultiHotLoc.from_edict(args)
 		mixer = MixMatchMixerMultiHotLoc(
 			model, acti_fn,
@@ -381,14 +367,12 @@ def main():
 		lambda_u_rampup = RampUp(nb_rampup_steps, args.lambda_u)
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%.2f_%s" % (suffix_loc, args.lambda_u, args.suffix))
-			checkpoint = CheckPoint(
-				model, optim, name=osp.join(args.path_checkpoint, "%s_%s_%s.torch" % (
-					args.model_name, args.train_name, args.suffix))
-			)
+			writer = build_writer(args, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%.2f_%s" % (
+				suffix_loc, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.experimental,
+				args.threshold_multihot, args.threshold_confidence, args.lambda_u, args.suffix,
+			))
 		else:
 			writer = None
-			checkpoint = None
 
 		trainer = MixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms,
@@ -396,16 +380,7 @@ def main():
 			criterion, writer, mixer, lambda_u_rampup
 		)
 
-		validator = DefaultValidatorLoc(
-			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, args.checkpoint_metric_name
-		)
-		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
-		learner.start()
-
-		if writer is not None:
-			save_writer(writer, args, validator)
-
-	if "su" == args.run or "supervised" == args.run:
+	elif "su" == args.run or "supervised" == args.run:
 		args.train_name = "Supervised"
 		dataset_train_s = DESEDDataset(**args_dataset_train_s)
 		dataset_train_s = FnDataset(dataset_train_s, get_batch_label)
@@ -416,29 +391,40 @@ def main():
 		optim = optim_factory(model)
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
+		scheduler = None
 		criterion = SupervisedLossLoc()
 
 		if args.write_results:
-			writer = build_writer(args, suffix="%s_%s" % (suffix_loc, args.suffix))
-			checkpoint = CheckPoint(
-				model, optim, name=osp.join(args.path_checkpoint, "%s_%s_%s.torch" % (
-					args.model_name, args.train_name, args.suffix))
-			)
+			writer = build_writer(args, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%.2f_%s" % (
+				suffix_loc, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.experimental,
+				args.threshold_multihot, args.threshold_confidence, args.lambda_u, args.suffix,
+			))
 		else:
 			writer = None
-			checkpoint = None
 
 		trainer = SupervisedTrainerLoc(
 			model, acti_fn, optim, loader_train_s, metrics_s_weak, metrics_s_strong, criterion, writer
 		)
-		validator = DefaultValidatorLoc(
-			model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, args.checkpoint_metric_name
-		)
-		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
-		learner.start()
 
-		if writer is not None:
-			save_writer(writer, args, validator)
+	else:
+		raise RuntimeError("Unknown run %s" % args.run)
+
+	if args.write_results:
+		checkpoint = CheckPoint(
+			model, optim, name=osp.join(args.path_checkpoint, "%s_%s_%s.torch" % (
+				args.model_name, args.train_name, args.suffix))
+		)
+	else:
+		checkpoint = None
+
+	validator = DefaultValidatorLoc(
+		model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, args.checkpoint_metric_name
+	)
+	learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
+	learner.start()
+
+	if writer is not None:
+		save_writer(writer, args, validator)
 
 	exec_time = time() - start_time
 	print("")

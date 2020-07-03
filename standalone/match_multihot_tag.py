@@ -126,6 +126,9 @@ def create_args() -> Namespace:
 						help="Use experimental multi-hot sharpening or not for MixMatch and ReMixMatch.")
 
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
+	parser.add_argument("--checkpoint_metric_name", type=str, default="fscore_weak",
+						choices=["fscore_weak", "fscore_strong", "acc_weak", "acc_strong"],
+						help="Metric used to compare and save best model during training.")
 	parser.add_argument("--from_disk", type=str_to_bool, default=True,
 						help="Select False if you want ot load all data into RAM.")
 	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy",
@@ -447,17 +450,16 @@ def main():
 	else:
 		raise RuntimeError("Unknown run %s" % args.run)
 
-	if args.save_results:
+	if args.write_results:
 		checkpoint = CheckPoint(
 			model, optim, name=osp.join(args.path_checkpoint, "%s_%s_%s.torch" % (
 				args.model_name, args.train_name, args.suffix))
 		)
 	else:
 		checkpoint = None
-	checkpoint_metric_name = "fscore_weak"
 
 	validator = DefaultValidator(
-		model, acti_fn, loader_val, metrics_val, writer, checkpoint, checkpoint_metric_name
+		model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 	)
 	learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
 	learner.start()
