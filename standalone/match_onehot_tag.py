@@ -119,12 +119,13 @@ def create_args() -> Namespace:
 	parser.add_argument("--args_file", type=str_to_optional_str, default=None,
 						help="Filepath to args file. Values in this JSON will overwrite other options in terminal.")
 
+	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
+						help="Use RampUp or not for lambda_u and lambda_u1 hyperparameters.")
+
 	parser.add_argument("--dataset_ratio", type=float, default=1.0,
 						help="Ratio of the dataset used for training.")
 	parser.add_argument("--supervised_ratio", type=float, default=0.1,
 						help="Supervised ratio used for split dataset.")
-	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
-						help="Use RampUp or not for lambda_u FixMatch or MixMatch loss hyperparameter.")
 
 	parser.add_argument("--lambda_u", type=float, default=1.0,
 						help="MixMatch, FixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
@@ -171,6 +172,7 @@ def check_args(args: Namespace):
 			raise RuntimeError("Invalid model %s for dataset %s" % (args.model_name, args.dataset_name))
 		if args.cross_validation:
 			raise RuntimeError("Cross-validation on %s dataset is not supported." % args.dataset_name)
+
 	elif args.dataset_name == "UBS8K":
 		if args.model_name not in ["UBS8KBaseline"]:
 			raise RuntimeError("Invalid model %s for dataset %s" % (args.model_name, args.dataset_name))
@@ -306,7 +308,7 @@ def main():
 
 			if args.use_rampup:
 				nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strong)
-				rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
+				rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
 			else:
 				rampup_lambda_u = None
 
@@ -347,7 +349,7 @@ def main():
 			sharpen_fn = Sharpen(args.sharpen_temperature)
 
 			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
-			rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
+			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
 
 			if args.write_results:
 				writer = build_writer(args, suffix="%d_%d_%d_%s_%.2f_%s" % (
@@ -401,8 +403,8 @@ def main():
 			acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
 			if args.use_rampup:
 				nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strongs)
-				rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
-				rampup_lambda_u1 = RampUp(args.lambda_u1, nb_rampup_steps)
+				rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
+				rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1)
 			else:
 				rampup_lambda_u = None
 				rampup_lambda_u1 = None

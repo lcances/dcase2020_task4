@@ -108,6 +108,11 @@ def create_args() -> Namespace:
 	parser.add_argument("--args_file", type=str_to_optional_str, default=None,
 						help="Filepath to args file. Values in this JSON will overwrite other options in terminal.")
 
+	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
+						help="Use RampUp or not for lambda_u and lambda_u1 hyperparameters.")
+	parser.add_argument("--use_alignment", type=str_to_bool, default=False,
+						help="Use distribution alignment with FixMatch predictions.")
+
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
 	parser.add_argument("--from_disk", type=str_to_bool, default=True,
 						help="Select False if you want ot load all data into RAM. "
@@ -115,11 +120,6 @@ def create_args() -> Namespace:
 	parser.add_argument("--experimental", type=str_to_optional_str, default="",
 						choices=["", "None", "V1", "V2", "V3", "V5"],
 						help="Experimental FixMatch mode.")
-
-	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
-						help="Use RampUp or not for lambda_u FixMatch loss hyperparameter.")
-	parser.add_argument("--use_alignment", type=str_to_bool, default=False,
-						help="Use distribution alignment with FixMatch predictions.")
 
 	parser.add_argument("--checkpoint_metric_name", type=str, default="fscore_weak",
 						choices=["fscore_weak", "fscore_strong", "acc_weak", "acc_strong"],
@@ -293,7 +293,8 @@ def main():
 			scheduler = None
 
 		if args.use_rampup:
-			rampup_lambda_u = RampUp(args.lambda_u, args.nb_epochs * len(loader_train_u_augms_weak_strong))
+			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strong)
+			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
 		else:
 			rampup_lambda_u = None
 
@@ -374,7 +375,7 @@ def main():
 			args.nb_augms, args.sharpen_temp, args.mixup_alpha, args.sharpen_threshold_multihot
 		)
 		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
-		lambda_u_rampup = RampUp(args.lambda_u, nb_rampup_steps)
+		lambda_u_rampup = RampUp(nb_rampup_steps, args.lambda_u)
 
 		if args.write_results:
 			writer = build_writer(args, suffix="%s_%.2f_%s" % (suffix_loc, args.lambda_u, args.suffix))

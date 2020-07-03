@@ -1,3 +1,5 @@
+from typing import Optional
+
 
 class RampUp:
 	"""
@@ -6,9 +8,9 @@ class RampUp:
 		Linearly increase a value from "min_value" to "max_value" each time the method "step()" is called.
 		Access the current value with property "value".
 	"""
-	def __init__(self, max_value: float, nb_steps: int, min_value: float = 0.0):
-		self.max_value = max_value
+	def __init__(self, nb_steps: int, max_value: Optional[float] = None, min_value: float = 0.0):
 		self.nb_steps = nb_steps
+		self.max_value = max_value
 		self.min_value = min_value
 
 		self.cur_step = 0

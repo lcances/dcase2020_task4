@@ -112,6 +112,9 @@ def create_args() -> Namespace:
 	parser.add_argument("--args_file", type=str_to_optional_str, default=None,
 						help="Filepath to args file. Values in this JSON will overwrite other options in terminal.")
 
+	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
+						help="Use RampUp or not for lambda_u and lambda_u1 hyperparameters.")
+
 	parser.add_argument("--from_disk", type=str_to_bool, default=True,
 						help="Select False if you want ot load all data into RAM.")
 	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy",
@@ -280,6 +283,12 @@ def main():
 		else:
 			raise RuntimeError("Unknown experimental mode %s" % str(args.experimental))
 
+		if args.use_rampup:
+			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strong)
+			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
+		else:
+			rampup_lambda_u = None
+
 		if args.write_results:
 			writer = build_writer(args, suffix="%s_%d_%d_%s_%.2f_%s" % (
 				suffix_tag, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.lambda_u, args.suffix))
@@ -289,7 +298,7 @@ def main():
 		if args.experimental.lower() != "v4":
 			trainer = FixMatchTrainer(
 				model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-				criterion, writer, args.mode, args.threshold_multihot
+				criterion, writer, args.mode, rampup_lambda_u, args.threshold_multihot
 			)
 		else:
 			trainer = FixMatchTrainerV4(
@@ -335,7 +344,7 @@ def main():
 		sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
 
 		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
-		rampup_lambda_u = RampUp(args.lambda_u, nb_rampup_steps)
+		rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
 
 		if args.write_results:
 			writer = build_writer(args, suffix="%s_%d_%d_%s_%.2f_%s" % (
@@ -392,7 +401,13 @@ def main():
 
 		distributions = AvgDistributions.from_edict(args)
 		acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
-		rampup_lambda_u = None
+		if args.use_rampup:
+			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strongs)
+			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
+			rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1)
+		else:
+			rampup_lambda_u = None
+			rampup_lambda_u1 = None
 
 		if args.write_results:
 			writer = build_writer(args, suffix="%s_%d_%d_%.2f_%.2f_%.2f_%s" % (
@@ -403,7 +418,7 @@ def main():
 		trainer = ReMixMatchTrainer(
 			model, acti_fn, acti_rot_fn, optim, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs,
 			metrics_s, metrics_u, metrics_u1, metrics_r,
-			criterion, writer, mixer, distributions, rot_angles, sharpen_fn, rampup_lambda_u
+			criterion, writer, mixer, distributions, rot_angles, sharpen_fn, rampup_lambda_u, rampup_lambda_u1
 		)
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer
