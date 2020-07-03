@@ -29,6 +29,13 @@ class MetricsRecorderABC:
 		""" Print current metrics means stored. """
 		raise NotImplementedError("Abstract method")
 
+	def update_min_max(self):
+		"""
+			Update min and max with the current mean of the epoch.
+			Should be called after the validation loop but before calling get_min() or get_max().
+		"""
+		raise NotImplementedError("Abstract method")
+
 	def store_in_writer(self, writer: SummaryWriter, epoch: int):
 		""" Store current metrics means in tensorboard SummaryWriter. """
 		raise NotImplementedError("Abstract method")
@@ -65,13 +72,11 @@ class MetricsRecorder(MetricsRecorderABC):
 
 		self.mins = {k: np.inf for k in self.keys}
 		self.maxs = {k: -np.inf for k in self.keys}
-		self.can_update_min_max = False
 
 		if len(set(keys)) != len(keys):
 			raise RuntimeError("Duplicate found for metrics names : %s" % " ".join(keys))
 
 	def add_value(self, name: str, value: float):
-		self.can_update_min_max = True
 		if name not in self.data.keys():
 			if self.accept_unknown_metrics:
 				self.keys.append(name)
@@ -88,20 +93,30 @@ class MetricsRecorder(MetricsRecorderABC):
 					_mean = metric(pred, label)
 					self.add_value(metric_name, metric.value.item())
 
-	def reset_epoch(self):
+	def reset_epoch(self, print_header: bool = True):
 		self.data = {k: [] for k in self.keys}
-		self.can_update_min_max = False
 		self.start = time()
-		self._print_header()
+
+		if print_header:
+			self._print_header()
 
 	def print_metrics(self, epoch: int, i: int, len_: int):
 		percent = int(100 * (i + 1) / len_)
 
 		content = ["Epoch {:3d} - {:3d}%".format(epoch + 1, percent)]
-		content += [("{:.4e}".format(self.get_mean(name)).center(KEY_MAX_LENGTH)) for name in sorted(self.data.keys())]
+		content += [("{:.4e}".format(self.get_mean_epoch(name)).center(KEY_MAX_LENGTH)) for name in sorted(self.data.keys())]
 		content += ["{:.2f}".format(time() - self.start).center(KEY_MAX_LENGTH)]
 
 		print("- {:s} -".format(" - ".join(content)), end="\r")
+
+	def update_min_max(self):
+		for key in self.keys:
+			if len(self.data[key]) > 0:
+				mean_ = self.get_mean_epoch(key)
+				if mean_ > self.maxs[key]:
+					self.maxs[key] = mean_
+				if mean_ < self.mins[key]:
+					self.mins[key] = mean_
 
 	def store_in_writer(self, writer: SummaryWriter, epoch: int):
 		for metric_name, values in self.data.items():
@@ -110,20 +125,16 @@ class MetricsRecorder(MetricsRecorderABC):
 	def get_keys(self) -> List[str]:
 		return self.keys
 
-	def get_mean(self, name: str) -> float:
+	def get_mean_epoch(self, name: str) -> float:
 		return float(np.mean(self.data[name]))
 
-	def get_std(self, name: str) -> float:
+	def get_std_epoch(self, name: str) -> float:
 		return float(np.std(self.data[name]))
 
 	def get_min(self, name: str) -> float:
-		if self.can_update_min_max:
-			self._update_min_max()
 		return self.mins[name]
 
 	def get_max(self, name: str) -> float:
-		if self.can_update_min_max:
-			self._update_min_max()
 		return self.maxs[name]
 
 	def _print_header(self):
@@ -139,16 +150,6 @@ class MetricsRecorder(MetricsRecorderABC):
 
 		print("\n- {:s} -".format(" - ".join(content)))
 
-	def _update_min_max(self):
-		for key in self.keys:
-			if len(self.data[key]) > 0:
-				mean_ = self.get_mean(key)
-				if mean_ > self.maxs[key]:
-					self.maxs[key] = mean_
-				if mean_ < self.mins[key]:
-					self.mins[key] = mean_
-		self.can_update_min_max = False
-
 	def _old_print_metrics(self, epoch: int, i: int, len_: int):
 		""" Unused method. """
 		
@@ -160,3 +161,36 @@ class MetricsRecorder(MetricsRecorderABC):
 			int(100 * (i + 1) / len_),
 			" - ".join(content)
 		), end="\r")
+
+
+def test():
+	recorder = MetricsRecorder("", ["a", "b"])
+	recorder.add_value("a", 1)
+	recorder.add_value("a", 3)
+	recorder.add_value("b", 20)
+	recorder.add_value("b", 30)
+
+	recorder.update_min_max()
+	print("a Max = ", recorder.get_max("a"))
+	print("b Max = ", recorder.get_max("b"))
+	if recorder.get_max("a") != 2.0:
+		raise RuntimeError("Test unit error")
+	if recorder.get_max("b") != 25.0:
+		raise RuntimeError("Test unit error")
+
+	recorder.reset_epoch(False)
+	recorder.add_value("a", 10)
+	recorder.add_value("a", 20)
+	recorder.add_value("b", 20)
+
+	recorder.update_min_max()
+	print("a Max = ", recorder.get_max("a"))
+	print("b Max = ", recorder.get_max("b"))
+	if recorder.get_max("a") != 15.0:
+		raise RuntimeError("Test unit error")
+	if recorder.get_max("b") != 25.0:
+		raise RuntimeError("Test unit error")
+
+
+if __name__ == "__main__":
+	test()

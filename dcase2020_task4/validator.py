@@ -3,11 +3,12 @@ import torch
 from torch.nn import Module
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, Dict, List
+from typing import Callable, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.metrics_recorder import MetricsRecorder
+from dcase2020_task4.metrics_recorder import MetricsRecorder, MetricsRecorderABC
+from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.validator_abc import ValidatorABC
 
 
@@ -18,13 +19,18 @@ class DefaultValidator(ValidatorABC):
 		acti_fn: Callable,
 		loader: DataLoader,
 		metrics: Dict[str, Metrics],
-		writer: SummaryWriter
+		writer: SummaryWriter,
+		checkpoint: Optional[CheckPoint] = None,
+		checkpoint_metric_key: Optional[str] = None,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.loader = loader
 		self.metrics = metrics
 		self.writer = writer
+		self.checkpoint = checkpoint
+		self.checkpoint_metric_key = checkpoint_metric_key
+
 		self.metrics_recorder = MetricsRecorder(
 			"val/",
 			list(self.metrics.keys())
@@ -55,7 +61,12 @@ class DefaultValidator(ValidatorABC):
 
 			print("")
 
+			if self.checkpoint is not None:
+				checkpoint_metric_mean = self.metrics_recorder.get_mean_epoch(self.checkpoint_metric_key)
+				self.checkpoint.step(checkpoint_metric_mean)
+
 			if self.writer is not None:
+				self.metrics_recorder.update_min_max()
 				self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 				for name in self.metrics.keys():
@@ -68,5 +79,5 @@ class DefaultValidator(ValidatorABC):
 	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
 		return [self.metrics]
 
-	def get_metrics_recorder(self) -> MetricsRecorder:
+	def get_metrics_recorder(self) -> MetricsRecorderABC:
 		return self.metrics_recorder

@@ -1,3 +1,4 @@
+import json
 import os.path as osp
 import torch
 
@@ -8,6 +9,8 @@ from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
 from typing import List, Union
+
+from dcase2020_task4.validator_abc import ValidatorABC
 
 
 def normalized(batch: Tensor, dim: int) -> Tensor:
@@ -79,6 +82,24 @@ def build_writer(args: Namespace, suffix: str = "") -> SummaryWriter:
 	dirpath = osp.join(args.logdir, dirname)
 	writer = SummaryWriter(log_dir=dirpath, comment=args.train_name)
 	return writer
+
+
+def save_writer(writer: SummaryWriter, args: Namespace, validator: ValidatorABC):
+	with open(osp.join(writer.log_dir, "args.json"), "w") as file:
+		json.dump(args.__dict__, file, indent="\t")
+
+	keys = []
+	metrics_recorder = validator.get_metrics_recorder()
+	for metrics in validator.get_all_metrics():
+		keys += list(metrics.keys())
+	metric_dict = {}
+	metric_dict.update(
+		{"val_max/%s" % name: metrics_recorder.get_max(name) for name in keys})
+	metric_dict.update(
+		{"val_min/%s" % name: metrics_recorder.get_min(name) for name in keys})
+
+	writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict=metric_dict)
+	writer.close()
 
 
 def multi_hot(labels_nums: List[List[int]], nb_classes: int) -> Tensor:

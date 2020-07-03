@@ -55,7 +55,7 @@ from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, EqConfi
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str
 from dcase2020_task4.util.utils import reset_seed, get_datetime
-from dcase2020_task4.util.utils_match import build_writer, filter_hparams, get_nb_parameters
+from dcase2020_task4.util.utils_match import build_writer, save_writer, get_nb_parameters
 
 from dcase2020_task4.validator_loc import DefaultValidatorLoc
 from dcase2020_task4.other_models.weak_baseline_rot import WeakStrongBaselineRot
@@ -342,11 +342,7 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args.__dict__, file, indent="\t")
-			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
-			writer.flush()
-			writer.close()
+			save_writer(writer, args, validator)
 
 	if "mm" in args.run or "mixmatch" in args.run:
 		args.train_name = "MixMatch"
@@ -400,11 +396,7 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args.__dict__, file, indent="\t")
-			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
-			writer.flush()
-			writer.close()
+			save_writer(writer, args, validator)
 
 	if "su" in args.run or "supervised" in args.run:
 		args.train_name = "Supervised"
@@ -439,11 +431,7 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-				json.dump(args.__dict__, file, indent="\t")
-			writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
-			writer.flush()
-			writer.close()
+			save_writer(writer, args, validator)
 
 	exec_time = time() - start_time
 	print("")

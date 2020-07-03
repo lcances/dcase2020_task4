@@ -7,7 +7,7 @@ from typing import Callable, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.metrics_recorder import MetricsRecorder
+from dcase2020_task4.metrics_recorder import MetricsRecorder, MetricsRecorderABC
 from dcase2020_task4.validator_abc import ValidatorABC
 from dcase2020_task4.util.checkpoint import CheckPoint
 
@@ -68,9 +68,11 @@ class DefaultValidatorLoc(ValidatorABC):
 			print("")
 
 			if self.checkpoint is not None:
-				self.checkpoint.step(self.metrics_recorder.get_mean(self.checkpoint_metric_key))
+				checkpoint_metric_mean = self.metrics_recorder.get_mean_epoch(self.checkpoint_metric_key)
+				self.checkpoint.step(checkpoint_metric_mean)
 
 			if self.writer is not None:
+				self.metrics_recorder.update_min_max()
 				self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 				for name in (list(self.metrics_weak.keys()) + list(self.metrics_strong.keys())):
@@ -83,5 +85,5 @@ class DefaultValidatorLoc(ValidatorABC):
 	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
 		return [self.metrics_weak, self.metrics_strong]
 
-	def get_metrics_recorder(self) -> MetricsRecorder:
+	def get_metrics_recorder(self) -> MetricsRecorderABC:
 		return self.metrics_recorder
