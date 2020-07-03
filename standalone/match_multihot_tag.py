@@ -352,7 +352,7 @@ def main():
 		if args.use_sharpen_multihot:
 			sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
 		else:
-			sharpen_fn = lambda x: x
+			sharpen_fn = lambda x, dim: x
 
 		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
 		rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
@@ -409,7 +409,7 @@ def main():
 		if args.use_sharpen_multihot:
 			sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
 		else:
-			sharpen_fn = lambda x: x
+			sharpen_fn = lambda x, dim: x
 
 		distributions = AvgDistributions.from_edict(args)
 		acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
