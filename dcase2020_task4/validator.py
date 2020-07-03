@@ -36,7 +36,7 @@ class DefaultValidator(ValidatorABC):
 			list(self.metrics.keys())
 		)
 
-		if (checkpoint is None) != (checkpoint_metric_key is None):
+		if checkpoint is not None and checkpoint_metric_key is None:
 			raise RuntimeError("If checkpoint is provided, a metric name must be used for saving best model.")
 
 	def val(self, epoch: int):
