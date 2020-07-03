@@ -26,7 +26,11 @@ class MetricsRecorderABC:
 		raise NotImplementedError("Abstract method")
 
 	def print_metrics(self, epoch: int, i: int, len_: int):
-		""" Print current metrics means stored. """
+		""" Print current epoch metrics means stored. """
+		raise NotImplementedError("Abstract method")
+
+	def print_min_max(self):
+		""" Print min and max metrics stored. """
 		raise NotImplementedError("Abstract method")
 
 	def update_min_max(self):
@@ -107,6 +111,17 @@ class MetricsRecorder(MetricsRecorderABC):
 		content += [("{:.4e}".format(self.get_mean_epoch(name)).center(KEY_MAX_LENGTH)) for name in sorted(self.data.keys())]
 		content += ["{:.2f}".format(time() - self.start).center(KEY_MAX_LENGTH)]
 
+		print("- {:s} -".format(" - ".join(content)), end="\r")
+
+	def print_min_max(self):
+		self._print_header()
+
+		content = ["{:s}".format("Min".center(16))]
+		content += [("{:.4e}".format(self.get_min(name)).center(KEY_MAX_LENGTH)) for name in sorted(self.data.keys())]
+		print("- {:s} -".format(" - ".join(content)), end="\r")
+
+		content = ["{:s}".format("Max".center(16))]
+		content += [("{:.4e}".format(self.get_max(name)).center(KEY_MAX_LENGTH)) for name in sorted(self.data.keys())]
 		print("- {:s} -".format(" - ".join(content)), end="\r")
 
 	def update_min_max(self):

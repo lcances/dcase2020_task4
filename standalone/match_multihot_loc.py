@@ -53,7 +53,7 @@ from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
 from dcase2020_task4.util.ramp_up import RampUp
-from dcase2020_task4.util.types import str_to_bool, str_to_optional_str
+from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_match import build_writer, save_writer, get_nb_parameters
 
@@ -110,6 +110,9 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
 						help="Use RampUp or not for lambda_u and lambda_u1 hyperparameters.")
+	parser.add_argument("--nb_rampup_epochs", type=str_to_union_str_int, default="nb_epochs",
+						help="Nb of epochs when lambda_u and lambda_u1 is increase from 0 to their value."
+							 "Use 0 for deactivate RampUp. Use \"nb_epochs\" for ramping up during all training.")
 	parser.add_argument("--use_alignment", type=str_to_bool, default=False,
 						help="Use distribution alignment with FixMatch predictions.")
 
@@ -173,7 +176,10 @@ def main():
 	if args.args_file is not None:
 		args_dict = json.load(open(args.args.file, "r"))
 		args.__dict__.update(args_dict)
+		args.begin_date = start_date()
 	check_args(args)
+	if args.nb_rampup_epochs == "nb_epochs":
+		args.nb_rampup_epochs = args.nb_epochs
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)

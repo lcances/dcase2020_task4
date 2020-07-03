@@ -58,7 +58,7 @@ from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, CategoricalAccuracyOnehot, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import SharpenMulti
-from dcase2020_task4.util.types import str_to_bool, str_to_optional_str
+from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_match import build_writer, get_nb_parameters, save_writer
 
@@ -70,7 +70,8 @@ from metric_utils.metrics import FScore
 
 def create_args() -> Namespace:
 	parser = ArgumentParser()
-	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch"])
+	parser.add_argument("--run", type=str, default="fixmatch", required=True,
+						choices=["fm", "fixmatch", "mm", "mixmatch", "rmm", "remixmatch", "supervised", "su"])
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--debug_mode", type=str_to_bool, default=False)
 	parser.add_argument("--begin_date", type=str, default=get_datetime(),
@@ -116,6 +117,9 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
 						help="Use RampUp or not for lambda_u and lambda_u1 hyperparameters.")
+	parser.add_argument("--nb_rampup_epochs", type=str_to_union_str_int, default="nb_epochs",
+						help="Nb of epochs when lambda_u and lambda_u1 is increase from 0 to their value."
+							 "Use 0 for deactivate RampUp. Use \"nb_epochs\" for ramping up during all training.")
 	parser.add_argument("--use_sharpen_multihot", type=str_to_bool, default=False,
 						help="Use experimental multi-hot sharpening or not for MixMatch and ReMixMatch.")
 
@@ -178,7 +182,10 @@ def main():
 	if args.args_file is not None:
 		args_dict = json.load(open(args.args.file, "r"))
 		args.__dict__.update(args_dict)
+		args.begin_date = start_date()
 	check_args(args)
+	if args.nb_rampup_epochs == "nb_epochs":
+		args.nb_rampup_epochs = args.nb_epochs
 
 	print("Start match_multihot (%s)." % args.suffix)
 	print("- run:", " ".join(args.run))
@@ -255,7 +262,7 @@ def main():
 
 	suffix_tag = "TAG"
 
-	if "fm" in args.run or "fixmatch" in args.run:
+	if "fm" == args.run or "fixmatch" == args.run:
 		args.train_name = "FixMatch"
 		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_weak = FnDataset(dataset_train_s_augm_weak, get_batch_label)
@@ -292,7 +299,7 @@ def main():
 			raise RuntimeError("Unknown experimental mode %s" % str(args.experimental))
 
 		if args.use_rampup:
-			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strong)
+			nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms_weak_strong)
 			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
 		else:
 			rampup_lambda_u = None
@@ -323,7 +330,7 @@ def main():
 		if writer is not None:
 			save_writer(writer, args, validator)
 
-	if "mm" in args.run or "mixmatch" in args.run:
+	elif "mm" == args.run or "mixmatch" == args.run:
 		args.train_name = "MixMatch"
 		dataset_train_s_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm = FnDataset(dataset_train_s_augm, get_batch_label)
@@ -356,7 +363,7 @@ def main():
 		else:
 			sharpen_fn = lambda x, dim: x
 
-		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
+		nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms)
 		rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
 
 		if args.write_results:
@@ -378,7 +385,7 @@ def main():
 		if writer is not None:
 			save_writer(writer, args, validator)
 
-	if "rmm" in args.run or "remixmatch" in args.run:
+	elif "rmm" == args.run or "remixmatch" == args.run:
 		args.train_name = "ReMixMatch"
 		dataset_train_s_augm_strong = DESEDDataset(augments=[augm_strong_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_strong = FnDataset(dataset_train_s_augm_strong, get_batch_label)
@@ -416,7 +423,7 @@ def main():
 		distributions = AvgDistributions.from_edict(args)
 		acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
 		if args.use_rampup:
-			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strongs)
+			nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms_weak_strongs)
 			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
 			rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1)
 		else:
@@ -443,7 +450,7 @@ def main():
 		if writer is not None:
 			save_writer(writer, args, validator)
 
-	if "su" in args.run or "supervised" in args.run:
+	elif "su" == args.run or "supervised" == args.run:
 		args.train_name = "Supervised"
 		dataset_train_s = DESEDDataset(**args_dataset_train_s)
 		dataset_train_s = FnDataset(dataset_train_s, get_batch_label)
@@ -473,6 +480,11 @@ def main():
 
 		if writer is not None:
 			save_writer(writer, args, validator)
+
+	else:
+		raise RuntimeError("Unknown run %s" % args.run)
+
+	validator.get_metrics_recorder().print_min_max()
 
 	exec_time = time() - start_time
 	print("")
@@ -528,7 +540,7 @@ def get_desed_augms() -> (Callable, Callable, Callable):
 			RandomTimeDropout(ratio, dropout=0.5),
 		]),
 	])
-	ratio = 0.5
+	ratio = 0.25
 	augm_fn = RandomChoice([
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),

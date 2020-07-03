@@ -65,8 +65,8 @@ class DefaultValidator(ValidatorABC):
 				checkpoint_metric_mean = self.metrics_recorder.get_mean_epoch(self.checkpoint_metric_key)
 				self.checkpoint.step(checkpoint_metric_mean)
 
+			self.metrics_recorder.update_min_max()
 			if self.writer is not None:
-				self.metrics_recorder.update_min_max()
 				self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 				for name in self.metrics.keys():
