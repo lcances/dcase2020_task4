@@ -16,10 +16,6 @@ class MixMatchMixer(Callable):
 	def __init__(self, mixup_mixer: MixUpMixerTagABC):
 		self.mixup_mixer = mixup_mixer
 
-	@staticmethod
-	def from_edict(hparams) -> 'MixMatchMixer':
-		return MixMatchMixer(MixUpMixerTag(alpha=hparams.mixup_alpha, apply_max=True))
-
 	def __call__(
 		self, s_batch_augm: Tensor, s_label: Tensor, u_batch_augms: Tensor, u_label_guessed: Tensor
 	) -> (Tensor, Tensor, Tensor, Tensor):

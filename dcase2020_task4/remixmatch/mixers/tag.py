@@ -2,13 +2,13 @@ import torch
 from torch import Tensor
 from typing import Callable
 
-from dcase2020_task4.mixup.mixers.tag import MixUpMixerTag
+from dcase2020_task4.mixup.mixers.abc import MixUpMixerTagABC
 from dcase2020_task4.util.utils_match import same_shuffle, merge_first_dimension
 
 
 class ReMixMatchMixer(Callable):
-	def __init__(self, mixup_alpha: float = 0.75):
-		self.mixup_mixer = MixUpMixerTag(alpha=mixup_alpha, apply_max=True)
+	def __init__(self, mixup_mixer: MixUpMixerTagABC):
+		self.mixup_mixer = mixup_mixer
 
 	def __call__(
 		self,

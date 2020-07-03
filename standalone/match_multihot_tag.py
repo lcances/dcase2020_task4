@@ -40,8 +40,9 @@ from dcase2020_task4.other_models.weak_baseline_rot import WeakBaselineRot
 
 from dcase2020_task4.mixmatch.losses.multihot import MixMatchLossMultiHot
 from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
-from dcase2020_task4.mixup.mixers.tag_v2 import MixUpMixerTagV2
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
+from dcase2020_task4.mixup.mixers.tag import MixUpMixerTag
+from dcase2020_task4.mixup.mixers.tag_v2 import MixUpMixerTagV2
 
 from dcase2020_task4.remixmatch.losses.multihot import ReMixMatchLossMultiHot
 from dcase2020_task4.remixmatch.mixers.tag import ReMixMatchMixer
@@ -115,7 +116,8 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
 						help="Use RampUp or not for lambda_u and lambda_u1 hyperparameters.")
-	parser.add_argument("--nb_rampup_steps")
+	parser.add_argument("--use_sharpen_multihot", type=str_to_bool, default=False,
+						help="Use experimental multi-hot sharpening or not for MixMatch and ReMixMatch.")
 
 	parser.add_argument("--from_disk", type=str_to_bool, default=True,
 						help="Select False if you want ot load all data into RAM.")
@@ -148,6 +150,8 @@ def create_args() -> Namespace:
 						help="MixMatch and ReMixMatch hyperparameter \"temperature\" used by sharpening.")
 	parser.add_argument("--mixup_alpha", type=float, default=0.75,
 						help="MixMatch and ReMixMatch hyperparameter \"alpha\" used by MixUp.")
+	parser.add_argument("--mixup_distribution_name", type=str, default="beta",
+						choices=["beta", "uniform", "constant"])
 
 	parser.add_argument("--experimental", type=str_to_optional_str, default="",
 						choices=["", "None", "V1", "V2", "V3", "V4"])
@@ -214,14 +218,14 @@ def main():
 		"u1_acc_weak": BinaryConfidenceAccuracy(args.confidence)
 	}
 	metrics_r = {
-		"r_acc": CategoricalAccuracyOnehot()
+		"r_acc": CategoricalAccuracyOnehot(dim=1)
 	}
 	metrics_val = {
 		"acc_weak": BinaryConfidenceAccuracy(args.confidence),
 		"bce_weak": FnMetric(BCELoss(reduction="mean")),
-		"eq_weak": EqConfidenceMetric(args.confidence),
-		"mean_weak": MeanMetric(),
-		"max_weak": MaxMetric(),
+		"eq_weak": EqConfidenceMetric(args.confidence, dim=1),
+		"mean_weak": MeanMetric(dim=1),
+		"max_weak": MaxMetric(dim=1),
 		"fscore_weak": FScore(),
 	}
 
@@ -340,10 +344,15 @@ def main():
 
 		criterion = MixMatchLossMultiHot.from_edict(args)
 		if args.experimental.lower() == "v2":
-			mixer = MixMatchMixer(MixUpMixerTagV2(args.mixup_alpha))
+			mixup_mixer = MixUpMixerTagV2.from_edict(args)
 		else:
-			mixer = MixMatchMixer.from_edict(args)
-		sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
+			mixup_mixer = MixUpMixerTag.from_edict(args)
+		mixer = MixMatchMixer(mixup_mixer)
+
+		if args.use_sharpen_multihot:
+			sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
+		else:
+			sharpen_fn = lambda x: x
 
 		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
 		rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
@@ -395,8 +404,12 @@ def main():
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
 		criterion = ReMixMatchLossMultiHot.from_edict(args)
-		mixer = ReMixMatchMixer(args.mixup_alpha)
-		sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
+		mixup_mixer = MixUpMixerTag.from_edict(args)
+		mixer = ReMixMatchMixer(mixup_mixer)
+		if args.use_sharpen_multihot:
+			sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
+		else:
+			sharpen_fn = lambda x: x
 
 		distributions = AvgDistributions.from_edict(args)
 		acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
@@ -492,33 +505,34 @@ def get_desed_managers(args) -> (DESEDManager, DESEDManager):
 
 def get_desed_augms() -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	ratio = 0.1
+	ratio = 0.5
 	augm_weak_fn = RandomChoice([
 		TimeStretch(ratio),
-		PitchShiftRandom(ratio),
-		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=15.0),
-		Noise2(ratio, noise_factor=(10.0, 10.0)),
-		RandomFreqDropout(ratio, dropout=0.5),
-		RandomTimeDropout(ratio, dropout=0.5),
+		PitchShiftRandom(ratio, steps=(-1, 1)),
+		Noise(ratio=ratio, snr=5.0),
+		Noise2(ratio, noise_factor=(5.0, 5.0)),
 	])
-	ratio = 0.5
+	ratio = 1.0
 	augm_strong_fn = Compose([
-		TimeStretch(ratio),
-		PitchShiftRandom(ratio),
-		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=15.0),
-		Noise2(ratio, noise_factor=(10.0, 10.0)),
-		RandomFreqDropout(ratio, dropout=0.5),
-		RandomTimeDropout(ratio, dropout=0.5),
+		RandomChoice([
+			TimeStretch(ratio),
+			PitchShiftRandom(ratio),
+			Noise(ratio=ratio, snr=15.0),
+			Noise2(ratio, noise_factor=(10.0, 10.0)),
+		]),
+		RandomChoice([
+			Occlusion(ratio, max_size=1.0),
+			RandomFreqDropout(ratio, dropout=0.5),
+			RandomTimeDropout(ratio, dropout=0.5),
+		]),
 	])
 	ratio = 0.5
 	augm_fn = RandomChoice([
 		TimeStretch(ratio),
 		PitchShiftRandom(ratio),
 		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=15.0),
-		Noise2(ratio, noise_factor=(10.0, 10.0)),
+		Noise(ratio=ratio, snr=5.0),
+		Noise2(ratio, noise_factor=(5.0, 5.0)),
 		RandomFreqDropout(ratio, dropout=0.5),
 		RandomTimeDropout(ratio, dropout=0.5),
 	])

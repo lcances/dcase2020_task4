@@ -19,6 +19,14 @@ class MixUpMixerTag(MixUpMixerTagABC):
 		else:
 			raise RuntimeError("Unknown distribution name %s" % distribution)
 
+	@staticmethod
+	def from_edict(hparams) -> 'MixUpMixerTag':
+		return MixUpMixerTag(hparams.mixup_alpha, True, hparams.mixup_distribution_name)
+
+	@staticmethod
+	def default() -> 'MixUpMixerTag':
+		return MixUpMixerTag()
+
 	def __call__(self, batch_1: Tensor, labels_1: Tensor, batch_2: Tensor, labels_2: Tensor) -> (Tensor, Tensor):
 		return self.mix(batch_1, labels_1, batch_2, labels_2)
 

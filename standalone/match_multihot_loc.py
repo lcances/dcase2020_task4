@@ -228,17 +228,17 @@ def main():
 	metrics_val_weak = {
 		"acc_weak": BinaryConfidenceAccuracy(args.confidence),
 		"bce_weak": FnMetric(binary_cross_entropy),
-		"eq_weak": EqConfidenceMetric(args.confidence),
-		"mean_weak": MeanMetric(),
-		"max_weak": MaxMetric(),
+		"eq_weak": EqConfidenceMetric(args.confidence, dim=1),
+		"mean_weak": MeanMetric(dim=1),
+		"max_weak": MaxMetric(dim=1),
 		"fscore_weak": FScore(),
 	}
 	metrics_val_strong = {
 		"acc_strong": BinaryConfidenceAccuracy(args.confidence),
 		"bce_strong": FnMetric(binary_cross_entropy),
-		"eq_strong": EqConfidenceMetric(args.confidence),
-		"mean_strong": MeanMetric(),
-		"max_strong": MaxMetric(),
+		"eq_strong": EqConfidenceMetric(args.confidence, dim=(1, 2)),
+		"mean_strong": MeanMetric(dim=2),
+		"max_strong": MaxMetric(dim=2),
 		"fscore_strong": FScore(),
 	}
 

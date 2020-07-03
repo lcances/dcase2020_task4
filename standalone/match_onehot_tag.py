@@ -38,6 +38,8 @@ from dcase2020_task4.mixmatch.losses.onehot import MixMatchLossOneHot
 from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 
+from dcase2020_task4.mixup.mixers.tag import MixUpMixerTag
+
 from dcase2020_task4.other_models.resnet import ResNet18
 from dcase2020_task4.other_models.UBS8KBaseline import UBS8KBaseline
 from dcase2020_task4.other_models.vgg import VGG
@@ -198,22 +200,22 @@ def main():
 	torch.autograd.set_detect_anomaly(args.debug_mode)
 
 	metrics_s = {
-		"s_acc": CategoricalAccuracyOnehot(),
+		"s_acc": CategoricalAccuracyOnehot(dim=1),
 	}
 	metrics_u = {
-		"u_acc": CategoricalAccuracyOnehot(),
+		"u_acc": CategoricalAccuracyOnehot(dim=1),
 	}
 	metrics_u1 = {
-		"u1_acc": CategoricalAccuracyOnehot(),
+		"u1_acc": CategoricalAccuracyOnehot(dim=1),
 	}
 	metrics_r = {
-		"r_acc": CategoricalAccuracyOnehot(),
+		"r_acc": CategoricalAccuracyOnehot(dim=1),
 	}
 	metrics_val = {
-		"acc": CategoricalAccuracyOnehot(),
+		"acc": CategoricalAccuracyOnehot(dim=1),
 		"ce": FnMetric(cross_entropy),
-		"eq": EqConfidenceMetric(args.confidence),
-		"max": MaxMetric(),
+		"eq": EqConfidenceMetric(args.confidence, dim=1),
+		"max": MaxMetric(dim=1),
 	}
 
 	def model_factory() -> Module:
@@ -343,7 +345,8 @@ def main():
 			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
 			criterion = MixMatchLossOneHot.from_edict(args)
-			mixer = MixMatchMixer(args.mixup_alpha)
+			mixup_mixer = MixUpMixerTag.from_edict(args)
+			mixer = MixMatchMixer(mixup_mixer)
 			sharpen_fn = Sharpen(args.sharpen_temperature)
 
 			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
@@ -394,7 +397,8 @@ def main():
 			rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
 
 			criterion = ReMixMatchLossOneHot.from_edict(args)
-			mixer = ReMixMatchMixer(args.mixup_alpha)
+			mixup_mixer = MixUpMixerTag.from_edict(args)
+			mixer = ReMixMatchMixer(mixup_mixer)
 			sharpen_fn = Sharpen(args.sharpen_temperature)
 
 			distributions = AvgDistributions.from_edict(args)

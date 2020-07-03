@@ -1,20 +1,22 @@
 import torch
 
 from torch import Tensor
-from typing import Callable
+from typing import Callable, Tuple, Union
+
 from metric_utils.metrics import CategoricalAccuracy, Metrics
 
 
 class CategoricalAccuracyOnehot(CategoricalAccuracy):
 	""" Just Categorical Accuracy with a binarization with threshold. """
 
-	def __init__(self, epsilon: float = 1e-10):
+	def __init__(self, dim: int, epsilon: float = 1e-10):
 		super().__init__(epsilon)
+		self.dim = dim
 
 	def __call__(self, pred: Tensor, labels: Tensor) -> Tensor:
 		with torch.no_grad():
-			y_pred = pred.argmax(dim=1)
-			y_true = labels.argmax(dim=1)
+			y_pred = pred.argmax(dim=self.dim)
+			y_true = labels.argmax(dim=self.dim)
 			return super().__call__(y_pred, y_true)
 
 
@@ -34,19 +36,20 @@ class FnMetric(Metrics):
 
 
 class MaxMetric(FnMetric):
-	def __init__(self):
-		super().__init__(lambda y_pred, y_true: y_pred.max(dim=1)[0])
+	def __init__(self, dim: int):
+		super().__init__(lambda y_pred, y_true: y_pred.max(dim=dim)[0])
 
 
 class MeanMetric(FnMetric):
-	def __init__(self):
-		super().__init__(lambda y_pred, y_true: y_pred.mean(dim=1))
+	def __init__(self, dim: int):
+		super().__init__(lambda y_pred, y_true: y_pred.mean(dim=dim))
 
 
 class EqConfidenceMetric(Metrics):
-	def __init__(self, confidence: float, epsilon: float = 1e-10):
+	def __init__(self, confidence: float, dim: Union[int, Tuple[int, int]], epsilon: float = 1e-10):
 		super().__init__(epsilon)
 		self.confidence = confidence
+		self.dim = dim
 
 	def __call__(self, pred: Tensor, labels: Tensor) -> Tensor:
 		super().__call__(pred, labels)
@@ -55,7 +58,13 @@ class EqConfidenceMetric(Metrics):
 			y_pred = (pred > self.confidence).float()
 			y_true = (labels > self.confidence).float()
 
-			self.value_ = (y_pred == y_true).all(dim=1).float().mean()
+			self.value_ = (y_pred == y_true)
+			if isinstance(self.dim, int):
+				self.value_ = self.value_.all(dim=self.dim)
+			else:
+				for d in sorted(self.dim, reverse=True):
+					self.value_ = self.value_.all(dim=d)
+			self.value_ = self.value_.float().mean()
 			self.accumulate_value += self.value_
 			return self.accumulate_value / self.count
 
@@ -70,37 +79,9 @@ class BinaryConfidenceAccuracy(Metrics):
 
 		with torch.no_grad():
 			y_pred = (y_pred > self.confidence).float()
+			y_true = (y_true > self.confidence).float()
 			correct = (y_pred == y_true).float().sum()
 			self.value_ = correct / torch.prod(torch.as_tensor(y_true.shape))
 
 			self.accumulate_value += self.value_
 			return self.accumulate_value / self.count
-
-
-class BestMetric(Metrics):
-	def __init__(self, metric: Metrics, mode: str = "max"):
-		super().__init__()
-		self.best = torch.as_tensor(0) if mode == "max" else torch.as_tensor(2**20)
-		self.metric = metric
-		self.mode = mode
-
-	def __call__(self, pred: Tensor, label: Tensor) -> Tensor:
-		self.accumulate_value = self.metric.accumulate_value
-		self.count = self.metric.count
-		self._update_best()
-		return self.best
-
-	@property
-	def value(self):
-		return self.best
-
-	def reset(self):
-		super().reset()
-		self._update_best()
-
-	def _update_best(self):
-		mean_ = self.accumulate_value / self.count if self.count != 0 else 0
-		if self.mode == "max" and mean_ > self.best:
-			self.best = mean_
-		elif self.mode == "min" and mean_ < self.best:
-			self.best = mean_

@@ -6,7 +6,8 @@ class RampUp:
 		RampUp class.
 
 		Linearly increase a value from "min_value" to "max_value" each time the method "step()" is called.
-		Access the current value with property "value".
+		Access the current value with method "value()".
+		If nb_steps == 0, the coefficient will be 1.0 and the value will be always the max value expected.
 	"""
 	def __init__(self, nb_steps: int, max_value: Optional[float] = None, min_value: float = 0.0):
 		self.nb_steps = nb_steps
