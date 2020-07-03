@@ -118,11 +118,11 @@ class MetricsRecorder(MetricsRecorderABC):
 
 		content = ["{:s}".format("Min".center(16))]
 		content += [("{:.4e}".format(self.get_min(name)).center(KEY_MAX_LENGTH)) for name in sorted(self.data.keys())]
-		print("- {:s} -".format(" - ".join(content)), end="\r")
+		print("- {:s} -".format(" - ".join(content)))
 
 		content = ["{:s}".format("Max".center(16))]
 		content += [("{:.4e}".format(self.get_max(name)).center(KEY_MAX_LENGTH)) for name in sorted(self.data.keys())]
-		print("- {:s} -".format(" - ".join(content)), end="\r")
+		print("- {:s} -".format(" - ".join(content)))
 
 	def update_min_max(self):
 		for key in self.keys:
