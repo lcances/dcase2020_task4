@@ -65,8 +65,9 @@ from metric_utils.metrics import FScore
 
 def create_args() -> Namespace:
 	parser = ArgumentParser()
-	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch"],
-						help="Options fm = FixMatch, su = Supervised")
+	parser.add_argument("--run", type=str, default="fixmatch", required=True,
+						choices=["fixmatch", "fm", "mixmatch", "mm", "supervised", "su"],
+						help="Training method to run.")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--debug_mode", "--debug", type=str_to_bool, default=False)
 	parser.add_argument("--begin_date", type=str, default=get_datetime(),
@@ -273,7 +274,7 @@ def main():
 
 	suffix_loc = "LOC"
 
-	if "fm" in args.run or "fixmatch" in args.run:
+	if "fm" == args.run or "fixmatch" == args.run:
 		args.train_name = "FixMatch"
 		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_weak = FnDataset(dataset_train_s_augm_weak, get_batch_label)
@@ -350,7 +351,7 @@ def main():
 		if writer is not None:
 			save_writer(writer, args, validator)
 
-	if "mm" in args.run or "mixmatch" in args.run:
+	if "mm" == args.run or "mixmatch" == args.run:
 		args.train_name = "MixMatch"
 		dataset_train_s_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm = FnDataset(dataset_train_s_augm, get_batch_label)
@@ -404,7 +405,7 @@ def main():
 		if writer is not None:
 			save_writer(writer, args, validator)
 
-	if "su" in args.run or "supervised" in args.run:
+	if "su" == args.run or "supervised" == args.run:
 		args.train_name = "Supervised"
 		dataset_train_s = DESEDDataset(**args_dataset_train_s)
 		dataset_train_s = FnDataset(dataset_train_s, get_batch_label)

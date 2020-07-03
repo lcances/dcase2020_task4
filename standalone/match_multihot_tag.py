@@ -51,6 +51,7 @@ from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
+from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
@@ -71,7 +72,8 @@ from metric_utils.metrics import FScore
 def create_args() -> Namespace:
 	parser = ArgumentParser()
 	parser.add_argument("--run", type=str, default="fixmatch", required=True,
-						choices=["fm", "fixmatch", "mm", "mixmatch", "rmm", "remixmatch", "supervised", "su"])
+						choices=["fixmatch", "fm", "mixmatch", "mm", "remixmatch", "rmm", "supervised", "su"],
+						help="Training method to run.")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--debug_mode", type=str_to_bool, default=False)
 	parser.add_argument("--begin_date", type=str, default=get_datetime(),
@@ -123,6 +125,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--use_sharpen_multihot", type=str_to_bool, default=False,
 						help="Use experimental multi-hot sharpening or not for MixMatch and ReMixMatch.")
 
+	parser.add_argument("--path_checkpoint", type=str, default="../models/")
 	parser.add_argument("--from_disk", type=str_to_bool, default=True,
 						help="Select False if you want ot load all data into RAM.")
 	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy",
@@ -172,6 +175,8 @@ def check_args(args: Namespace):
 	if args.write_results:
 		if not osp.isdir(args.logdir):
 			raise RuntimeError("Invalid dirpath %s" % args.logdir)
+		if not osp.isdir(args.path_checkpoint):
+			raise RuntimeError("Invalid dirpath %s" % args.path_checkpoint)
 
 
 def main():
@@ -262,6 +267,10 @@ def main():
 
 	suffix_tag = "TAG"
 
+	model = model_factory()
+	optim = optim_factory(model)
+	print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
+
 	if "fm" == args.run or "fixmatch" == args.run:
 		args.train_name = "FixMatch"
 		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
@@ -277,10 +286,6 @@ def main():
 
 		loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
-
-		model = model_factory()
-		optim = optim_factory(model)
-		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
 		if args.scheduler == "CosineLRScheduler":
 			scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
@@ -321,15 +326,6 @@ def main():
 				criterion, writer, args.mode, args.threshold_multihot, args.nb_classes
 			)
 
-		validator = DefaultValidator(
-			model, acti_fn, loader_val, metrics_val, writer
-		)
-		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
-		learner.start()
-
-		if writer is not None:
-			save_writer(writer, args, validator)
-
 	elif "mm" == args.run or "mixmatch" == args.run:
 		args.train_name = "MixMatch"
 		dataset_train_s_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_s_augm)
@@ -347,10 +343,7 @@ def main():
 			raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 				loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
 
-		model = model_factory()
-		optim = optim_factory(model)
-		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
+		scheduler = None
 		criterion = MixMatchLossMultiHot.from_edict(args)
 		if args.experimental.lower() == "v2":
 			mixup_mixer = MixUpMixerTagV2.from_edict(args)
@@ -376,14 +369,6 @@ def main():
 			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
 			criterion, writer, mixer, rampup_lambda_u, sharpen_fn
 		)
-		validator = DefaultValidator(
-			model, acti_fn, loader_val, metrics_val, writer
-		)
-		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
-		learner.start()
-
-		if writer is not None:
-			save_writer(writer, args, validator)
 
 	elif "rmm" == args.run or "remixmatch" == args.run:
 		args.train_name = "ReMixMatch"
@@ -408,10 +393,7 @@ def main():
 
 		rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
 
-		model = model_factory()
-		optim = optim_factory(model)
-		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
+		scheduler = None
 		criterion = ReMixMatchLossMultiHot.from_edict(args)
 		mixup_mixer = MixUpMixerTag.from_edict(args)
 		mixer = ReMixMatchMixer(mixup_mixer)
@@ -441,14 +423,6 @@ def main():
 			metrics_s, metrics_u, metrics_u1, metrics_r,
 			criterion, writer, mixer, distributions, rot_angles, sharpen_fn, rampup_lambda_u, rampup_lambda_u1
 		)
-		validator = DefaultValidator(
-			model, acti_fn, loader_val, metrics_val, writer
-		)
-		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
-		learner.start()
-
-		if writer is not None:
-			save_writer(writer, args, validator)
 
 	elif "su" == args.run or "supervised" == args.run:
 		args.train_name = "Supervised"
@@ -457,10 +431,7 @@ def main():
 
 		loader_train_s = DataLoader(dataset=dataset_train_s, **args_loader_train_s)
 
-		model = model_factory()
-		optim = optim_factory(model)
-		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
+		scheduler = None
 		criterion = BCELoss(reduction="mean")
 
 		if args.write_results:
@@ -472,17 +443,27 @@ def main():
 		trainer = SupervisedTrainer(
 			model, acti_fn, optim, loader_train_s, metrics_s, criterion, writer
 		)
-		validator = DefaultValidator(
-			model, acti_fn, loader_val, metrics_val, writer
-		)
-		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
-		learner.start()
-
-		if writer is not None:
-			save_writer(writer, args, validator)
 
 	else:
 		raise RuntimeError("Unknown run %s" % args.run)
+
+	if args.save_results:
+		checkpoint = CheckPoint(
+			model, optim, name=osp.join(args.path_checkpoint, "%s_%s_%s.torch" % (
+				args.model_name, args.train_name, args.suffix))
+		)
+	else:
+		checkpoint = None
+	checkpoint_metric_name = "fscore_weak"
+
+	validator = DefaultValidator(
+		model, acti_fn, loader_val, metrics_val, writer, checkpoint, checkpoint_metric_name
+	)
+	learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
+	learner.start()
+
+	if writer is not None:
+		save_writer(writer, args, validator)
 
 	validator.get_metrics_recorder().print_min_max()
 

@@ -72,12 +72,13 @@ from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
 
 def create_args() -> Namespace:
 	available_methods = ", ".join([
-		"fixmatch (fm)", "mixmatch (mm)", "remixmatch (rmm)", "supervised_full (sf)", "supervised_part (sp)"
+
 	])
 
 	parser = ArgumentParser()
 	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch"],
-						help="Training method to run. Available method are : %s." % available_methods)
+						choices=["fixmatch", "fm", "mixmatch", "mm", "remixmatch", "rmm", "supervised_full", "sf", "supervised_part", "sp"],
+						help="Training method to run.")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--debug_mode", type=str_to_bool, default=False)
 	parser.add_argument("--begin_date", type=str, default=get_datetime(),
