@@ -3,7 +3,6 @@ import torch
 from torch import Tensor
 from typing import Callable
 
-from dcase2020_task4.mixup.mixers.tag import MixUpMixerTag
 from dcase2020_task4.mixup.mixers.abc import MixUpMixerTagABC
 from dcase2020_task4.util.utils_match import same_shuffle, merge_first_dimension
 
@@ -13,8 +12,9 @@ class MixMatchMixer(Callable):
 		MixMatch class.
 		Store hyperparameters and apply mixmatch_fn with call() or mix().
 	"""
-	def __init__(self, mixup_mixer: MixUpMixerTagABC):
+	def __init__(self, mixup_mixer: MixUpMixerTagABC, shuffle_s_with_u: bool = True):
 		self.mixup_mixer = mixup_mixer
+		self.shuffle_s_with_u = shuffle_s_with_u
 
 	def __call__(
 		self, s_batch_augm: Tensor, s_label: Tensor, u_batch_augms: Tensor, u_label_guessed: Tensor
@@ -35,11 +35,18 @@ class MixMatchMixer(Callable):
 			labels_u_guessed_repeated = u_label_guessed.repeat(repeated_size)
 			u_batch_augms = merge_first_dimension(u_batch_augms)
 
-			w_batch = torch.cat((s_batch_augm, u_batch_augms))
-			w_label = torch.cat((s_label, labels_u_guessed_repeated))
+			if self.shuffle_s_with_u:
+				w_batch = torch.cat((s_batch_augm, u_batch_augms))
+				w_label = torch.cat((s_label, labels_u_guessed_repeated))
 
-			# Shuffle batch and labels
-			w_batch, w_label = same_shuffle([w_batch, w_label])
+				# Shuffle batch and labels
+				w_batch, w_label = same_shuffle([w_batch, w_label])
+			else:
+				s_batch_augm, s_label = same_shuffle([s_batch_augm, s_label])
+				u_batch_augms, labels_u_guessed_repeated = same_shuffle([u_batch_augms, labels_u_guessed_repeated])
+
+				w_batch = torch.cat((s_batch_augm, u_batch_augms))
+				w_label = torch.cat((s_label, labels_u_guessed_repeated))
 
 			len_s = len(s_batch_augm)
 			s_batch_mixed, s_label_mixed = self.mixup_mixer(

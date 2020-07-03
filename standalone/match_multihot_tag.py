@@ -152,6 +152,8 @@ def create_args() -> Namespace:
 						help="MixMatch and ReMixMatch hyperparameter \"alpha\" used by MixUp.")
 	parser.add_argument("--mixup_distribution_name", type=str, default="beta",
 						choices=["beta", "uniform", "constant"])
+	parser.add_argument("--shuffle_s_with_u", type=str_to_bool, default=True,
+						help="MixMatch shuffle supervised and unsupervised data.")
 
 	parser.add_argument("--experimental", type=str_to_optional_str, default="",
 						choices=["", "None", "V1", "V2", "V3", "V4"])
@@ -347,7 +349,7 @@ def main():
 			mixup_mixer = MixUpMixerTagV2.from_edict(args)
 		else:
 			mixup_mixer = MixUpMixerTag.from_edict(args)
-		mixer = MixMatchMixer(mixup_mixer)
+		mixer = MixMatchMixer(mixup_mixer, args.shuffle_s_with_u)
 
 		if args.use_sharpen_multihot:
 			sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
