@@ -5,7 +5,7 @@ from torch import Tensor
 from dcase2020_task4.mixup.mixers.abc import MixUpMixerTagABC
 
 
-class MixUpMixerTag(MixUpMixerTagABC):
+class MixUpMixerTagV2(MixUpMixerTagABC):
 	def __init__(self, alpha: float = 0.75, apply_max: bool = True, distribution: str = "beta"):
 		self.alpha = alpha
 		self.apply_max = apply_max
@@ -43,6 +43,6 @@ class MixUpMixerTag(MixUpMixerTagABC):
 			if self.apply_max:
 				lambda_ = max(lambda_, 1.0 - lambda_)
 			batch_mixed = batch_1 * lambda_ + batch_2 * (1.0 - lambda_)
-			labels_mixed = labels_1 * lambda_ + labels_2 * (1.0 - lambda_)
+			labels_mixed = (labels_1 + labels_2).clamp(max=1.0)
 
 			return batch_mixed, labels_mixed

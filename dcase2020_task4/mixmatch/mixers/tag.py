@@ -1,10 +1,10 @@
 import torch
 
 from torch import Tensor
-from torch.nn import Module
-from typing import Callable, Optional
+from typing import Callable
 
 from dcase2020_task4.mixup.mixers.tag import MixUpMixerTag
+from dcase2020_task4.mixup.mixers.abc import MixUpMixerTagABC
 from dcase2020_task4.util.utils_match import same_shuffle, merge_first_dimension
 
 
@@ -13,8 +13,12 @@ class MixMatchMixer(Callable):
 		MixMatch class.
 		Store hyperparameters and apply mixmatch_fn with call() or mix().
 	"""
-	def __init__(self, mixup_alpha: float = 0.75):
-		self.mixup_mixer = MixUpMixerTag(alpha=mixup_alpha, apply_max=True)
+	def __init__(self, mixup_mixer: MixUpMixerTagABC):
+		self.mixup_mixer = mixup_mixer
+
+	@staticmethod
+	def from_edict(hparams) -> 'MixMatchMixer':
+		return MixMatchMixer(MixUpMixerTag(alpha=hparams.mixup_alpha, apply_max=True))
 
 	def __call__(
 		self, s_batch_augm: Tensor, s_label: Tensor, u_batch_augms: Tensor, u_label_guessed: Tensor

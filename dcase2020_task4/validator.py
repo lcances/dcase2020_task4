@@ -59,7 +59,7 @@ class DefaultValidator(ValidatorABC):
 					self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 					self.metrics_recorder.print_metrics(epoch, i, len(self.loader))
 
-			print("")
+			print("\n")
 
 			if self.checkpoint is not None:
 				checkpoint_metric_mean = self.metrics_recorder.get_mean_epoch(self.checkpoint_metric_key)

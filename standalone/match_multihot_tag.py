@@ -40,6 +40,7 @@ from dcase2020_task4.other_models.weak_baseline_rot import WeakBaselineRot
 
 from dcase2020_task4.mixmatch.losses.multihot import MixMatchLossMultiHot
 from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
+from dcase2020_task4.mixup.mixers.tag_v2 import MixUpMixerTagV2
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 
 from dcase2020_task4.remixmatch.losses.multihot import ReMixMatchLossMultiHot
@@ -114,6 +115,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
 						help="Use RampUp or not for lambda_u and lambda_u1 hyperparameters.")
+	parser.add_argument("--nb_rampup_steps")
 
 	parser.add_argument("--from_disk", type=str_to_bool, default=True,
 						help="Select False if you want ot load all data into RAM.")
@@ -337,7 +339,10 @@ def main():
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
 		criterion = MixMatchLossMultiHot.from_edict(args)
-		mixer = MixMatchMixer(args.mixup_alpha)
+		if args.experimental.lower() == "v2":
+			mixer = MixMatchMixer(MixUpMixerTagV2(args.mixup_alpha))
+		else:
+			mixer = MixMatchMixer.from_edict(args)
 		sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
 
 		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)

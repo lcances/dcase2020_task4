@@ -26,4 +26,7 @@ class RampUp:
 		return (self.max_value - self.min_value) * self.get_coef() + self.min_value
 
 	def get_coef(self) -> float:
-		return self.cur_step / self.nb_steps
+		if self.nb_steps > 0:
+			return self.cur_step / self.nb_steps
+		else:
+			return 1.0
