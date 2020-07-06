@@ -35,7 +35,7 @@ cat << EOT > $tmp_file
 module purge
 module load singularity/3.0.3
 
-srun singularity exec $path_torch $path_py $path_script --dataset $path_dataset --dataset_name $dataset_name --nb_classes $nb_classes --logdir $path_board --debug False --model_name "UBS8KBaseline" --batch_size_s 64 --batch_size_u 64 --num_workers_s 4 --num_workers_u 4 --nb_epochs 100 --lambda_u 1.0 --write_results True --run "$run" --suffix "$suffix"
+srun singularity exec $path_torch $path_py $path_script --dataset $path_dataset --dataset_name $dataset_name --nb_classes $nb_classes --logdir $path_board --debug False --model_name "UBS8KBaseline" --batch_size_s 64 --batch_size_u 64 --num_workers_s 4 --num_workers_u 4 --nb_epochs 100 --lambda_u 1.0 --write_results True --use_rampup True --cross_validation True --run "$run" --suffix "$suffix"
 
 EOT
 
