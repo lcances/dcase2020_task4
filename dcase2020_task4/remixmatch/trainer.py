@@ -110,7 +110,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 					self.mixer(s_batch_augm_strong, s_labels, u_batch_augm_weak, u_batch_augm_strongs, u_label_guessed)
 
 				# Rotate images
-				u1_batch_rotated, r_labels = apply_random_rot(u1_batch, self.rot_angles)
+				u1_batch_rotated, r_labels = apply_random_rotation(u1_batch, self.rot_angles)
 				r_labels = one_hot(r_labels, len(self.rot_angles)).float().cuda()
 
 			# Predict labels for x (mixed), u (mixed) and u1 (strong augment)
@@ -181,7 +181,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		return [self.metrics_s, self.metrics_u, self.metrics_u1, self.metrics_r]
 
 
-def apply_random_rot(batch: Tensor, angles_allowed) -> (Tensor, Tensor):
+def apply_random_rotation(batch: Tensor, angles_allowed) -> (Tensor, Tensor):
 	indexes = np.random.randint(0, len(angles_allowed), len(batch))
 	angles = angles_allowed[indexes]
 	res = torch.stack([

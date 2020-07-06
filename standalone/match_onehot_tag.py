@@ -88,7 +88,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
 	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18", "UBS8KBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
-	parser.add_argument("--confidence", type=float, default=0.3,
+	parser.add_argument("--confidence", type=float, default=0.5,
 						help="Confidence threshold used in VALIDATION.")
 
 	parser.add_argument("--batch_size_s", type=int, default=8,
@@ -144,12 +144,13 @@ def create_args() -> Namespace:
 	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy", choices=["sq_diff", "cross_entropy"],
 						help="MixMatch unsupervised loss component.")
 
-	parser.add_argument("--sharpen_temperature", type=float, default=0.5,
+	parser.add_argument("--sharpen_temperature", "--temperature", type=float, default=0.5,
 						help="MixMatch and ReMixMatch hyperparameter temperature used by sharpening.")
-	parser.add_argument("--mixup_alpha", type=float, default=0.75,
+	parser.add_argument("--mixup_alpha", "--alpha", type=float, default=0.75,
 						help="MixMatch and ReMixMatch hyperparameter \"alpha\" used by MixUp.")
 	parser.add_argument("--mixup_distribution_name", type=str, default="beta",
-						choices=["beta", "uniform", "constant"])
+						choices=["beta", "uniform", "constant"],
+						help="MixUp distribution used in MixMatch and ReMixMatch.")
 	parser.add_argument("--shuffle_s_with_u", type=str_to_bool, default=True,
 						help="MixMatch shuffle supervised and unsupervised data.")
 
@@ -197,8 +198,11 @@ def main():
 	print("Start match_onehot. (%s)" % args.suffix)
 	print("- run:", " ".join(args.run))
 	print("- confidence:", args.confidence)
-	print("- dataset_name", args.dataset_name)
+	print("- dataset_name:", args.dataset_name)
 	print("- cross_validation:", args.cross_validation)
+	print("- use_rampup:", args.use_rampup)
+	print("- use_sharpen_multihot:", args.use_sharpen_multihot)
+	print("- shuffle_s_with_u:", args.shuffle_s_with_u)
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
@@ -242,13 +246,13 @@ def main():
 
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
 
-	def run(fold_val_ubs8k_: int):
+	def run(fold_val_ubs8k: int):
 		if args.dataset_name.lower() == "cifar10":
 			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = \
 				get_cifar10_datasets(args)
 		elif args.dataset_name.lower() == "ubs8k":
 			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = \
-				get_ubs8k_datasets(args, fold_val_ubs8k_)
+				get_ubs8k_datasets(args, fold_val_ubs8k)
 		else:
 			raise RuntimeError("Unknown dataset %s" % args.dataset_name)
 
@@ -305,7 +309,7 @@ def main():
 
 			if args.write_results:
 				writer = build_writer(args, start_date, suffix="%d_%d_%d_%s_%.2f_%.2f_%s" % (
-					fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence,
+					fold_val_ubs8k, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence,
 					args.lambda_u, args.suffix))
 			else:
 				writer = None
@@ -359,7 +363,7 @@ def main():
 
 			if args.write_results:
 				writer = build_writer(args, start_date, suffix="%d_%d_%d_%s_%.2f_%s" % (
-					fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, args.criterion_name_u, args.lambda_u, args.suffix))
+					fold_val_ubs8k, args.batch_size_s, args.batch_size_u, args.criterion_name_u, args.lambda_u, args.suffix))
 			else:
 				writer = None
 
@@ -419,7 +423,7 @@ def main():
 
 			if args.write_results:
 				writer = build_writer(args, start_date, suffix="%d_%d_%d_%.2f_%.2f_%.2f_%s" % (
-					fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
+					fold_val_ubs8k, args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
 			else:
 				writer = None
 
@@ -451,7 +455,7 @@ def main():
 
 			if args.write_results:
 				writer = build_writer(args, start_date, suffix="%s_%d_%d_%d_%s" % (
-					"full_100", fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, args.suffix))
+					"full_100", fold_val_ubs8k, args.batch_size_s, args.batch_size_u, args.suffix))
 			else:
 				writer = None
 
@@ -481,7 +485,7 @@ def main():
 
 			if args.write_results:
 				writer = build_writer(args, start_date, suffix="%s_%d_%d_%d_%d_%s" % (
-					"part", int(100 * args.supervised_ratio), fold_val_ubs8k_, args.batch_size_s, args.batch_size_u, args.suffix))
+					"part", int(100 * args.supervised_ratio), fold_val_ubs8k, args.batch_size_s, args.batch_size_u, args.suffix))
 			else:
 				writer = None
 
@@ -498,16 +502,16 @@ def main():
 				save_writer(writer, args, validator)
 			validator.get_metrics_recorder().print_min_max()
 
-		exec_time = time() - start_time
-		print("")
-		print("Program started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
-		print("Total execution time: %.2fs" % exec_time)
-
 	if args.cross_validation:
-		for fold_val_ubs8k in range(1, 11):
-			run(fold_val_ubs8k)
+		for fold_val_ubs8k_ in range(1, 11):
+			run(fold_val_ubs8k_)
 	else:
 		run(args.fold_val)
+
+	exec_time = time() - start_time
+	print("")
+	print("Program started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
+	print("Total execution time: %.2fs" % exec_time)
 
 
 def get_cifar10_augms() -> (Callable, Callable, Callable):

@@ -155,7 +155,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--mixup_alpha", type=float, default=0.75,
 						help="MixMatch and ReMixMatch hyperparameter \"alpha\" used by MixUp.")
 	parser.add_argument("--mixup_distribution_name", type=str, default="beta",
-						choices=["beta", "uniform", "constant"])
+						choices=["beta", "uniform", "constant"],
+						help="MixUp distribution used in MixMatch and ReMixMatch.")
 	parser.add_argument("--shuffle_s_with_u", type=str_to_bool, default=True,
 						help="MixMatch shuffle supervised and unsupervised data.")
 
