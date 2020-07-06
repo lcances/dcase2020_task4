@@ -150,10 +150,14 @@ def create_args() -> Namespace:
 	parser.add_argument("--sharpen_threshold_multihot", type=float, default=0.5,
 						help="MixMatch threshold for multihot sharpening.")
 
-	parser.add_argument("--sharpen_temp", type=float, default=0.5,
+	parser.add_argument("--sharpen_temperature", type=float, default=0.5,
 						help="MixMatch and ReMixMatch hyperparameter \"temperature\" used by sharpening.")
 	parser.add_argument("--mixup_alpha", type=float, default=0.75,
 						help="MixMatch and ReMixMatch hyperparameter \"alpha\" used by MixUp.")
+	parser.add_argument("--mixup_distribution_name", type=str, default="beta",
+						choices=["beta", "uniform", "constant"])
+	parser.add_argument("--shuffle_s_with_u", type=str_to_bool, default=True,
+						help="MixMatch shuffle supervised and unsupervised data.")
 
 	return parser.parse_args()
 

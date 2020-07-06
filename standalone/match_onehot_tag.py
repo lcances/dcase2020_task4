@@ -148,6 +148,10 @@ def create_args() -> Namespace:
 						help="MixMatch and ReMixMatch hyperparameter temperature used by sharpening.")
 	parser.add_argument("--mixup_alpha", type=float, default=0.75,
 						help="MixMatch and ReMixMatch hyperparameter \"alpha\" used by MixUp.")
+	parser.add_argument("--mixup_distribution_name", type=str, default="beta",
+						choices=["beta", "uniform", "constant"])
+	parser.add_argument("--shuffle_s_with_u", type=str_to_bool, default=True,
+						help="MixMatch shuffle supervised and unsupervised data.")
 
 	parser.add_argument("--cross_validation", type=str_to_bool, default=False,
 						help="Use cross validation for UBS8K dataset.")
