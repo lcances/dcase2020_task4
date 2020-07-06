@@ -60,7 +60,7 @@ from dcase2020_task4.util.other_augments import Gray, Inversion, RandCrop, UniCo
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import Sharpen
-from dcase2020_task4.util.types import str_to_bool, str_to_optional_str
+from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils_match import cross_entropy, build_writer, get_nb_parameters, save_writer
 
 from dcase2020_task4.learner import DefaultLearner
