@@ -201,7 +201,6 @@ def main():
 	print("- dataset_name:", args.dataset_name)
 	print("- cross_validation:", args.cross_validation)
 	print("- use_rampup:", args.use_rampup)
-	print("- use_sharpen_multihot:", args.use_sharpen_multihot)
 	print("- shuffle_s_with_u:", args.shuffle_s_with_u)
 
 	reset_seed(args.seed)
