@@ -116,6 +116,9 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
 						help="Use RampUp or not for lambda_u and lambda_u1 hyperparameters.")
+	parser.add_argument("--nb_rampup_epochs", type=str_to_union_str_int, default="nb_epochs",
+						help="Nb of epochs when lambda_u and lambda_u1 is increase from 0 to their value."
+							 "Use 0 for deactivate RampUp. Use \"nb_epochs\" for ramping up during all training.")
 
 	parser.add_argument("--dataset_ratio", type=float, default=1.0,
 						help="Ratio of the dataset used for training.")
@@ -184,6 +187,8 @@ def main():
 		args_dict = json.load(open(args.args.file, "r"))
 		args.__dict__.update(args_dict)
 	check_args(args)
+	if args.nb_rampup_epochs == "nb_epochs":
+		args.nb_rampup_epochs = args.nb_epochs
 
 	print("Start match_onehot. (%s)" % args.suffix)
 	print("- run:", " ".join(args.run))
@@ -302,7 +307,7 @@ def main():
 				writer = None
 
 			if args.use_rampup:
-				nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strong)
+				nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms_weak_strong)
 				rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
 			else:
 				rampup_lambda_u = None
@@ -345,7 +350,7 @@ def main():
 			mixer = MixMatchMixer(mixup_mixer)
 			sharpen_fn = Sharpen(args.sharpen_temperature)
 
-			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
+			nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms)
 			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
 
 			if args.write_results:
@@ -401,7 +406,7 @@ def main():
 			distributions = AvgDistributions.from_edict(args)
 			acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
 			if args.use_rampup:
-				nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strongs)
+				nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms_weak_strongs)
 				rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
 				rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1)
 			else:

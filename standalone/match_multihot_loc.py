@@ -299,7 +299,7 @@ def main():
 			scheduler = None
 
 		if args.use_rampup:
-			nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms_weak_strong)
+			nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms_weak_strong)
 			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
 		else:
 			rampup_lambda_u = None
@@ -367,7 +367,7 @@ def main():
 		else:
 			sharpen_fn = lambda x, dim: x
 
-		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
+		nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms)
 		lambda_u_rampup = RampUp(nb_rampup_steps, args.lambda_u)
 
 		if args.write_results:
