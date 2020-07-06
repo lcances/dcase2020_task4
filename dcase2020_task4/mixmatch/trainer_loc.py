@@ -31,7 +31,8 @@ class MixMatchTrainerLoc(SSTrainerABC):
 		criterion: MixMatchLossLocABC,
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
-		rampup_lambda_u: RampUp
+		rampup_lambda_u: RampUp,
+		sharpen_fn: Callable,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -46,6 +47,7 @@ class MixMatchTrainerLoc(SSTrainerABC):
 		self.writer = writer
 		self.mixer = mixer
 		self.rampup_lambda_u = rampup_lambda_u
+		self.sharpen_fn = sharpen_fn
 
 		self.metrics_recorder = MetricsRecorder(
 			"train/",
@@ -72,10 +74,26 @@ class MixMatchTrainerLoc(SSTrainerABC):
 			s_labels_strong = s_labels_strong.cuda().float()
 			u_batch_augms = torch.stack(u_batch_augms).cuda().float()
 
-			# Apply mix
-			s_batch_mixed, s_labels_weak_mixed, s_labels_strong_mixed, u_batch_mixed, u_labels_weak_mixed, u_labels_strong_mixed = self.mixer(
-				s_batch_augm, s_labels_weak, s_labels_strong, u_batch_augms
-			)
+			with torch.no_grad():
+				# Compute guessed label
+				nb_augms = u_batch_augms.shape[0]
+				u_logits_weak_augms = torch.zeros([nb_augms] + list(s_labels_weak.size())).cuda()
+				u_logits_strong_augms = torch.zeros([nb_augms] + list(s_labels_strong.size())).cuda()
+				for k in range(nb_augms):
+					u_logits_weak_augms[k], u_logits_strong_augms[k] = self.model(u_batch_augms[k])
+				u_pred_weak_augms = self.acti_fn(u_logits_weak_augms, dim=2)
+				u_pred_strong_augms = self.acti_fn(u_logits_strong_augms, dim=3)
+
+				u_label_weak_guessed = u_pred_weak_augms.mean(dim=0)
+				u_label_strong_guessed = u_pred_strong_augms.mean(dim=0)
+
+				u_label_weak_guessed = self.sharpen_fn(u_label_weak_guessed, dim=1)
+				u_label_strong_guessed = self.sharpen_fn(u_label_strong_guessed, dim=2)
+
+				# Apply mix
+				s_batch_mixed, s_labels_weak_mixed, s_labels_strong_mixed, u_batch_mixed, u_labels_weak_mixed, u_labels_strong_mixed = self.mixer(
+					s_batch_augm, s_labels_weak, s_labels_strong, u_batch_augms, u_label_weak_guessed, u_label_strong_guessed
+				)
 
 			# Compute logits
 			s_logits_weak_mixed, s_logits_strong_mixed = self.model(s_batch_mixed)
@@ -83,8 +101,8 @@ class MixMatchTrainerLoc(SSTrainerABC):
 
 			s_pred_weak_mixed = self.acti_fn(s_logits_weak_mixed, dim=1)
 			u_pred_weak_mixed = self.acti_fn(u_logits_weak_mixed, dim=1)
-			s_pred_strong_mixed = self.acti_fn(s_logits_strong_mixed, dim=1)
-			u_pred_strong_mixed = self.acti_fn(u_logits_strong_mixed, dim=1)
+			s_pred_strong_mixed = self.acti_fn(s_logits_strong_mixed, dim=2)
+			u_pred_strong_mixed = self.acti_fn(u_logits_strong_mixed, dim=2)
 
 			# Update model
 			loss, loss_s_weak, loss_u_weak, loss_s_strong, loss_u_strong = self.criterion(

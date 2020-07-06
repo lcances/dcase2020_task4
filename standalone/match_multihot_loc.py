@@ -42,6 +42,8 @@ from dcase2020_task4.mixmatch.losses.tag_loc import MixMatchLossMultiHotLoc
 from dcase2020_task4.mixmatch.mixers.tag_loc import MixMatchMixerMultiHotLoc
 from dcase2020_task4.mixmatch.trainer_loc import MixMatchTrainerLoc
 
+from dcase2020_task4.mixup.mixers.tag_loc import MixUpMixerLoc
+
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.supervised.loss import SupervisedLossLoc
 from dcase2020_task4.supervised.trainer_loc import SupervisedTrainerLoc
@@ -53,6 +55,7 @@ from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
 from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
 from dcase2020_task4.util.ramp_up import RampUp
+from dcase2020_task4.util.sharpen import SharpenMulti
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_match import build_writer, save_writer, get_nb_parameters
@@ -356,10 +359,14 @@ def main():
 
 		scheduler = None
 		criterion = MixMatchLossMultiHotLoc.from_edict(args)
-		mixer = MixMatchMixerMultiHotLoc(
-			model, acti_fn,
-			args.nb_augms, args.sharpen_temp, args.mixup_alpha, args.sharpen_threshold_multihot
-		)
+		mixup_mixer = MixUpMixerLoc.from_edict(args)
+		mixer = MixMatchMixerMultiHotLoc(mixup_mixer)
+
+		if args.use_sharpen_multihot:
+			sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
+		else:
+			sharpen_fn = lambda x, dim: x
+
 		nb_rampup_steps = args.nb_epochs * len(loader_train_u_augms)
 		lambda_u_rampup = RampUp(nb_rampup_steps, args.lambda_u)
 
@@ -374,7 +381,7 @@ def main():
 		trainer = MixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms,
 			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
-			criterion, writer, mixer, lambda_u_rampup
+			criterion, writer, mixer, lambda_u_rampup, sharpen_fn
 		)
 
 	elif "su" == args.run or "supervised" == args.run:
@@ -422,6 +429,8 @@ def main():
 
 	if writer is not None:
 		save_writer(writer, args, validator)
+
+	validator.get_metrics_recorder().print_min_max()
 
 	exec_time = time() - start_time
 	print("")

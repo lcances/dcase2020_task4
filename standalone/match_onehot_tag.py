@@ -319,6 +319,7 @@ def main():
 
 			if writer is not None:
 				save_writer(writer, args, validator)
+			validator.get_metrics_recorder().print_min_max()
 
 		if "mm" in args.run or "mixmatch" in args.run:
 			args.train_name = "MixMatch"
@@ -365,6 +366,7 @@ def main():
 
 			if writer is not None:
 				save_writer(writer, args, validator)
+			validator.get_metrics_recorder().print_min_max()
 
 		if "rmm" in args.run or "remixmatch" in args.run:
 			args.train_name = "ReMixMatch"
@@ -425,6 +427,7 @@ def main():
 
 			if writer is not None:
 				save_writer(writer, args, validator)
+			validator.get_metrics_recorder().print_min_max()
 
 		if "sf" in args.run or "supervised_full" in args.run:
 			args.train_name = "Supervised"
@@ -454,6 +457,7 @@ def main():
 
 			if writer is not None:
 				save_writer(writer, args, validator)
+			validator.get_metrics_recorder().print_min_max()
 
 		if "sp" in args.run or "supervised_part" in args.run:
 			args.train_name = "Supervised"
@@ -483,6 +487,7 @@ def main():
 
 			if writer is not None:
 				save_writer(writer, args, validator)
+			validator.get_metrics_recorder().print_min_max()
 
 		exec_time = time() - start_time
 		print("")

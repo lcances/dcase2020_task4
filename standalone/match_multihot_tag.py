@@ -113,7 +113,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--write_results", type=str_to_bool, default=True,
 						help="Write results in a tensorboard SummaryWriter.")
 	parser.add_argument("--args_file", type=str_to_optional_str, default=None,
-						help="Filepath to args file. Values in this JSON will overwrite other options in terminal.")
+						help="Filepath to args file. Values found in this JSON file will overwrite other options in terminal.")
 
 	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
 						help="Use RampUp or not for lambda_u and lambda_u1 hyperparameters.")
@@ -198,6 +198,9 @@ def main():
 	print("- from_disk:", args.from_disk)
 	print("- debug_mode:", args.debug_mode)
 	print("- experimental:", args.experimental)
+	print("- use_rampup:", args.use_rampup)
+	print("- use_sharpen_multihot:", args.use_sharpen_multihot)
+	print("- shuffle_s_with_u:", args.shuffle_s_with_u)
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)

@@ -28,6 +28,7 @@ class MixMatchMixer(Callable):
 			s_batch_augm of size (bsize, feat_size, ...)
 			s_label_weak of size (bsize, label_size)
 			u_batch_augms of size (nb_augms, bsize, feat_size, ...)
+			u_label_guessed of size (bsize, label_size)
 		"""
 		with torch.no_grad():
 			nb_augms = u_batch_augms.shape[0]

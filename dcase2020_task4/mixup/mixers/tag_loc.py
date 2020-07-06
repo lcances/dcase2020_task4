@@ -2,13 +2,17 @@ import numpy as np
 import torch
 
 from torch import Tensor
-from typing import List
+from typing import Callable, List
 
 
-class MixUpMixerLoc:
+class MixUpMixerLoc(Callable):
 	def __init__(self, alpha: float = 0.75, apply_max: bool = True):
 		self.alpha = alpha
 		self.apply_max = apply_max
+
+	@staticmethod
+	def from_edict(hparams) -> 'MixUpMixerLoc':
+		return MixUpMixerLoc(hparams.mixup_alpha, True)
 
 	def __call__(
 		self, batch_1: Tensor, labels_1: List[Tensor], batch_2: Tensor, labels_2: List[Tensor]
