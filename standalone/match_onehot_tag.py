@@ -515,7 +515,7 @@ def main():
 
 def get_cifar10_augms() -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	ratio_augm_weak = 0.5
+	ratio_augm_weak = 0.1
 	augm_weak_fn = RandomChoice([
 		HorizontalFlip(ratio_augm_weak),
 		VerticalFlip(ratio_augm_weak),
