@@ -544,10 +544,10 @@ def get_cifar10_augms(args: Namespace) -> (Callable, Callable, Callable):
 		# Transform(args.ratio_augm_weak, rotation=(-np.pi, np.pi)),
 	])
 	augm_strong_fn = Compose([
-		RandomChoice([
-			# Transform(args.ratio_augm_strong, scale=(0.5, 1.5)),
-			# Transform(args.ratio_augm_strong, rotation=(-np.pi, np.pi)),
-		]),
+		# RandomChoice([
+		# Transform(args.ratio_augm_strong, scale=(0.5, 1.5)),
+		# Transform(args.ratio_augm_strong, rotation=(-np.pi, np.pi)),
+		# ]),
 		RandomChoice([
 			# Gray(args.ratio_augm_strong),
 			RandCrop(args.ratio_augm_strong),
