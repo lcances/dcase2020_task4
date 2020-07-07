@@ -105,13 +105,13 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 				u_label_guessed = self.sharpen_fn(u_label_guessed, dim=1)
 
-				# Apply mix
-				s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed, u1_batch, u1_labels = \
-					self.mixer(s_batch_augm_strong, s_labels, u_batch_augm_weak, u_batch_augm_strongs, u_label_guessed)
+			# Apply mix
+			s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed, u1_batch, u1_labels = \
+				self.mixer(s_batch_augm_strong, s_labels, u_batch_augm_weak, u_batch_augm_strongs, u_label_guessed)
 
-				# Rotate images
-				u1_batch_rotated, r_labels = apply_random_rotation(u1_batch, self.rot_angles)
-				r_labels = one_hot(r_labels, len(self.rot_angles)).float().cuda()
+			# Rotate images
+			u1_batch_rotated, r_labels = apply_random_rotation(u1_batch, self.rot_angles)
+			r_labels = one_hot(r_labels, len(self.rot_angles)).float().cuda()
 
 			# Predict labels for x (mixed), u (mixed) and u1 (strong augment)
 			s_logits_mixed = self.model(s_batch_mixed)

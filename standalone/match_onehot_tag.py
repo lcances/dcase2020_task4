@@ -515,35 +515,37 @@ def main():
 
 def get_cifar10_augms() -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
+	ratio_augm_weak = 0.5
 	augm_weak_fn = RandomChoice([
-		HorizontalFlip(0.5),
-		VerticalFlip(0.5),
-		Transform(0.5, scale=(0.75, 1.25)),
-		Transform(0.5, rotation=(-np.pi, np.pi)),
+		HorizontalFlip(ratio_augm_weak),
+		VerticalFlip(ratio_augm_weak),
+		# Transform(ratio_augm_weak, scale=(0.75, 1.25)),
+		# Transform(ratio_augm_weak, rotation=(-np.pi, np.pi)),
 	])
+	ratio_augm_strong = 1.0
 	augm_strong_fn = Compose([
 		RandomChoice([
-			Transform(1.0, scale=(0.5, 1.5)),
-			Transform(1.0, rotation=(-np.pi, np.pi)),
+			Transform(ratio_augm_strong, scale=(0.5, 1.5)),
+			Transform(ratio_augm_strong, rotation=(-np.pi, np.pi)),
 		]),
 		RandomChoice([
-			Gray(1.0),
-			RandCrop(1.0),
-			UniColor(1.0),
-			Inversion(1.0),
+			Gray(ratio_augm_strong),
+			RandCrop(ratio_augm_strong),
+			UniColor(ratio_augm_strong),
+			Inversion(ratio_augm_strong),
 		]),
 	])
 	# Augmentation used by MixMatch
-	mm_ratio = 0.5
+	ratio_augm = 0.5
 	augm_fn = RandomChoice([
-		HorizontalFlip(mm_ratio),
-		VerticalFlip(mm_ratio),
-		Transform(mm_ratio, scale=(0.75, 1.25)),
-		Transform(mm_ratio, rotation=(-np.pi, np.pi)),
-		Gray(mm_ratio),
-		RandCrop(mm_ratio, rect_max_scale=(0.2, 0.2)),
-		UniColor(mm_ratio),
-		Inversion(mm_ratio),
+		HorizontalFlip(ratio_augm),
+		VerticalFlip(ratio_augm),
+		Transform(ratio_augm, scale=(0.75, 1.25)),
+		Transform(ratio_augm, rotation=(-np.pi, np.pi)),
+		Gray(ratio_augm),
+		RandCrop(ratio_augm, rect_max_scale=(0.2, 0.2)),
+		UniColor(ratio_augm),
+		Inversion(ratio_augm),
 	])
 
 	return augm_weak_fn, augm_strong_fn, augm_fn
@@ -571,36 +573,36 @@ def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset
 
 def get_ubs8k_augms() -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	ratio = 0.5
+	ratio_augm_weak = 0.5
 	augm_weak_fn = RandomChoice([
-		TimeStretch(ratio),
-		PitchShiftRandom(ratio, steps=(-1, 1)),
-		Noise(ratio=ratio, snr=5.0),
-		Noise2(ratio, noise_factor=(5.0, 5.0)),
+		TimeStretch(ratio_augm_weak),
+		PitchShiftRandom(ratio_augm_weak, steps=(-1, 1)),
+		Noise(ratio=ratio_augm_weak, snr=5.0),
+		Noise2(ratio_augm_weak, noise_factor=(5.0, 5.0)),
 	])
-	ratio = 1.0
+	ratio_augm_strong = 1.0
 	augm_strong_fn = Compose([
 		RandomChoice([
-			TimeStretch(ratio),
-			PitchShiftRandom(ratio),
-			Noise(ratio=ratio, snr=15.0),
-			Noise2(ratio, noise_factor=(10.0, 10.0)),
+			TimeStretch(ratio_augm_strong),
+			PitchShiftRandom(ratio_augm_strong),
+			Noise(ratio=ratio_augm_strong, snr=15.0),
+			Noise2(ratio_augm_strong, noise_factor=(10.0, 10.0)),
 		]),
 		RandomChoice([
-			Occlusion(ratio, max_size=1.0),
-			RandomFreqDropout(ratio, dropout=0.5),
-			RandomTimeDropout(ratio, dropout=0.5),
+			Occlusion(ratio_augm_strong, max_size=1.0),
+			RandomFreqDropout(ratio_augm_strong, dropout=0.5),
+			RandomTimeDropout(ratio_augm_strong, dropout=0.5),
 		]),
 	])
-	ratio = 0.5
+	ratio_augm = 0.5
 	augm_fn = RandomChoice([
-		TimeStretch(ratio),
-		PitchShiftRandom(ratio),
-		Occlusion(ratio, max_size=1.0),
-		Noise(ratio=ratio, snr=5.0),
-		Noise2(ratio, noise_factor=(5.0, 5.0)),
-		RandomFreqDropout(ratio, dropout=0.5),
-		RandomTimeDropout(ratio, dropout=0.5),
+		TimeStretch(ratio_augm),
+		PitchShiftRandom(ratio_augm),
+		Occlusion(ratio_augm, max_size=1.0),
+		Noise(ratio=ratio_augm, snr=5.0),
+		Noise2(ratio_augm, noise_factor=(5.0, 5.0)),
+		RandomFreqDropout(ratio_augm, dropout=0.5),
+		RandomTimeDropout(ratio_augm, dropout=0.5),
 	])
 
 	return augm_weak_fn, augm_strong_fn, augm_fn
