@@ -7,14 +7,21 @@ from dcase2020_task4.util.utils_match import same_shuffle, merge_first_dimension
 
 
 class ReMixMatchMixer(Callable):
-	def __init__(self, mixup_mixer: MixUpMixerTagABC):
+	def __init__(self, mixup_mixer: MixUpMixerTagABC, shuffle_s_with_u: bool = True):
 		self.mixup_mixer = mixup_mixer
+		self.shuffle_s_with_u = shuffle_s_with_u
 
 	def __call__(
 		self,
 		s_batch_strong: Tensor, s_label: Tensor,
 		u_batch_weak: Tensor, u_batch_strongs: Tensor, u_label_guessed: Tensor,
 	) -> (Tensor, Tensor, Tensor, Tensor, Tensor, Tensor):
+		"""
+			s_batch_strong of size (bsize, feat_size, ...)
+			s_labels_weak of size (bsize, label_size)
+			u_batch_weak of size (bsize, feat_size, ...)
+			u_batch_strongs of size (nb_augms_strong, bsize, feat_size, ...)
+		"""
 		return self.mix(s_batch_strong, s_label, u_batch_weak, u_batch_strongs, u_label_guessed)
 
 	def mix(
@@ -42,11 +49,18 @@ class ReMixMatchMixer(Callable):
 			batch_u_cat = torch.cat((u_batch_strongs, u_batch_weak), dim=0)
 			labels_u_cat = torch.cat((labels_u_guessed_repeated, u_label_guessed), dim=0)
 
-			batch_w = torch.cat((s_batch_strong, batch_u_cat), dim=0)
-			labels_w = torch.cat((s_label, labels_u_cat), dim=0)
+			if self.shuffle_s_with_u:
+				batch_w = torch.cat((s_batch_strong, batch_u_cat), dim=0)
+				labels_w = torch.cat((s_label, labels_u_cat), dim=0)
 
-			# Shuffle batch and labels
-			batch_w, labels_w = same_shuffle([batch_w, labels_w])
+				# Shuffle batch and labels
+				batch_w, labels_w = same_shuffle([batch_w, labels_w])
+			else:
+				s_batch_strong, s_label = same_shuffle([s_batch_strong, s_label])
+				batch_u_cat, labels_u_cat = same_shuffle([batch_u_cat, labels_u_cat])
+
+				batch_w = torch.cat((s_batch_strong, batch_u_cat), dim=0)
+				labels_w = torch.cat((s_label, labels_u_cat), dim=0)
 
 			len_s = len(s_batch_strong)
 			batch_s_mixed, labels_s_mixed = self.mixup_mixer(

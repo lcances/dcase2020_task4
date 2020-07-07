@@ -109,7 +109,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--weight_decay", type=float, default=0.0,
 						help="Weight decay used.")
 
-	parser.add_argument("--ratio_augm_weak", type=float, default=0.1,
+	parser.add_argument("--ratio_augm_weak", type=float, default=0.5,
 						help="Probability to apply weak augmentation for ReMixMatch and FixMatch.")
 	parser.add_argument("--ratio_augm_strong", type=float, default=1.0,
 						help="Probability to apply strong augmentation for ReMixMatch and FixMatch.")
@@ -126,11 +126,6 @@ def create_args() -> Namespace:
 	parser.add_argument("--nb_rampup_epochs", type=str_to_union_str_int, default="nb_epochs",
 						help="Nb of epochs when lambda_u and lambda_u1 is increase from 0 to their value."
 							 "Use 0 for deactivate RampUp. Use \"nb_epochs\" for ramping up during all training.")
-
-	parser.add_argument("--dataset_ratio", type=float, default=1.0,
-						help="Ratio of the dataset used for training.")
-	parser.add_argument("--supervised_ratio", type=float, default=0.1,
-						help="Supervised ratio used for split dataset.")
 
 	parser.add_argument("--lambda_u", type=float, default=1.0,
 						help="MixMatch, FixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
@@ -160,6 +155,11 @@ def create_args() -> Namespace:
 						help="MixUp distribution used in MixMatch and ReMixMatch.")
 	parser.add_argument("--shuffle_s_with_u", type=str_to_bool, default=True,
 						help="MixMatch shuffle supervised and unsupervised data.")
+
+	parser.add_argument("--dataset_ratio", type=float, default=1.0,
+						help="Ratio of the dataset used for training.")
+	parser.add_argument("--supervised_ratio", type=float, default=0.1,
+						help="Supervised ratio used for split dataset.")
 
 	parser.add_argument("--cross_validation", type=str_to_bool, default=False,
 						help="Use cross validation for UBS8K dataset.")
@@ -310,7 +310,6 @@ def main():
 				scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
 			else:
 				scheduler = None
-
 			criterion = FixMatchLossOneHot.from_edict(args)
 
 			if args.write_results:
@@ -359,6 +358,10 @@ def main():
 			optim = optim_factory(model)
 			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
+			if args.scheduler == "CosineLRScheduler":
+				scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
+			else:
+				scheduler = None
 			criterion = MixMatchLossOneHot.from_edict(args)
 			mixup_mixer = MixUpMixerTag.from_edict(args)
 			mixer = MixMatchMixer(mixup_mixer)
@@ -380,7 +383,7 @@ def main():
 			validator = DefaultValidator(
 				model, acti_fn, loader_val, metrics_val, writer
 			)
-			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
+			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
 			learner.start()
 
 			if writer is not None:
@@ -412,6 +415,10 @@ def main():
 
 			rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
 
+			if args.scheduler == "CosineLRScheduler":
+				scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
+			else:
+				scheduler = None
 			criterion = ReMixMatchLossOneHot.from_edict(args)
 			mixup_mixer = MixUpMixerTag.from_edict(args)
 			mixer = ReMixMatchMixer(mixup_mixer)
@@ -441,7 +448,7 @@ def main():
 			validator = DefaultValidator(
 				model, acti_fn, loader_val, metrics_val, writer
 			)
-			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
+			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
 			learner.start()
 
 			if writer is not None:
@@ -457,6 +464,10 @@ def main():
 			optim = optim_factory(model)
 			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
+			if args.scheduler == "CosineLRScheduler":
+				scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
+			else:
+				scheduler = None
 			criterion = cross_entropy
 
 			if args.write_results:
@@ -471,7 +482,7 @@ def main():
 			validator = DefaultValidator(
 				model, acti_fn, loader_val, metrics_val, writer
 			)
-			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
+			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
 			learner.start()
 
 			if writer is not None:
@@ -487,6 +498,10 @@ def main():
 			optim = optim_factory(model)
 			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
+			if args.scheduler == "CosineLRScheduler":
+				scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
+			else:
+				scheduler = None
 			criterion = cross_entropy
 
 			if args.write_results:
@@ -501,7 +516,7 @@ def main():
 			validator = DefaultValidator(
 				model, acti_fn, loader_val, metrics_val, writer
 			)
-			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs)
+			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
 			learner.start()
 
 			if writer is not None:
@@ -530,14 +545,14 @@ def get_cifar10_augms(args: Namespace) -> (Callable, Callable, Callable):
 	])
 	augm_strong_fn = Compose([
 		RandomChoice([
-			Transform(args.ratio_augm_strong, scale=(0.5, 1.5)),
-			Transform(args.ratio_augm_strong, rotation=(-np.pi, np.pi)),
+			# Transform(args.ratio_augm_strong, scale=(0.5, 1.5)),
+			# Transform(args.ratio_augm_strong, rotation=(-np.pi, np.pi)),
 		]),
 		RandomChoice([
-			Gray(args.ratio_augm_strong),
+			# Gray(args.ratio_augm_strong),
 			RandCrop(args.ratio_augm_strong),
-			UniColor(args.ratio_augm_strong),
-			Inversion(args.ratio_augm_strong),
+			# UniColor(args.ratio_augm_strong),
+			# Inversion(args.ratio_augm_strong),
 		]),
 	])
 	# Augmentation used by MixMatch
