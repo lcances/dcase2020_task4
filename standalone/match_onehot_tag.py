@@ -109,6 +109,13 @@ def create_args() -> Namespace:
 	parser.add_argument("--weight_decay", type=float, default=0.0,
 						help="Weight decay used.")
 
+	parser.add_argument("--ratio_augm_weak", type=float, default=0.1,
+						help="Probability to apply weak augmentation for ReMixMatch and FixMatch.")
+	parser.add_argument("--ratio_augm_strong", type=float, default=1.0,
+						help="Probability to apply strong augmentation for ReMixMatch and FixMatch.")
+	parser.add_argument("--ratio_augm", type=float, default=0.5,
+						help="Probability to apply augmentation for MixMatch.")
+
 	parser.add_argument("--write_results", type=str_to_bool, default=True,
 						help="Write results in a tensorboard SummaryWriter.")
 	parser.add_argument("--args_file", type=str_to_optional_str, default=None,
@@ -513,46 +520,43 @@ def main():
 	print("Total execution time: %.2fs" % exec_time)
 
 
-def get_cifar10_augms() -> (Callable, Callable, Callable):
+def get_cifar10_augms(args: Namespace) -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	ratio_augm_weak = 0.1
 	augm_weak_fn = RandomChoice([
-		HorizontalFlip(ratio_augm_weak),
-		VerticalFlip(ratio_augm_weak),
-		# Transform(ratio_augm_weak, scale=(0.75, 1.25)),
-		# Transform(ratio_augm_weak, rotation=(-np.pi, np.pi)),
+		HorizontalFlip(args.ratio_augm_weak),
+		VerticalFlip(args.ratio_augm_weak),
+		# Transform(args.ratio_augm_weak, scale=(0.75, 1.25)),
+		# Transform(args.ratio_augm_weak, rotation=(-np.pi, np.pi)),
 	])
-	ratio_augm_strong = 1.0
 	augm_strong_fn = Compose([
 		RandomChoice([
-			Transform(ratio_augm_strong, scale=(0.5, 1.5)),
-			Transform(ratio_augm_strong, rotation=(-np.pi, np.pi)),
+			Transform(args.ratio_augm_strong, scale=(0.5, 1.5)),
+			Transform(args.ratio_augm_strong, rotation=(-np.pi, np.pi)),
 		]),
 		RandomChoice([
-			Gray(ratio_augm_strong),
-			RandCrop(ratio_augm_strong),
-			UniColor(ratio_augm_strong),
-			Inversion(ratio_augm_strong),
+			Gray(args.ratio_augm_strong),
+			RandCrop(args.ratio_augm_strong),
+			UniColor(args.ratio_augm_strong),
+			Inversion(args.ratio_augm_strong),
 		]),
 	])
 	# Augmentation used by MixMatch
-	ratio_augm = 0.5
 	augm_fn = RandomChoice([
-		HorizontalFlip(ratio_augm),
-		VerticalFlip(ratio_augm),
-		Transform(ratio_augm, scale=(0.75, 1.25)),
-		Transform(ratio_augm, rotation=(-np.pi, np.pi)),
-		Gray(ratio_augm),
-		RandCrop(ratio_augm, rect_max_scale=(0.2, 0.2)),
-		UniColor(ratio_augm),
-		Inversion(ratio_augm),
+		HorizontalFlip(args.ratio_augm),
+		VerticalFlip(args.ratio_augm),
+		Transform(args.ratio_augm, scale=(0.75, 1.25)),
+		Transform(args.ratio_augm, rotation=(-np.pi, np.pi)),
+		Gray(args.ratio_augm),
+		RandCrop(args.ratio_augm, rect_max_scale=(0.2, 0.2)),
+		UniColor(args.ratio_augm),
+		Inversion(args.ratio_augm),
 	])
 
 	return augm_weak_fn, augm_strong_fn, augm_fn
 
 
 def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
-	augm_weak_fn, augm_strong_fn, augm_fn = get_cifar10_augms()
+	augm_weak_fn, augm_strong_fn, augm_fn = get_cifar10_augms(args)
 
 	# Add preprocessing before each augmentation
 	preprocess_fn = lambda img: np.array(img).transpose()  # Transpose img [3, 32, 32] to [32, 32, 3]
@@ -571,45 +575,42 @@ def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset
 	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
 
 
-def get_ubs8k_augms() -> (Callable, Callable, Callable):
+def get_ubs8k_augms(args: Namespace) -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	ratio_augm_weak = 0.5
 	augm_weak_fn = RandomChoice([
-		TimeStretch(ratio_augm_weak),
-		PitchShiftRandom(ratio_augm_weak, steps=(-1, 1)),
-		Noise(ratio=ratio_augm_weak, snr=5.0),
-		Noise2(ratio_augm_weak, noise_factor=(5.0, 5.0)),
+		TimeStretch(args.ratio_augm_weak),
+		PitchShiftRandom(args.ratio_augm_weak, steps=(-1, 1)),
+		Noise(ratio=args.ratio_augm_weak, snr=5.0),
+		Noise2(args.ratio_augm_weak, noise_factor=(5.0, 5.0)),
 	])
-	ratio_augm_strong = 1.0
 	augm_strong_fn = Compose([
 		RandomChoice([
-			TimeStretch(ratio_augm_strong),
-			PitchShiftRandom(ratio_augm_strong),
-			Noise(ratio=ratio_augm_strong, snr=15.0),
-			Noise2(ratio_augm_strong, noise_factor=(10.0, 10.0)),
+			TimeStretch(args.ratio_augm_strong),
+			PitchShiftRandom(args.ratio_augm_strong),
+			Noise(ratio=args.ratio_augm_strong, snr=15.0),
+			Noise2(args.ratio_augm_strong, noise_factor=(10.0, 10.0)),
 		]),
 		RandomChoice([
-			Occlusion(ratio_augm_strong, max_size=1.0),
-			RandomFreqDropout(ratio_augm_strong, dropout=0.5),
-			RandomTimeDropout(ratio_augm_strong, dropout=0.5),
+			Occlusion(args.ratio_augm_strong, max_size=1.0),
+			RandomFreqDropout(args.ratio_augm_strong, dropout=0.5),
+			RandomTimeDropout(args.ratio_augm_strong, dropout=0.5),
 		]),
 	])
-	ratio_augm = 0.5
 	augm_fn = RandomChoice([
-		TimeStretch(ratio_augm),
-		PitchShiftRandom(ratio_augm),
-		Occlusion(ratio_augm, max_size=1.0),
-		Noise(ratio=ratio_augm, snr=5.0),
-		Noise2(ratio_augm, noise_factor=(5.0, 5.0)),
-		RandomFreqDropout(ratio_augm, dropout=0.5),
-		RandomTimeDropout(ratio_augm, dropout=0.5),
+		TimeStretch(args.ratio_augm),
+		PitchShiftRandom(args.ratio_augm),
+		Occlusion(args.ratio_augm, max_size=1.0),
+		Noise(ratio=args.ratio_augm, snr=5.0),
+		Noise2(args.ratio_augm, noise_factor=(5.0, 5.0)),
+		RandomFreqDropout(args.ratio_augm, dropout=0.5),
+		RandomTimeDropout(args.ratio_augm, dropout=0.5),
 	])
 
 	return augm_weak_fn, augm_strong_fn, augm_fn
 
 
 def get_ubs8k_datasets(args: Namespace, fold_val: int) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
-	augm_weak_fn, augm_strong_fn, augm_fn = get_ubs8k_augms()
+	augm_weak_fn, augm_strong_fn, augm_fn = get_ubs8k_augms(args)
 	metadata_root = osp.join(args.dataset, "metadata")
 	audio_root = osp.join(args.dataset, "audio")
 

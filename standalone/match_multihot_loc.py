@@ -105,6 +105,13 @@ def create_args() -> Namespace:
 	parser.add_argument("--weight_decay", type=float, default=0.0,
 						help="Weight decay used.")
 
+	parser.add_argument("--ratio_augm_weak", type=float, default=0.5,
+						help="Probability to apply weak augmentation for ReMixMatch and FixMatch.")
+	parser.add_argument("--ratio_augm_strong", type=float, default=1.0,
+						help="Probability to apply strong augmentation for ReMixMatch and FixMatch.")
+	parser.add_argument("--ratio_augm", type=float, default=0.25,
+						help="Probability to apply augmentation for MixMatch.")
+
 	parser.add_argument("--write_results", type=str_to_bool, default=True,
 						help="Write results in a tensorboard SummaryWriter.")
 	parser.add_argument("--args_file", type=str_to_optional_str, default=None,
@@ -217,7 +224,7 @@ def main():
 			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
 
 	acti_fn = lambda batch, dim: batch.sigmoid()
-	augm_weak_fn, augm_strong_fn, augm_fn = get_desed_augms()
+	augm_weak_fn, augm_strong_fn, augm_fn = get_desed_augms(args)
 
 	metrics_s_weak = {
 		"s_acc_weak": BinaryConfidenceAccuracy(args.confidence),
@@ -468,7 +475,42 @@ def get_desed_managers(args: Namespace) -> (DESEDManager, DESEDManager):
 	return manager_s, manager_u
 
 
-def get_desed_augms() -> (Callable, Callable, Callable):
+def get_desed_augms(args: Namespace) -> (Callable, Callable, Callable):
+	# Weak and strong augmentations used by FixMatch and ReMixMatch
+	augm_weak_fn = RandomChoice([
+		TimeStretch(args.ratio_augm_weak),
+		PitchShiftRandom(args.ratio_augm_weak, steps=(-1, 1)),
+		Noise(ratio=args.ratio_augm_weak, snr=5.0),
+		Noise2(args.ratio_augm_weak, noise_factor=(5.0, 5.0)),
+	])
+	augm_strong_fn = Compose([
+		RandomChoice([
+			TimeStretch(args.ratio_augm_strong),
+			PitchShiftRandom(args.ratio_augm_strong),
+			Noise(ratio=args.ratio_augm_strong, snr=15.0),
+			Noise2(args.ratio_augm_strong, noise_factor=(10.0, 10.0)),
+		]),
+		RandomChoice([
+			Occlusion(args.ratio_augm_strong, max_size=1.0),
+			RandomFreqDropout(args.ratio_augm_strong, dropout=0.5),
+			RandomTimeDropout(args.ratio_augm_strong, dropout=0.5),
+		]),
+	])
+	augm_fn = RandomChoice([
+		TimeStretch(args.ratio_augm),
+		PitchShiftRandom(args.ratio_augm),
+		Occlusion(args.ratio_augm, max_size=1.0),
+		Noise(ratio=args.ratio_augm, snr=5.0),
+		Noise2(args.ratio_augm, noise_factor=(5.0, 5.0)),
+		RandomFreqDropout(args.ratio_augm, dropout=0.5),
+		RandomTimeDropout(args.ratio_augm, dropout=0.5),
+	])
+
+	return augm_weak_fn, augm_strong_fn, augm_fn
+
+
+def get_desed_augms_old(args: Namespace) -> (Callable, Callable, Callable):
+	# TODO : rem ?
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	ratio = 0.1
 	augm_weak_fn = RandomChoice([
