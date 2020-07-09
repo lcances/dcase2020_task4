@@ -403,7 +403,8 @@ def main():
 	validator = DefaultValidatorLoc(
 		model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, args.checkpoint_metric_name
 	)
-	learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
+	steppables = [scheduler, rampup_lambda_u]
+	learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, steppables)
 	learner.start()
 
 	if writer is not None:

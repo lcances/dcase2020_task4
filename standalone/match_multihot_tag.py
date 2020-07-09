@@ -448,7 +448,8 @@ def main():
 	validator = DefaultValidator(
 		model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 	)
-	learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
+	steppables = [scheduler, rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
+	learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, steppables)
 	learner.start()
 
 	if writer is not None:
