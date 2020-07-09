@@ -73,7 +73,7 @@ class FixMatchTrainer(SSTrainerABC):
 
 			# Use guess u label with prediction of weak augmentation of u
 			with torch.no_grad():
-				u_labels_guessed = self.guesser(u_pred_augm_weak, dim=1)
+				u_labels_guessed = self.guesser(u_batch_augm_weak, dim=1)
 				u_pred_augm_weak = self.guesser.get_last_pred()
 
 			# Update model

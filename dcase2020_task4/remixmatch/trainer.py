@@ -90,19 +90,16 @@ class ReMixMatchTrainer(SSTrainerABC):
 			u_batch_augm_strongs = torch.stack(u_batch_augm_strongs).cuda().float()
 
 			with torch.no_grad():
-				# Compute guessed label
-				u_logits_augm_weak = self.model(u_batch_augm_weak)
-				u_pred_augm_weak = self.acti_fn(u_logits_augm_weak, dim=1)
+				u_label_guessed = self.guesser(u_batch_augm_weak, dim=1)
+				u_pred_augm_weak = self.guesser.get_last_pred()
 
 				if self.distributions is not None:
 					self.distributions.add_batch_pred(s_labels, "labeled")
 					self.distributions.add_batch_pred(u_pred_augm_weak, "unlabeled")
 
-				u_label_guessed = self.guesser(u_pred_augm_weak, dim=1)
-
 				# Get strongly augmented batch "batch_u1"
 				u1_batch = u_batch_augm_strongs[0, :].clone()
-				u1_labels = u_label_guessed.clone()
+				u1_label = u_label_guessed.clone()
 
 				# Apply mix
 				s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed = \
@@ -127,7 +124,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 			loss, loss_s, loss_u, loss_u1, loss_r = self.criterion(
 				s_pred_mixed, s_labels_mixed,
 				u_pred_mixed, u_labels_mixed,
-				u1_pred, u1_labels,
+				u1_pred, u1_label,
 				u1_pred_self_super, u1_label_self_super
 			)
 			self.optim.zero_grad()
@@ -145,7 +142,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 				metrics_preds_labels = [
 					(self.metrics_s, s_pred_mixed, s_labels_mixed),
 					(self.metrics_u, u_pred_mixed, u_labels_mixed),
-					(self.metrics_u1, u1_pred, u1_labels),
+					(self.metrics_u1, u1_pred, u1_label),
 					(self.metrics_r, u1_pred_self_super, u1_label_self_super),
 				]
 
