@@ -340,7 +340,7 @@ def main():
 		trainer = FixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong,
 			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
-			criterion, writer, rampup_lambda_u, args.threshold_multihot, distributions
+			criterion, writer, distributions, args.threshold_multihot
 		)
 
 	elif "mm" == args.run or "mixmatch" == args.run:
@@ -396,7 +396,8 @@ def main():
 	if args.write_results:
 		checkpoint = CheckPoint(
 			model, optim, name=osp.join(args.path_checkpoint, "%s_%s_%s.torch" % (
-				args.model_name, args.train_name, args.suffix))
+				args.model_name, args.train_name, args.suffix
+			))
 		)
 	else:
 		checkpoint = None

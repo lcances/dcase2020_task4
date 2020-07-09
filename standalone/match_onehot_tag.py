@@ -54,6 +54,7 @@ from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
+from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
 from dcase2020_task4.util.FnDataset import FnDataset
@@ -437,8 +438,17 @@ def main():
 
 		rampup_lambda_u.set_obj(criterion)
 
+		if args.write_results:
+			checkpoint = CheckPoint(
+				model, optim, name=osp.join(args.path_checkpoint, "%s_%s_%s.torch" % (
+					args.model_name, args.train_name, args.suffix
+				))
+			)
+		else:
+			checkpoint = None
+
 		validator = DefaultValidator(
-			model, acti_fn, loader_val, metrics_val, writer
+			model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 		)
 		steppables = [scheduler, rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
 		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, steppables)

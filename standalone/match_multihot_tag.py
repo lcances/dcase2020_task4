@@ -441,7 +441,8 @@ def main():
 	if args.write_results:
 		checkpoint = CheckPoint(
 			model, optim, name=osp.join(args.path_checkpoint, "%s_%s_%s.torch" % (
-				args.model_name, args.train_name, args.suffix))
+				args.model_name, args.train_name, args.suffix
+			))
 		)
 	else:
 		checkpoint = None
