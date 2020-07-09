@@ -206,7 +206,7 @@ def main():
 		args.nb_rampup_epochs = args.nb_epochs
 
 	print("Start match_onehot. (%s)" % args.suffix)
-	print("- run:", " ".join(args.run))
+	print("- run:", args.run)
 	print("- confidence:", args.confidence)
 	print("- dataset_name:", args.dataset_name)
 	print("- cross_validation:", args.cross_validation)

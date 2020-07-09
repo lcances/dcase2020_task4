@@ -16,8 +16,8 @@ class GuesserABC(ABC, Callable):
 		return self.__call__(x, dim)
 
 
-class GuesserModelABC(ABC, Callable, GuesserABC):
-	def __call__(self, x: Tensor, dim: int):
+class GuesserModelABC(GuesserABC):
+	def __call__(self, x: Tensor, dim: int) -> Tensor:
 		raise NotImplementedError("Abstract method")
 
 	def get_last_pred(self) -> Optional[Tensor]:
