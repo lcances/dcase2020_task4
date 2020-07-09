@@ -399,8 +399,11 @@ def main():
 		rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
 
 		criterion = ReMixMatchLossMultiHot.from_edict(args)
+		rampup_lambda_u1.set_obj(criterion)
+		rampup_lambda_r.set_obj(criterion)
+
 		mixup_mixer = MixUpMixerTag.from_edict(args)
-		mixer = ReMixMatchMixer(mixup_mixer)
+		mixer = ReMixMatchMixer(mixup_mixer, args.shuffle_s_with_u)
 		if args.use_sharpen_multihot:
 			sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
 		else:
@@ -434,8 +437,6 @@ def main():
 		raise RuntimeError("Unknown run %s" % args.run)
 
 	rampup_lambda_u.set_obj(criterion)
-	rampup_lambda_u1.set_obj(criterion)
-	rampup_lambda_r.set_obj(criterion)
 
 	if args.write_results:
 		checkpoint = CheckPoint(

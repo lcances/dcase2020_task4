@@ -45,7 +45,7 @@ class SelfSupervisedFlips(SelfSupervisedABC):
 	def create_batch_label(self, batch: Tensor) -> (Tensor, Tensor):
 		labels = np.random.randint(0, 4, len(batch))
 
-		batch = batch.numpy()
+		batch = batch.cpu().numpy()
 		batch_flipped = torch.as_tensor([
 			self.flip_fn(x, idx) for x, idx in zip(batch, labels)
 		]).cuda()

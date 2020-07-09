@@ -31,7 +31,6 @@ class MixMatchTrainerLoc(SSTrainerABC):
 		criterion: MixMatchLossLocABC,
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
-		rampup_lambda_u: RampUp,
 		sharpen_fn: Callable,
 	):
 		self.model = model
@@ -46,7 +45,6 @@ class MixMatchTrainerLoc(SSTrainerABC):
 		self.criterion = criterion
 		self.writer = writer
 		self.mixer = mixer
-		self.rampup_lambda_u = rampup_lambda_u
 		self.sharpen_fn = sharpen_fn
 
 		self.metrics_recorder = MetricsRecorder(

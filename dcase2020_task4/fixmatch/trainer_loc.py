@@ -13,7 +13,6 @@ from dcase2020_task4.trainer_abc import SSTrainerABC
 from dcase2020_task4.metrics_recorder import MetricsRecorder
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
-from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.util.zip_cycle import ZipCycle
 
@@ -32,9 +31,8 @@ class FixMatchTrainerLoc(SSTrainerABC):
 		metrics_u_strong: Dict[str, Metrics],
 		criterion: FixMatchLossLocABC,
 		writer: Optional[SummaryWriter],
-		rampup_lambda_u: Optional[RampUp],
-		threshold_multihot: float,
 		distributions: Optional[AvgDistributions],
+		threshold_multihot: float,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -47,9 +45,8 @@ class FixMatchTrainerLoc(SSTrainerABC):
 		self.metrics_u_strong = metrics_u_strong
 		self.criterion = criterion
 		self.writer = writer
-		self.rampup_lambda_u = rampup_lambda_u
-		self.threshold_multihot = threshold_multihot
 		self.distributions = distributions
+		self.threshold_multihot = threshold_multihot
 
 		self.metrics_recorder = MetricsRecorder(
 			"train/",

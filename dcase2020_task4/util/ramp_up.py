@@ -13,17 +13,17 @@ class RampUp:
 		self,
 		nb_steps: int,
 		max_value: float,
-		min_value: float = 0.0,
 		obj: Optional[object] = None,
 		attr_name: Optional[str] = None,
+		min_value: float = 0.0,
 	):
 		self.nb_steps = nb_steps
 		self.max_value = max_value
-		self.min_value = min_value
 		self.obj = obj
 		self.attr_name = attr_name
-		self.cur_step = 0
+		self.min_value = min_value
 
+		self.cur_step = 0
 		self.reset()
 
 	def reset(self):

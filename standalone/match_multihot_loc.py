@@ -302,8 +302,6 @@ def main():
 
 	nb_rampup_steps = args.nb_rampup_epochs if args.use_rampup else 0
 	rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u, obj=None, attr_name="lambda_u")
-	rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_u1")
-	rampup_lambda_r = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_r")
 
 	if "fm" == args.run or "fixmatch" == args.run:
 		args.train_name = "FixMatch"
@@ -320,12 +318,6 @@ def main():
 
 		loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
-
-		if args.use_rampup:
-			nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms_weak_strong)
-			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
-		else:
-			rampup_lambda_u = None
 
 		if args.use_alignment:
 			distributions = AvgDistributions.from_edict(args)
@@ -377,13 +369,10 @@ def main():
 		else:
 			sharpen_fn = lambda x, dim: x
 
-		nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms)
-		lambda_u_rampup = RampUp(nb_rampup_steps, args.lambda_u)
-
 		trainer = MixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms,
 			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
-			criterion, writer, mixer, lambda_u_rampup, sharpen_fn
+			criterion, writer, mixer, sharpen_fn
 		)
 
 	elif "su" == args.run or "supervised" == args.run:
@@ -401,6 +390,8 @@ def main():
 
 	else:
 		raise RuntimeError("Unknown run %s" % args.run)
+
+	rampup_lambda_u.set_obj(criterion)
 
 	if args.write_results:
 		checkpoint = CheckPoint(
