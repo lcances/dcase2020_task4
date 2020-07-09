@@ -126,8 +126,8 @@ def create_args() -> Namespace:
 							 "Use 0 for deactivate RampUp. Use \"nb_epochs\" for ramping up during all training.")
 
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
-	parser.add_argument("--checkpoint_metric_name", type=str, default="fscore_weak",
-						choices=["fscore_weak", "fscore_strong", "acc_weak", "acc_strong"],
+	parser.add_argument("--checkpoint_metric_name", type=str, default="acc",
+						choices=["acc"],
 						help="Metric used to compare and save best model during training.")
 
 	parser.add_argument("--lambda_u", type=float, default=1.0,

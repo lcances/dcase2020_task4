@@ -129,7 +129,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--path_checkpoint", type=str, default="../models/")
 	parser.add_argument("--checkpoint_metric_name", type=str, default="fscore_weak",
-						choices=["fscore_weak", "fscore_strong", "acc_weak", "acc_strong"],
+						choices=["acc_weak", "fscore_weak"],
 						help="Metric used to compare and save best model during training.")
 	parser.add_argument("--from_disk", type=str_to_bool, default=True,
 						help="Select False if you want ot load all data into RAM.")
