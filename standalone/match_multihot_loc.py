@@ -30,22 +30,22 @@ from dcase2020.datasets import DESEDDataset
 
 from dcase2020_task4.dcase2019.models import dcase2019_model
 
-from dcase2020_task4.fixmatch.losses.tag_loc.default import FixMatchLossMultiHotLoc
-from dcase2020_task4.fixmatch.losses.tag_loc.v1 import FixMatchLossMultiHotLocV1
-from dcase2020_task4.fixmatch.losses.tag_loc.v2 import FixMatchLossMultiHotLocV2
-from dcase2020_task4.fixmatch.losses.tag_loc.v3 import FixMatchLossMultiHotLocV3
-from dcase2020_task4.fixmatch.losses.tag_loc.v5 import FixMatchLossMultiHotLocV5
+from dcase2020_task4.fixmatch.losses.loc.default import FixMatchLossMultiHotLoc
+from dcase2020_task4.fixmatch.losses.loc.v1 import FixMatchLossMultiHotLocV1
+from dcase2020_task4.fixmatch.losses.loc.v2 import FixMatchLossMultiHotLocV2
+from dcase2020_task4.fixmatch.losses.loc.v3 import FixMatchLossMultiHotLocV3
+from dcase2020_task4.fixmatch.losses.loc.v5 import FixMatchLossMultiHotLocV5
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.fixmatch.trainer_loc import FixMatchTrainerLoc
 
-from dcase2020_task4.mixmatch.losses.tag_loc import MixMatchLossMultiHotLoc
-from dcase2020_task4.mixmatch.mixers.tag_loc import MixMatchMixerMultiHotLoc
+from dcase2020_task4.mixmatch.losses.loc.default import MixMatchLossMultiHotLoc
+from dcase2020_task4.mixmatch.mixers.loc import MixMatchMixerMultiHotLoc
 from dcase2020_task4.mixmatch.trainer_loc import MixMatchTrainerLoc
 
-from dcase2020_task4.mixup.mixers.tag_loc import MixUpMixerLoc
+from dcase2020_task4.mixup.mixers.loc import MixUpMixerLoc
 
 from dcase2020_task4.learner import DefaultLearner
-from dcase2020_task4.supervised.loss import SupervisedLossLoc
+from dcase2020_task4.supervised.losses.loc import SupervisedLossLoc
 from dcase2020_task4.supervised.trainer_loc import SupervisedTrainerLoc
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
@@ -78,7 +78,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
-	parser.add_argument("--dataset_name", type=str, default="DESED")
+	parser.add_argument("--dataset_name", type=str, default="DESED_LOC")
 	parser.add_argument("--nb_classes", type=int, default=10)
 
 	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
@@ -283,11 +283,22 @@ def main():
 	args_loader_train_u = dict(
 		batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
-	suffix_loc = "LOC"
-
 	model = model_factory()
 	optim = optim_factory(model)
 	print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
+
+	if args.scheduler == "CosineLRScheduler":
+		scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
+	else:
+		scheduler = None
+
+	if args.write_results:
+		writer = build_writer(args, start_date, suffix="%d_%d_%s_%s_%.2f_%.2f_%.2f_%s" % (
+			args.batch_size_s, args.batch_size_u, str(args.scheduler), args.experimental,
+			args.threshold_multihot, args.threshold_confidence, args.lambda_u, args.suffix,
+		))
+	else:
+		writer = None
 
 	if "fm" == args.run or "fixmatch" == args.run:
 		args.train_name = "FixMatch"
@@ -304,11 +315,6 @@ def main():
 
 		loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
-
-		if args.scheduler == "CosineLRScheduler":
-			scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
-		else:
-			scheduler = None
 
 		if args.use_rampup:
 			nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms_weak_strong)
@@ -334,14 +340,6 @@ def main():
 		else:
 			raise RuntimeError("Unknown experimental mode %s" % str(args.experimental))
 
-		if args.write_results:
-			writer = build_writer(args, start_date, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%.2f_%s" % (
-				suffix_loc, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.experimental,
-				args.threshold_multihot, args.threshold_confidence, args.lambda_u, args.suffix,
-			))
-		else:
-			writer = None
-
 		trainer = FixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong,
 			metrics_s_weak, metrics_u_weak, metrics_s_strong, metrics_u_strong,
@@ -365,11 +363,6 @@ def main():
 			raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 				loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
 
-		model = model_factory()
-		optim = optim_factory(model)
-		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-		scheduler = None
 		criterion = MixMatchLossMultiHotLoc.from_edict(args)
 		mixup_mixer = MixUpMixerLoc.from_edict(args)
 		mixer = MixMatchMixerMultiHotLoc(mixup_mixer)
@@ -381,14 +374,6 @@ def main():
 
 		nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms)
 		lambda_u_rampup = RampUp(nb_rampup_steps, args.lambda_u)
-
-		if args.write_results:
-			writer = build_writer(args, start_date, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%.2f_%s" % (
-				suffix_loc, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.experimental,
-				args.threshold_multihot, args.threshold_confidence, args.lambda_u, args.suffix,
-			))
-		else:
-			writer = None
 
 		trainer = MixMatchTrainerLoc(
 			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms,
@@ -403,20 +388,7 @@ def main():
 
 		loader_train_s = DataLoader(dataset=dataset_train_s, **args_loader_train_s)
 
-		model = model_factory()
-		optim = optim_factory(model)
-		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-		scheduler = None
 		criterion = SupervisedLossLoc()
-
-		if args.write_results:
-			writer = build_writer(args, start_date, suffix="%s_%d_%d_%s_%s_%.2f_%.2f_%.2f_%s" % (
-				suffix_loc, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.experimental,
-				args.threshold_multihot, args.threshold_confidence, args.lambda_u, args.suffix,
-			))
-		else:
-			writer = None
 
 		trainer = SupervisedTrainerLoc(
 			model, acti_fn, optim, loader_train_s, metrics_s_weak, metrics_s_strong, criterion, writer

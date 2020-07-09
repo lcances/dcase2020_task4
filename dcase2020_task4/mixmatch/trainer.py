@@ -8,10 +8,10 @@ from typing import Callable, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 
+from dcase2020_task4.guessers import GuesserABC
 from dcase2020_task4.metrics_recorder import MetricsRecorder
 from dcase2020_task4.mixmatch.losses.abc import MixMatchLossTagABC
 from dcase2020_task4.trainer_abc import SSTrainerABC
-from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.util.zip_cycle import ZipCycle
 
@@ -29,8 +29,7 @@ class MixMatchTrainer(SSTrainerABC):
 		criterion: MixMatchLossTagABC,
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
-		rampup_lambda_u: RampUp,
-		sharpen_fn: Callable,
+		guesser: GuesserABC,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -42,8 +41,7 @@ class MixMatchTrainer(SSTrainerABC):
 		self.criterion = criterion
 		self.writer = writer
 		self.mixer = mixer
-		self.rampup_lambda_u = rampup_lambda_u
-		self.sharpen_fn = sharpen_fn
+		self.guesser = guesser
 
 		self.metrics_recorder = MetricsRecorder(
 			"train/",
@@ -68,14 +66,7 @@ class MixMatchTrainer(SSTrainerABC):
 			u_batch_augms = torch.stack(u_batch_augms).cuda().float()
 
 			with torch.no_grad():
-				# Compute guessed label
-				nb_augms = u_batch_augms.shape[0]
-				u_logits_augms = torch.zeros([nb_augms] + list(s_labels.size())).cuda()
-				for k in range(nb_augms):
-					u_logits_augms[k] = self.model(u_batch_augms[k])
-				u_pred_augms = self.acti_fn(u_logits_augms, dim=2)
-				u_label_guessed = u_pred_augms.mean(dim=0)
-				u_label_guessed = self.sharpen_fn(u_label_guessed, dim=1)
+				u_label_guessed = self.guesser(u_batch_augms, dim=1)
 
 				# Apply mix
 				s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed = self.mixer(
@@ -97,10 +88,6 @@ class MixMatchTrainer(SSTrainerABC):
 
 			# Compute metrics
 			with torch.no_grad():
-				if self.rampup_lambda_u is not None:
-					self.criterion.lambda_u = self.rampup_lambda_u.value()
-					self.rampup_lambda_u.step()
-
 				self.metrics_recorder.add_value("loss", loss.item())
 				self.metrics_recorder.add_value("loss_s", loss_s.item())
 				self.metrics_recorder.add_value("loss_u", loss_u.item())
@@ -116,7 +103,7 @@ class MixMatchTrainer(SSTrainerABC):
 
 		if self.writer is not None:
 			self.writer.add_scalar("hparams/lr", get_lr(self.optim), epoch)
-			self.writer.add_scalar("hparams/lambda_u", self.criterion.lambda_u, epoch)
+			self.writer.add_scalar("hparams/lambda_u", self.criterion.get_lambda_u(), epoch)
 			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 	def nb_examples_supervised(self) -> int:

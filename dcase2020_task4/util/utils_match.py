@@ -27,7 +27,7 @@ def same_shuffle(values: List[Tensor]) -> List[Tensor]:
 
 
 def binarize_onehot_labels(batch: Tensor) -> Tensor:
-	""" Convert list of distributions vectors to one-hot. """
+	""" Convert a batch of labels (bsize, label_size) to one-hot by using max(). """
 	indexes = batch.argmax(dim=1)
 	nb_classes = batch.shape[1]
 	bin_labels = one_hot(indexes, nb_classes)

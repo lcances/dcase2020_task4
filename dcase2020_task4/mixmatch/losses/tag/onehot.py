@@ -40,6 +40,9 @@ class MixMatchLossOneHot(MixMatchLossTagABC):
 
 		return loss, loss_s, loss_u
 
+	def get_lambda_u(self) -> float:
+		return self.lambda_u
+
 
 def sq_diff(a: Tensor, b: Tensor) -> Tensor:
 	return (a - b) ** 2

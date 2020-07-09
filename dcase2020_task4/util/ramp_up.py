@@ -9,19 +9,35 @@ class RampUp:
 		Access the current value with method "value()".
 		If nb_steps == 0, the coefficient will be 1.0 and the value will be always the max value expected.
 	"""
-	def __init__(self, nb_steps: int, max_value: Optional[float] = None, min_value: float = 0.0):
+	def __init__(
+		self,
+		nb_steps: int,
+		max_value: float,
+		min_value: float = 0.0,
+		obj: Optional[object] = None,
+		attr_name: Optional[str] = None,
+	):
 		self.nb_steps = nb_steps
 		self.max_value = max_value
 		self.min_value = min_value
-
+		self.obj = obj
+		self.attr_name = attr_name
 		self.cur_step = 0
+
+		self.reset()
 
 	def reset(self):
 		self.cur_step = 0
+		self._update_obj()
+
+	def set_obj(self, obj: Optional[object]):
+		self.obj = obj
+		self._update_obj()
 
 	def step(self):
 		if self.cur_step < self.nb_steps:
 			self.cur_step += 1
+			self._update_obj()
 
 	def value(self) -> float:
 		return (self.max_value - self.min_value) * self.get_coef() + self.min_value
@@ -31,3 +47,7 @@ class RampUp:
 			return self.cur_step / self.nb_steps
 		else:
 			return 1.0
+
+	def _update_obj(self):
+		if self.obj is not None:
+			self.obj.__setattr__(self.attr_name, self.value())

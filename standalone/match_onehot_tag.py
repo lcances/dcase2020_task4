@@ -34,7 +34,9 @@ from dcase2020.util.utils import get_datetime, reset_seed
 from dcase2020_task4.fixmatch.losses.onehot import FixMatchLossOneHot
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 
-from dcase2020_task4.mixmatch.losses.onehot import MixMatchLossOneHot
+from dcase2020_task4.guessers import GuesserModelOneHot, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen
+
+from dcase2020_task4.mixmatch.losses.tag.onehot import MixMatchLossOneHot
 from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 
@@ -44,8 +46,9 @@ from dcase2020_task4.other_models.resnet import ResNet18
 from dcase2020_task4.other_models.UBS8KBaseline import UBS8KBaseline
 from dcase2020_task4.other_models.vgg import VGG
 
-from dcase2020_task4.remixmatch.losses.onehot import ReMixMatchLossOneHot
+from dcase2020_task4.remixmatch.losses.tag.onehot import ReMixMatchLossOneHot
 from dcase2020_task4.remixmatch.mixers.tag import ReMixMatchMixer
+from dcase2020_task4.remixmatch.self_label import SelfSupervisedFlips, SelfSupervisedRotation
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
@@ -56,7 +59,7 @@ from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_id
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
-from dcase2020_task4.util.other_augments import Gray, Inversion, RandCrop, UniColor
+from dcase2020_task4.util.other_augments import Gray, Inversion, RandCrop, UniColor, RandCropSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import Sharpen
@@ -72,7 +75,7 @@ from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
 
 def create_args() -> Namespace:
 	parser = ArgumentParser()
-	parser.add_argument("--run", type=str, nargs="*", default=["fixmatch"],
+	parser.add_argument("--run", type=str, default="fixmatch",
 						choices=["fixmatch", "fm", "mixmatch", "mm", "remixmatch", "rmm", "supervised_full", "sf", "supervised_part", "sp"],
 						help="Training method to run.")
 	parser.add_argument("--seed", type=int, default=123)
@@ -288,7 +291,29 @@ def main():
 		args_loader_train_u = dict(
 			batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
-		if "fm" in args.run or "fixmatch" in args.run:
+		model = model_factory()
+		optim = optim_factory(model)
+		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
+
+		if args.scheduler == "CosineLRScheduler":
+			scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
+		else:
+			scheduler = None
+
+		if args.write_results:
+			writer = build_writer(args, start_date, suffix="%d_%d_%s_%.2f_%.2f_%.2f_%.2f_%s_%d_%s" % (
+				args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence,
+				args.lambda_u, args.lambda_u1, args.lambda_r, args.criterion_name_u,
+				fold_val_ubs8k, args.suffix))
+		else:
+			writer = None
+
+		nb_rampup_steps = args.nb_rampup_epochs if args.use_rampup else 0
+		rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u, obj=None, attr_name="lambda_u")
+		rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_u1")
+		rampup_lambda_r = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_r")
+
+		if "fm" == args.run or "fixmatch" == args.run:
 			args.train_name = "FixMatch"
 			dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
 			dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
@@ -302,44 +327,17 @@ def main():
 			loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 			loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
-			model = model_factory()
-			optim = optim_factory(model)
-			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-			if args.scheduler == "CosineLRScheduler":
-				scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
-			else:
-				scheduler = None
 			criterion = FixMatchLossOneHot.from_edict(args)
+			rampup_lambda_u.set_obj(criterion)
 
-			if args.write_results:
-				writer = build_writer(args, start_date, suffix="%d_%d_%d_%s_%.2f_%.2f_%s" % (
-					fold_val_ubs8k, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence,
-					args.lambda_u, args.suffix))
-			else:
-				writer = None
-
-			if args.use_rampup:
-				nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms_weak_strong)
-				rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
-			else:
-				rampup_lambda_u = None
+			guesser = GuesserModelOneHot(model, acti_fn)
 
 			trainer = FixMatchTrainer(
 				model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-				criterion, writer, args.mode, rampup_lambda_u
+				criterion, writer, guesser
 			)
-			validator = DefaultValidator(
-				model, acti_fn, loader_val, metrics_val, writer
-			)
-			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
-			learner.start()
 
-			if writer is not None:
-				save_writer(writer, args, validator)
-			validator.get_metrics_recorder().print_min_max()
-
-		if "mm" in args.run or "mixmatch" in args.run:
+		elif "mm" == args.run or "mixmatch" == args.run:
 			args.train_name = "MixMatch"
 			dataset_train_s_augm = Subset(dataset_train_augm, idx_train_s)
 			dataset_train_u_augm = Subset(dataset_train_augm, idx_train_u)
@@ -354,43 +352,21 @@ def main():
 				raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 					loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
 
-			model = model_factory()
-			optim = optim_factory(model)
-			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-			if args.scheduler == "CosineLRScheduler":
-				scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
-			else:
-				scheduler = None
 			criterion = MixMatchLossOneHot.from_edict(args)
+			rampup_lambda_u.set_obj(criterion)
+
 			mixup_mixer = MixUpMixerTag.from_edict(args)
 			mixer = MixMatchMixer(mixup_mixer)
+
 			sharpen_fn = Sharpen(args.sharpen_temperature)
-
-			nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms)
-			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
-
-			if args.write_results:
-				writer = build_writer(args, start_date, suffix="%d_%d_%d_%s_%.2f_%s" % (
-					fold_val_ubs8k, args.batch_size_s, args.batch_size_u, args.criterion_name_u, args.lambda_u, args.suffix))
-			else:
-				writer = None
+			guesser = GuesserMeanModelSharpen(model, acti_fn, sharpen_fn)
 
 			trainer = MixMatchTrainer(
 				model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-				criterion, writer, mixer, rampup_lambda_u, sharpen_fn
+				criterion, writer, mixer, guesser
 			)
-			validator = DefaultValidator(
-				model, acti_fn, loader_val, metrics_val, writer
-			)
-			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
-			learner.start()
 
-			if writer is not None:
-				save_writer(writer, args, validator)
-			validator.get_metrics_recorder().print_min_max()
-
-		if "rmm" in args.run or "remixmatch" in args.run:
+		elif "rmm" == args.run or "remixmatch" == args.run:
 			args.train_name = "ReMixMatch"
 			dataset_train_s_augm_strong = Subset(dataset_train_augm_strong, idx_train_s)
 			dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
@@ -409,119 +385,70 @@ def main():
 				raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 					loader_train_s_strong.batch_size, loader_train_u_augms_weak_strongs.batch_size))
 
-			model = model_factory()
-			optim = optim_factory(model)
-			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
 			rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
 
-			if args.scheduler == "CosineLRScheduler":
-				scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
-			else:
-				scheduler = None
 			criterion = ReMixMatchLossOneHot.from_edict(args)
+			rampup_lambda_u.set_obj(criterion)
+			rampup_lambda_u1.set_obj(criterion)
+			rampup_lambda_r.set_obj(criterion)
+
 			mixup_mixer = MixUpMixerTag.from_edict(args)
 			mixer = ReMixMatchMixer(mixup_mixer)
+
 			sharpen_fn = Sharpen(args.sharpen_temperature)
-
 			distributions = AvgDistributions.from_edict(args)
-			acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
-			if args.use_rampup:
-				nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms_weak_strongs)
-				rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
-				rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1)
-			else:
-				rampup_lambda_u = None
-				rampup_lambda_u1 = None
+			guesser = GuesserModelAlignmentSharpen(model, acti_fn, distributions, sharpen_fn)
 
-			if args.write_results:
-				writer = build_writer(args, start_date, suffix="%d_%d_%d_%.2f_%.2f_%.2f_%s" % (
-					fold_val_ubs8k, args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
+			acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
+
+			if args.dataset_name.startswith("CIFAR10"):
+				ss_transform = SelfSupervisedRotation()
+			elif args.dataset_name.startswith("UBS8K"):
+				ss_transform = SelfSupervisedFlips()
 			else:
-				writer = None
+				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (args.dataset_name, " or ".join(("CIFAR10", "UBS8K"))))
 
 			trainer = ReMixMatchTrainer(
 				model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs,
 				metrics_s, metrics_u, metrics_u1, metrics_r,
-				criterion, writer, mixer, distributions, rot_angles, sharpen_fn, rampup_lambda_u, rampup_lambda_u1
+				criterion, writer, mixer, distributions, rot_angles, guesser, ss_transform
 			)
-			validator = DefaultValidator(
-				model, acti_fn, loader_val, metrics_val, writer
-			)
-			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
-			learner.start()
 
-			if writer is not None:
-				save_writer(writer, args, validator)
-			validator.get_metrics_recorder().print_min_max()
-
-		if "sf" in args.run or "supervised_full" in args.run:
-			args.train_name = "Supervised"
+		elif "sf" == args.run or "supervised_full" == args.run:
+			args.train_name = "Supervised_Full"
 			dataset_train_full = Subset(dataset_train, idx_train_s + idx_train_u)
 			loader_train_full = DataLoader(dataset_train_full, **args_loader_train_s)
 
-			model = model_factory()
-			optim = optim_factory(model)
-			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-			if args.scheduler == "CosineLRScheduler":
-				scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
-			else:
-				scheduler = None
 			criterion = cross_entropy
-
-			if args.write_results:
-				writer = build_writer(args, start_date, suffix="%s_%d_%d_%d_%s" % (
-					"full_100", fold_val_ubs8k, args.batch_size_s, args.batch_size_u, args.suffix))
-			else:
-				writer = None
 
 			trainer = SupervisedTrainer(
 				model, acti_fn, optim, loader_train_full, metrics_s, criterion, writer
 			)
-			validator = DefaultValidator(
-				model, acti_fn, loader_val, metrics_val, writer
-			)
-			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
-			learner.start()
 
-			if writer is not None:
-				save_writer(writer, args, validator)
-			validator.get_metrics_recorder().print_min_max()
-
-		if "sp" in args.run or "supervised_part" in args.run:
-			args.train_name = "Supervised"
+		elif "sp" == args.run or "supervised_part" == args.run:
+			args.train_name = "Supervised_Part"
 			dataset_train_part = Subset(dataset_train, idx_train_s)
 			loader_train_part = DataLoader(dataset_train_part, **args_loader_train_s)
 
-			model = model_factory()
-			optim = optim_factory(model)
-			print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
-
-			if args.scheduler == "CosineLRScheduler":
-				scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
-			else:
-				scheduler = None
 			criterion = cross_entropy
-
-			if args.write_results:
-				writer = build_writer(args, start_date, suffix="%s_%d_%d_%d_%d_%s" % (
-					"part", int(100 * args.supervised_ratio), fold_val_ubs8k, args.batch_size_s, args.batch_size_u, args.suffix))
-			else:
-				writer = None
 
 			trainer = SupervisedTrainer(
 				model, acti_fn, optim, loader_train_part, metrics_s, criterion, writer
 			)
-			validator = DefaultValidator(
-				model, acti_fn, loader_val, metrics_val, writer
-			)
-			learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, scheduler)
-			learner.start()
 
-			if writer is not None:
-				save_writer(writer, args, validator)
-			validator.get_metrics_recorder().print_min_max()
+		else:
+			raise RuntimeError("Unknown run %s" % args.run)
+
+		validator = DefaultValidator(
+			model, acti_fn, loader_val, metrics_val, writer
+		)
+		steppables = [scheduler, rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
+		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, steppables)
+		learner.start()
+
+		if writer is not None:
+			save_writer(writer, args, validator)
+		validator.get_metrics_recorder().print_min_max()
 
 	if args.cross_validation:
 		for fold_val_ubs8k_ in range(1, 11):
@@ -609,6 +536,7 @@ def get_ubs8k_augms(args: Namespace) -> (Callable, Callable, Callable):
 			Occlusion(args.ratio_augm_strong, max_size=1.0),
 			RandomFreqDropout(args.ratio_augm_strong, dropout=0.5),
 			RandomTimeDropout(args.ratio_augm_strong, dropout=0.5),
+			RandCropSpec(args.ratio_augm_strong),
 		]),
 	])
 	augm_fn = RandomChoice([
@@ -619,6 +547,7 @@ def get_ubs8k_augms(args: Namespace) -> (Callable, Callable, Callable):
 		Noise2(args.ratio_augm, noise_factor=(5.0, 5.0)),
 		RandomFreqDropout(args.ratio_augm, dropout=0.5),
 		RandomTimeDropout(args.ratio_augm, dropout=0.5),
+		RandCropSpec(args.ratio_augm),
 	])
 
 	return augm_weak_fn, augm_strong_fn, augm_fn

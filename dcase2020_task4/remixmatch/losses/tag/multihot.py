@@ -1,10 +1,11 @@
 from torch import Tensor
+from torch.nn.functional import binary_cross_entropy
 
 from dcase2020_task4.remixmatch.losses.abc import ReMixMatchLossTagABC
 from dcase2020_task4.util.utils_match import cross_entropy
 
 
-class ReMixMatchLossOneHot(ReMixMatchLossTagABC):
+class ReMixMatchLossMultiHot(ReMixMatchLossTagABC):
 	def __init__(
 		self, lambda_u: float = 1.5, lambda_u1: float = 0.5, lambda_r: float = 0.5
 	):
@@ -12,14 +13,14 @@ class ReMixMatchLossOneHot(ReMixMatchLossTagABC):
 		self.lambda_u1 = lambda_u1
 		self.lambda_r = lambda_r
 
-		self.criterion_s = cross_entropy
-		self.criterion_u = cross_entropy
-		self.criterion_u1 = cross_entropy
+		self.criterion_s = binary_cross_entropy
+		self.criterion_u = binary_cross_entropy
+		self.criterion_u1 = binary_cross_entropy
 		self.criterion_r = cross_entropy
 
 	@staticmethod
-	def from_edict(hparams) -> 'ReMixMatchLossOneHot':
-		return ReMixMatchLossOneHot(hparams.lambda_u, hparams.lambda_u1, hparams.lambda_r)
+	def from_edict(hparams) -> 'ReMixMatchLossMultiHot':
+		return ReMixMatchLossMultiHot(hparams.lambda_u, hparams.lambda_u1, hparams.lambda_r)
 
 	def __call__(
 		self,
@@ -47,3 +48,12 @@ class ReMixMatchLossOneHot(ReMixMatchLossTagABC):
 		loss = loss_s + self.lambda_u * loss_u + self.lambda_u1 * loss_u1 + self.lambda_r * loss_r
 
 		return loss, loss_s, loss_u, loss_u1, loss_r
+
+	def get_lambda_u(self) -> float:
+		return self.lambda_u
+
+	def get_lambda_u1(self) -> float:
+		return self.lambda_u1
+
+	def get_lambda_r(self) -> float:
+		return self.lambda_r

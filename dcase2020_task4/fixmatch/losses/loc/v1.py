@@ -80,3 +80,6 @@ class FixMatchLossMultiHotLocV1(FixMatchLossLocABC):
 			for d in sorted(dim, reverse=True):
 				maxes = maxes.max(dim=d)[0]
 		return (maxes > self.threshold_confidence).float()
+
+	def get_lambda_u(self) -> float:
+		return self.lambda_u

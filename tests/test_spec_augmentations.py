@@ -2,9 +2,11 @@ import json
 import matplotlib.pyplot as plt
 import numpy as np
 
+from torchvision.transforms import RandomChoice, Compose
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2
 from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, Noise, RandomTimeDropout, RandomFreqDropout
+from dcase2020_task4.util.other_augments import RandCropSpec
 
 
 def get_spec():
@@ -20,20 +22,24 @@ def test():
 	ratio = 1.0
 	augms = [
 		# Transform(ratio, scale=(0.9, 1.1)),
-		# Transform(ratio, rotation=(-np.pi / 2.0, np.pi / 2.0)),
+		# Transform(ratio, rotation=(0.2, 0.2)),
+		# Transform(ratio, rotation=(0.6, 0.6)),
+		# Transform(ratio, rotation=(-np.pi / 4.0, np.pi / 4.0)),
 		# Transform(ratio, translation=(-10, 10)),
 		# TimeStretch(ratio),
-		# HorizontalFlip(ratio),
-		# VerticalFlip(ratio),
 		# PitchShiftRandom(ratio),
 		# PitchShiftRandom(ratio, steps=(-1, 1)),
-		Noise(ratio=ratio, snr=15.0),
-		Noise(ratio=ratio, snr=5.0),
-		Noise2(ratio, noise_factor=(10.0, 10.0)),
-		Noise2(ratio, noise_factor=(5.0, 5.0)),
+		# Noise(ratio=ratio, snr=15.0),
+		# Noise(ratio=ratio, snr=5.0),
+		# Noise2(ratio, noise_factor=(10.0, 10.0)),
+		# Noise2(ratio, noise_factor=(5.0, 5.0)),
 		# Occlusion(ratio, max_size=1.0),
 		# RandomFreqDropout(ratio, dropout=0.25),
 		# RandomTimeDropout(ratio, dropout=0.25),
+		RandCropSpec(ratio, fill_value=-80),
+		HorizontalFlip(ratio),
+		VerticalFlip(ratio),
+		Compose([HorizontalFlip(ratio), VerticalFlip(ratio)])
 	]
 
 	plt.imshow(spec)

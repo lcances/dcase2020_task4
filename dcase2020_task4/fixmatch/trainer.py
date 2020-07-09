@@ -9,10 +9,10 @@ from typing import Callable, Dict, List, Optional
 from metric_utils.metrics import Metrics
 
 from dcase2020_task4.fixmatch.losses.abc import FixMatchLossTagABC
+from dcase2020_task4.guessers import GuesserModelABC
 from dcase2020_task4.metrics_recorder import MetricsRecorder
 from dcase2020_task4.trainer_abc import SSTrainerABC
-from dcase2020_task4.util.ramp_up import RampUp
-from dcase2020_task4.util.utils_match import binarize_onehot_labels, get_lr
+from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.util.zip_cycle import ZipCycle
 
 
@@ -28,9 +28,7 @@ class FixMatchTrainer(SSTrainerABC):
 		metrics_u: Dict[str, Metrics],
 		criterion: FixMatchLossTagABC,
 		writer: Optional[SummaryWriter],
-		mode: str,
-		rampup_lambda_u: Optional[RampUp],
-		threshold_multihot: Optional[float] = None,
+		guesser: GuesserModelABC,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -41,9 +39,7 @@ class FixMatchTrainer(SSTrainerABC):
 		self.metrics_u = metrics_u
 		self.criterion = criterion
 		self.writer = writer
-		self.mode = mode
-		self.rampup_lambda_u = rampup_lambda_u
-		self.threshold_multihot = threshold_multihot
+		self.guesser = guesser
 
 		self.metrics_recorder = MetricsRecorder(
 			"train/",
@@ -51,9 +47,6 @@ class FixMatchTrainer(SSTrainerABC):
 			list(self.metrics_u.keys()) +
 			["loss", "loss_s", "loss_u"]
 		)
-
-		if self.mode == "multihot" and self.threshold_multihot is None:
-			raise RuntimeError("Multihot threshold cannot be None in multihot mode.")
 
 	def train(self, epoch: int):
 		self.reset_all_metrics()
@@ -80,18 +73,12 @@ class FixMatchTrainer(SSTrainerABC):
 
 			# Use guess u label with prediction of weak augmentation of u
 			with torch.no_grad():
-				u_logits_augm_weak = self.model(u_batch_augm_weak)
-				u_pred_augm_weak = self.acti_fn(u_logits_augm_weak, dim=1)
-				if self.mode == "onehot":
-					u_labels_weak_guessed = binarize_onehot_labels(u_pred_augm_weak)
-				elif self.mode == "multihot":
-					u_labels_weak_guessed = (u_pred_augm_weak > self.threshold_multihot).float()
-				else:
-					raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (self.mode, " or ".join(("onehot", "multihot"))))
+				u_labels_guessed = self.guesser(u_pred_augm_weak, dim=1)
+				u_pred_augm_weak = self.guesser.get_last_pred()
 
 			# Update model
 			loss, loss_s, loss_u = self.criterion(
-				s_pred_augm_weak, s_labels, u_pred_augm_weak, u_pred_augm_strong, u_labels_weak_guessed)
+				s_pred_augm_weak, s_labels, u_pred_augm_weak, u_pred_augm_strong, u_labels_guessed)
 
 			self.optim.zero_grad()
 			loss.backward()
@@ -99,17 +86,13 @@ class FixMatchTrainer(SSTrainerABC):
 
 			# Compute metrics
 			with torch.no_grad():
-				if self.rampup_lambda_u is not None:
-					self.criterion.lambda_u = self.rampup_lambda_u.value()
-					self.rampup_lambda_u.step()
-
 				self.metrics_recorder.add_value("loss", loss.item())
 				self.metrics_recorder.add_value("loss_s", loss_s.item())
 				self.metrics_recorder.add_value("loss_u", loss_u.item())
 
 				metrics_preds_labels = [
 					(self.metrics_s, s_pred_augm_weak, s_labels),
-					(self.metrics_u, u_pred_augm_strong, u_labels_weak_guessed),
+					(self.metrics_u, u_pred_augm_strong, u_labels_guessed),
 				]
 				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
@@ -118,7 +101,7 @@ class FixMatchTrainer(SSTrainerABC):
 
 		if self.writer is not None:
 			self.writer.add_scalar("hparams/lr", get_lr(self.optim), epoch)
-			self.writer.add_scalar("hparams/lambda_u", self.criterion.lambda_u, epoch)
+			self.writer.add_scalar("hparams/lambda_u", self.criterion.get_lambda_u(), epoch)
 			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 	def nb_examples_supervised(self) -> int:

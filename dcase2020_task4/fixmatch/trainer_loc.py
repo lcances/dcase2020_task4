@@ -116,10 +116,6 @@ class FixMatchTrainerLoc(SSTrainerABC):
 
 			# Compute metrics
 			with torch.no_grad():
-				if self.rampup_lambda_u is not None:
-					self.criterion.lambda_u = self.rampup_lambda_u.value()
-					self.rampup_lambda_u.step()
-
 				self.metrics_recorder.add_value("loss", loss.item())
 				self.metrics_recorder.add_value("loss_s_weak", loss_s_weak.item())
 				self.metrics_recorder.add_value("loss_u_weak", loss_u_weak.item())
@@ -139,7 +135,7 @@ class FixMatchTrainerLoc(SSTrainerABC):
 
 		if self.writer is not None:
 			self.writer.add_scalar("hparams/lr", get_lr(self.optim), epoch)
-			self.writer.add_scalar("hparams/lambda_u", self.criterion.lambda_u, epoch)
+			self.writer.add_scalar("hparams/lambda_u", self.criterion.get_lambda_u(), epoch)
 			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 	def nb_examples_supervised(self) -> int:

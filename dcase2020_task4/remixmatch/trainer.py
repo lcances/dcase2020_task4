@@ -3,7 +3,6 @@ import torch
 
 from torch import Tensor
 from torch.nn import Module
-from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
@@ -12,12 +11,13 @@ from typing import Callable, Dict, List, Optional
 from augmentation_utils.img_augmentations import Transform
 from metric_utils.metrics import Metrics
 
+from dcase2020_task4.guessers import GuesserModelABC
 from dcase2020_task4.metrics_recorder import MetricsRecorder
 from dcase2020_task4.remixmatch.losses.abc import ReMixMatchLossTagABC
+from dcase2020_task4.remixmatch.self_label import SelfSupervisedABC
 from dcase2020_task4.trainer_abc import SSTrainerABC
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
-from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.util.zip_cycle import ZipCycle
 
@@ -40,9 +40,8 @@ class ReMixMatchTrainer(SSTrainerABC):
 		mixer: Callable,
 		distributions: Optional[AvgDistributions],
 		rot_angles: np.array,
-		sharpen_fn: Callable,
-		rampup_lambda_u: Optional[RampUp],
-		rampup_lambda_u1: Optional[RampUp],
+		guesser: GuesserModelABC,
+		ss_transform: SelfSupervisedABC,
 	):
 		"""
 			Note: model must implements torch.nn.Module and implements a method "forward_rot".
@@ -61,9 +60,8 @@ class ReMixMatchTrainer(SSTrainerABC):
 		self.mixer = mixer
 		self.distributions = distributions
 		self.rot_angles = rot_angles
-		self.sharpen_fn = sharpen_fn
-		self.rampup_lambda_u = rampup_lambda_u
-		self.rampup_lambda_u1 = rampup_lambda_u1
+		self.guesser = guesser
+		self.ss_transform = ss_transform
 
 		self.acti_rot_fn = acti_rot_fn
 		self.metrics_recorder = MetricsRecorder(
@@ -99,19 +97,18 @@ class ReMixMatchTrainer(SSTrainerABC):
 				if self.distributions is not None:
 					self.distributions.add_batch_pred(s_labels, "labeled")
 					self.distributions.add_batch_pred(u_pred_augm_weak, "unlabeled")
-					u_label_guessed = self.distributions.apply_distribution_alignment(u_pred_augm_weak, dim=1)
-				else:
-					u_label_guessed = u_pred_augm_weak
 
-				u_label_guessed = self.sharpen_fn(u_label_guessed, dim=1)
+				u_label_guessed = self.guesser(u_pred_augm_weak, dim=1)
 
-			# Apply mix
-			s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed, u1_batch, u1_labels = \
-				self.mixer(s_batch_augm_strong, s_labels, u_batch_augm_weak, u_batch_augm_strongs, u_label_guessed)
+				# Get strongly augmented batch "batch_u1"
+				u1_batch = u_batch_augm_strongs[0, :].clone()
+				u1_labels = u_label_guessed.clone()
 
-			# Rotate images
-			u1_batch_rotated, r_labels = apply_random_rotation(u1_batch, self.rot_angles)
-			r_labels = one_hot(r_labels, len(self.rot_angles)).float().cuda()
+				# Apply mix
+				s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed = \
+					self.mixer(s_batch_augm_strong, s_labels, u_batch_augm_weak, u_batch_augm_strongs, u_label_guessed)
+
+				u1_batch_self_super, u1_label_self_super = self.ss_transform.create_batch_label(u1_batch)
 
 			# Predict labels for x (mixed), u (mixed) and u1 (strong augment)
 			s_logits_mixed = self.model(s_batch_mixed)
@@ -123,15 +120,15 @@ class ReMixMatchTrainer(SSTrainerABC):
 			u1_pred = self.acti_fn(u1_logits, dim=1)
 
 			# Predict rotation for strong augment u1
-			r_logits = self.model.forward_rot(u1_batch_rotated)
-			r_pred = self.acti_rot_fn(r_logits, dim=1)
+			u1_logits_self_super = self.model.forward_rot(u1_batch_self_super)
+			u1_pred_self_super = self.acti_rot_fn(u1_logits_self_super, dim=1)
 
 			# Update model
 			loss, loss_s, loss_u, loss_u1, loss_r = self.criterion(
 				s_pred_mixed, s_labels_mixed,
 				u_pred_mixed, u_labels_mixed,
 				u1_pred, u1_labels,
-				r_pred, r_labels
+				u1_pred_self_super, u1_label_self_super
 			)
 			self.optim.zero_grad()
 			loss.backward()
@@ -139,13 +136,6 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 			# Compute metrics
 			with torch.no_grad():
-				if self.rampup_lambda_u is not None:
-					self.criterion.lambda_u = self.rampup_lambda_u.value()
-					self.rampup_lambda_u.step()
-				if self.rampup_lambda_u1 is not None:
-					self.criterion.lambda_u1 = self.rampup_lambda_u1.value()
-					self.rampup_lambda_u1.step()
-
 				self.metrics_recorder.add_value("loss", loss.item())
 				self.metrics_recorder.add_value("loss_s", loss_s.item())
 				self.metrics_recorder.add_value("loss_u", loss_u.item())
@@ -156,7 +146,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 					(self.metrics_s, s_pred_mixed, s_labels_mixed),
 					(self.metrics_u, u_pred_mixed, u_labels_mixed),
 					(self.metrics_u1, u1_pred, u1_labels),
-					(self.metrics_r, r_pred, r_labels),
+					(self.metrics_r, u1_pred_self_super, u1_label_self_super),
 				]
 
 				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
@@ -166,9 +156,9 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 		if self.writer is not None:
 			self.writer.add_scalar("hparams/lr", get_lr(self.optim), epoch)
-			self.writer.add_scalar("hparams/lambda_u", self.criterion.lambda_u, epoch)
-			self.writer.add_scalar("hparams/lambda_u1", self.criterion.lambda_u1, epoch)
-			self.writer.add_scalar("hparams/lambda_r", self.criterion.lambda_r, epoch)
+			self.writer.add_scalar("hparams/lambda_u", self.criterion.get_lambda_u(), epoch)
+			self.writer.add_scalar("hparams/lambda_u1", self.criterion.get_lambda_u1(), epoch)
+			self.writer.add_scalar("hparams/lambda_r", self.criterion.get_lambda_r(), epoch)
 			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 	def nb_examples_supervised(self) -> int:

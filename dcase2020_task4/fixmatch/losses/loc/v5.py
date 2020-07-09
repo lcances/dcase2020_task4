@@ -73,3 +73,6 @@ class FixMatchLossMultiHotLocV5(FixMatchLossLocABC):
 
 	def get_confidence_mask(self, pred: Tensor, labels: Tensor, dim: Union[int, tuple]) -> Tensor:
 		return torch.clamp(labels.sum(dim=dim), 0, 1)
+
+	def get_lambda_u(self) -> float:
+		return self.lambda_u

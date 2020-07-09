@@ -67,3 +67,6 @@ class FixMatchLossMultiHotV4(Callable):
 		loss = loss_s + self.lambda_u * loss_u + loss_sc + 0.1 * loss_uc
 
 		return loss, loss_s, loss_u, loss_sc, loss_uc
+
+	def get_lambda_u(self) -> float:
+		return self.lambda_u

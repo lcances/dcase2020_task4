@@ -1,7 +1,38 @@
 import numpy as np
 
 from abc import ABC
-from augmentation_utils.augmentations import ImgAugmentation
+from augmentation_utils.augmentations import ImgAugmentation, SpecAugmentation
+from typing import Optional, Tuple
+
+
+class RandCropSpec(SpecAugmentation):
+	def __init__(
+		self,
+		ratio: float = 1.0,
+		rect_min_scale: tuple = (0.1, 0.1),
+		rect_max_scale: tuple = (0.5, 0.5),
+		fill_value: Optional[int] = None
+	):
+		super().__init__(ratio)
+		self.rect_min_scale = rect_min_scale
+		self.rect_max_scale = rect_max_scale
+		self.fill_value = fill_value
+		self.value_range = (-80.0, 0.0)
+
+	def apply_helper(self, data):
+		width, height = data.shape[0], data.shape[1]
+		r_left, r_right, r_top, r_down = random_rect(width, height, self.rect_min_scale, self.rect_max_scale)
+
+		fill_value = self.get_fill_value()
+		data[r_left:r_right, r_top:r_down] = fill_value
+
+		return data
+
+	def get_fill_value(self) -> int:
+		if self.fill_value is None:
+			return int((self.value_range[1] + self.value_range[0]) / 2.0)
+		else:
+			return self.fill_value
 
 
 class ImgRGBAugmentation(ABC, ImgAugmentation):
@@ -35,26 +66,33 @@ class Gray(ImgRGBAugmentation):
 
 
 class RandCrop(ImgRGBAugmentation):
-	def __init__(self, ratio: float = 1.0, rect_min_scale: tuple = (0.1, 0.1), rect_max_scale: tuple = (0.5, 0.5)):
+	def __init__(
+		self,
+		ratio: float = 1.0,
+		rect_min_scale: tuple = (0.1, 0.1),
+		rect_max_scale: tuple = (0.5, 0.5),
+		fill_value: Optional[int] = None
+	):
 		super().__init__(ratio)
 		self.rect_min_scale = rect_min_scale
 		self.rect_max_scale = rect_max_scale
+		self.fill_value = fill_value
 
 	def apply_helper(self, data):
 		width, height = data.shape[1], data.shape[2]
-		r_width = np.random.randint(max(1, self.rect_min_scale[0] * width), max(2, self.rect_max_scale[0] * width))
-		r_height = np.random.randint(max(1, self.rect_min_scale[1] * height), max(2, self.rect_max_scale[1] * height))
+		r_left, r_right, r_top, r_down = random_rect(width, height, self.rect_min_scale, self.rect_max_scale)
 
-		r_left = np.random.randint(0, width - r_width)
-		r_top = np.random.randint(0, height - r_height)
-		r_right = r_left + r_width
-		r_down = r_top + r_height
-
-		rect_value = (self.value_range[1] - self.value_range[0]) / 2.0
+		fill_value = self.get_fill_value()
 		for i in range(data.shape[0]):
-			data[i, r_left:r_right, r_top:r_down] = rect_value
+			data[i, r_left:r_right, r_top:r_down] = fill_value
 
 		return data
+
+	def get_fill_value(self) -> int:
+		if self.fill_value is None:
+			return int((self.value_range[1] + self.value_range[0]) / 2.0)
+		else:
+			return self.fill_value
 
 
 class UniColor(ImgRGBAugmentation):
@@ -80,3 +118,14 @@ class Inversion(ImgRGBAugmentation):
 
 	def apply_helper(self, data):
 		return self.value_range[1] - data
+
+
+def random_rect(width: int, height: int, min_scale: Tuple[int, int], max_scale: Tuple[int, int]) -> (int, int, int, int):
+	r_width = np.random.randint(max(1, min_scale[0] * width), max(2, max_scale[0] * width))
+	r_height = np.random.randint(max(1, min_scale[1] * height), max(2, max_scale[1] * height))
+
+	r_left = np.random.randint(0, width - r_width)
+	r_top = np.random.randint(0, height - r_height)
+	r_right = r_left + r_width
+	r_down = r_top + r_height
+	return r_left, r_right, r_top, r_down

@@ -1,6 +1,6 @@
 import torch
 
-from dcase2020_task4.fixmatch.losses.tag_loc.v2 import FixMatchLossMultiHotLocV2
+from dcase2020_task4.fixmatch.losses.loc.v2 import FixMatchLossMultiHotLocV2
 
 FixMatchLossMultiHotLoc = FixMatchLossMultiHotLocV2
 

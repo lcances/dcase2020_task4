@@ -46,6 +46,7 @@ class MixMatchMixerMultiHotLoc(Callable):
 
 			u_batch_augms = merge_first_dimension(u_batch_augms)
 
+			# TODO : add shuffle_s_and_u option
 			w_batch = torch.cat((s_batch_augm, u_batch_augms))
 			w_label_weak = torch.cat((s_label_weak, labels_u_weak_guessed_repeated))
 			w_label_strong = torch.cat((s_label_strong, labels_u_strong_guessed_repeated))

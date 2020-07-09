@@ -1,6 +1,6 @@
 import torch
 
-from dcase2020_task4.supervised.loss import weak_synth_loss, SupervisedLossLoc
+from dcase2020_task4.supervised.losses.loc import weak_synth_loss, SupervisedLossLoc
 
 
 def test():

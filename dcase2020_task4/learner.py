@@ -1,5 +1,8 @@
+
 from abc import ABC
 from time import time
+from typing import Optional
+
 from dcase2020_task4.trainer_abc import TrainerABC, SSTrainerABC
 from dcase2020_task4.validator import ValidatorABC
 
@@ -11,19 +14,19 @@ class LearnerABC(ABC):
 
 class DefaultLearner(LearnerABC):
 	def __init__(
-			self,
-			name: str,
-			trainer: TrainerABC,
-			validator: ValidatorABC,
-			nb_epochs: int,
-			scheduler=None,
-			verbose: int = 1
+		self,
+		name: str,
+		trainer: TrainerABC,
+		validator: ValidatorABC,
+		nb_epochs: int,
+		steppables: Optional[list] = None,
+		verbose: int = 1
 	):
 		self.name = name
 		self.trainer = trainer
 		self.validator = validator
 		self.nb_epochs = nb_epochs
-		self.scheduler = scheduler
+		self.steppables = steppables if steppables is not None else []
 		self.verbose = verbose
 
 		self.start_time = None
@@ -35,8 +38,8 @@ class DefaultLearner(LearnerABC):
 			self.trainer.train(e)
 			self.validator.val(e)
 
-			if self.scheduler is not None:
-				self.scheduler.step()
+			for steppable in self.steppables:
+				steppable.step()
 
 		self._on_end()
 

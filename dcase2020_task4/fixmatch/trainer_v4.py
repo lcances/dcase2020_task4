@@ -9,7 +9,7 @@ from typing import Callable, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.fixmatch.losses.tag_only.v4 import FixMatchLossMultiHotV4
+from dcase2020_task4.fixmatch.losses.tag.v4 import FixMatchLossMultiHotV4
 from dcase2020_task4.metrics_recorder import MetricsRecorder
 from dcase2020_task4.trainer_abc import SSTrainerABC
 from dcase2020_task4.util.utils_match import get_lr
@@ -125,7 +125,7 @@ class FixMatchTrainerV4(SSTrainerABC):
 
 		if self.writer is not None:
 			self.writer.add_scalar("hparams/lr", get_lr(self.optim), epoch)
-			self.writer.add_scalar("hparams/lambda_u", self.criterion.lambda_u, epoch)
+			self.writer.add_scalar("hparams/lambda_u", self.criterion.get_lambda_u(), epoch)
 			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
 	def nb_examples_supervised(self) -> int:

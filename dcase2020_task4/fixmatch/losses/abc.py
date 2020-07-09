@@ -14,6 +14,9 @@ class FixMatchLossTagABC(ABC, Callable):
 	) -> (Tensor, Tensor, Tensor):
 		raise NotImplementedError("Abstract method")
 
+	def get_lambda_u(self) -> float:
+		raise NotImplementedError("Abstract method")
+
 
 class FixMatchLossLocABC(ABC, Callable):
 	def __call__(
@@ -23,4 +26,7 @@ class FixMatchLossLocABC(ABC, Callable):
 		s_pred_strong_augm_weak: Tensor, s_labels_strong: Tensor,
 		u_pred_strong_augm_weak: Tensor, u_pred_strong_augm_strong: Tensor, u_labels_strong_guessed: Tensor,
 	) -> (Tensor, Tensor, Tensor, Tensor, Tensor):
+		raise NotImplementedError("Abstract method")
+
+	def get_lambda_u(self) -> float:
 		raise NotImplementedError("Abstract method")

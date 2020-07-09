@@ -29,22 +29,22 @@ from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
 from dcase2020_task4.dcase2019.models import dcase2019_model
-from dcase2020_task4.fixmatch.losses.tag_only.v1 import FixMatchLossMultiHotV1
-from dcase2020_task4.fixmatch.losses.tag_only.v2 import FixMatchLossMultiHotV2
-from dcase2020_task4.fixmatch.losses.tag_only.v3 import FixMatchLossMultiHotV3
-from dcase2020_task4.fixmatch.losses.tag_only.v4 import FixMatchLossMultiHotV4
+from dcase2020_task4.fixmatch.losses.tag.v1 import FixMatchLossMultiHotV1
+from dcase2020_task4.fixmatch.losses.tag.v2 import FixMatchLossMultiHotV2
+from dcase2020_task4.fixmatch.losses.tag.v3 import FixMatchLossMultiHotV3
+from dcase2020_task4.fixmatch.losses.tag.v4 import FixMatchLossMultiHotV4
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 from dcase2020_task4.fixmatch.trainer_v4 import FixMatchTrainerV4
 
 from dcase2020_task4.other_models.weak_baseline_rot import WeakBaselineRot
 
-from dcase2020_task4.mixmatch.losses.multihot import MixMatchLossMultiHot
+from dcase2020_task4.mixmatch.losses.tag.multihot import MixMatchLossMultiHot
 from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 from dcase2020_task4.mixup.mixers.tag import MixUpMixerTag
 from dcase2020_task4.mixup.mixers.tag_v2 import MixUpMixerTagV2
 
-from dcase2020_task4.remixmatch.losses.multihot import ReMixMatchLossMultiHot
+from dcase2020_task4.remixmatch.losses.tag.multihot import ReMixMatchLossMultiHot
 from dcase2020_task4.remixmatch.mixers.tag import ReMixMatchMixer
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
@@ -81,7 +81,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--mode", type=str, default="multihot")
 	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
-	parser.add_argument("--dataset_name", type=str, default="DESED")
+	parser.add_argument("--dataset_name", type=str, default="DESED_TAG")
 	parser.add_argument("--nb_classes", type=int, default=10)
 
 	parser.add_argument("--logdir", type=str, default="../../tensorboard/")
@@ -276,11 +276,21 @@ def main():
 	args_loader_train_u = dict(
 		batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
-	suffix_tag = "TAG"
-
 	model = model_factory()
 	optim = optim_factory(model)
 	print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
+
+	if args.scheduler == "CosineLRScheduler":
+		scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
+	else:
+		scheduler = None
+
+	if args.write_results:
+		writer = build_writer(args, start_date, suffix="%d_%d_%s_%.2f_%.2f_%.2f_%.2f_%s_%s" % (
+			args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence,
+			args.lambda_u, args.lambda_u1, args.lambda_r, args.criterion_name_u, args.suffix))
+	else:
+		writer = None
 
 	if "fm" == args.run or "fixmatch" == args.run:
 		args.train_name = "FixMatch"
@@ -298,11 +308,6 @@ def main():
 		loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
-		if args.scheduler == "CosineLRScheduler":
-			scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
-		else:
-			scheduler = None
-
 		if args.experimental.lower() == "v1":
 			criterion = FixMatchLossMultiHotV1.from_edict(args)
 		elif args.experimental.lower() == "v2":
@@ -319,12 +324,6 @@ def main():
 			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
 		else:
 			rampup_lambda_u = None
-
-		if args.write_results:
-			writer = build_writer(args, start_date, suffix="%s_%d_%d_%s_%.2f_%s" % (
-				suffix_tag, args.batch_size_s, args.batch_size_u, str(args.scheduler), args.lambda_u, args.suffix))
-		else:
-			writer = None
 
 		if args.experimental.lower() != "v4":
 			trainer = FixMatchTrainer(
@@ -354,7 +353,6 @@ def main():
 			raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 				loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
 
-		scheduler = None
 		criterion = MixMatchLossMultiHot.from_edict(args)
 		if args.experimental.lower() == "v2":
 			mixup_mixer = MixUpMixerTagV2.from_edict(args)
@@ -369,12 +367,6 @@ def main():
 
 		nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms)
 		rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
-
-		if args.write_results:
-			writer = build_writer(args, start_date, suffix="%s_%d_%d_%s_%.2f_%s" % (
-				suffix_tag, args.batch_size_s, args.batch_size_u, args.criterion_name_u, args.lambda_u, args.suffix))
-		else:
-			writer = None
 
 		trainer = MixMatchTrainer(
 			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
@@ -404,7 +396,6 @@ def main():
 
 		rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
 
-		scheduler = None
 		criterion = ReMixMatchLossMultiHot.from_edict(args)
 		mixup_mixer = MixUpMixerTag.from_edict(args)
 		mixer = ReMixMatchMixer(mixup_mixer)
@@ -423,12 +414,6 @@ def main():
 			rampup_lambda_u = None
 			rampup_lambda_u1 = None
 
-		if args.write_results:
-			writer = build_writer(args, start_date, suffix="%s_%d_%d_%.2f_%.2f_%.2f_%s" % (
-				suffix_tag, args.batch_size_s, args.batch_size_u, args.lambda_u, args.lambda_u1, args.lambda_r, args.suffix))
-		else:
-			writer = None
-
 		trainer = ReMixMatchTrainer(
 			model, acti_fn, acti_rot_fn, optim, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs,
 			metrics_s, metrics_u, metrics_u1, metrics_r,
@@ -441,15 +426,7 @@ def main():
 		dataset_train_s = FnDataset(dataset_train_s, get_batch_label)
 
 		loader_train_s = DataLoader(dataset=dataset_train_s, **args_loader_train_s)
-
-		scheduler = None
 		criterion = BCELoss(reduction="mean")
-
-		if args.write_results:
-			writer = build_writer(args, start_date, suffix="%s_%d_%d_%s" % (
-				suffix_tag, args.batch_size_s, args.batch_size_u, args.suffix))
-		else:
-			writer = None
 
 		trainer = SupervisedTrainer(
 			model, acti_fn, optim, loader_train_s, metrics_s, criterion, writer

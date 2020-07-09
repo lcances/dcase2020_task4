@@ -28,3 +28,6 @@ class MixMatchLossMultiHot(MixMatchLossTagABC):
 		loss = loss_s + self.lambda_u * loss_u
 
 		return loss, loss_s, loss_u
+
+	def get_lambda_u(self) -> float:
+		return self.lambda_u

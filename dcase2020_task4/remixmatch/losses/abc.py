@@ -13,3 +13,12 @@ class ReMixMatchLossTagABC(ABC, Callable):
 		pred_r: Tensor, targets_r: Tensor,
 	) -> (Tensor, Tensor, Tensor, Tensor, Tensor):
 		raise NotImplementedError("Abstract method")
+
+	def get_lambda_u(self) -> float:
+		raise NotImplementedError("Abstract method")
+
+	def get_lambda_u1(self) -> float:
+		raise NotImplementedError("Abstract method")
+
+	def get_lambda_r(self) -> float:
+		raise NotImplementedError("Abstract method")

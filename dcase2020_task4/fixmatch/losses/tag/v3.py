@@ -48,3 +48,6 @@ class FixMatchLossMultiHotV3(FixMatchLossTagABC):
 	def get_confidence_mask(self, pred: Tensor, labels: Tensor, dim: Union[int, tuple]) -> Tensor:
 		means = (pred * labels).sum(dim=dim) / labels.sum(dim=dim).clamp(min=1.0)
 		return (means > self.threshold_confidence).float()
+
+	def get_lambda_u(self) -> float:
+		return self.lambda_u

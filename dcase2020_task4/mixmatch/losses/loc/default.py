@@ -40,3 +40,6 @@ class MixMatchLossMultiHotLoc(MixMatchLossLocABC):
 		loss = loss_s_weak + loss_s_strong + self.lambda_u * (loss_u_weak + loss_u_strong)
 
 		return loss, loss_s_weak, loss_u_weak, loss_s_strong, loss_u_strong
+
+	def get_lambda_u(self) -> float:
+		return self.lambda_u
