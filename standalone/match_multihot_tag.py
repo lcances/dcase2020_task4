@@ -439,11 +439,9 @@ def main():
 	rampup_lambda_u.set_obj(criterion)
 
 	if args.write_results:
-		checkpoint = CheckPoint(
-			model, optim, name=osp.join(args.path_checkpoint, "%s_%s_%s.torch" % (
-				args.model_name, args.train_name, args.suffix
-			))
-		)
+		filename = "%s_%s_%s.torch" % (args.model_name, args.train_name, args.suffix)
+		filepath = osp.join(args.path_checkpoint, filename)
+		checkpoint = CheckPoint(model, optim, name=filepath)
 	else:
 		checkpoint = None
 

@@ -132,6 +132,11 @@ def create_args() -> Namespace:
 						help="Nb of epochs when lambda_u and lambda_u1 is increase from 0 to their value."
 							 "Use 0 for deactivate RampUp. Use \"nb_epochs\" for ramping up during all training.")
 
+	parser.add_argument("--path_checkpoint", type=str, default="../models/")
+	parser.add_argument("--checkpoint_metric_name", type=str, default="fscore_weak",
+						choices=["fscore_weak", "fscore_strong", "acc_weak", "acc_strong"],
+						help="Metric used to compare and save best model during training.")
+
 	parser.add_argument("--lambda_u", type=float, default=1.0,
 						help="MixMatch, FixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
 	parser.add_argument("--lambda_u1", type=float, default=0.5,
@@ -439,11 +444,9 @@ def main():
 		rampup_lambda_u.set_obj(criterion)
 
 		if args.write_results:
-			checkpoint = CheckPoint(
-				model, optim, name=osp.join(args.path_checkpoint, "%s_%s_%s.torch" % (
-					args.model_name, args.train_name, args.suffix
-				))
-			)
+			filename = "%s_%s_%s.torch" % (args.model_name, args.train_name, args.suffix)
+			filepath = osp.join(args.path_checkpoint, filename)
+			checkpoint = CheckPoint(model, optim, name=filepath)
 		else:
 			checkpoint = None
 
