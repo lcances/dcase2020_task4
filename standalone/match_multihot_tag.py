@@ -15,9 +15,7 @@ import torch
 
 from argparse import ArgumentParser, Namespace
 from time import time
-from torch.nn import Module, BCELoss
-from torch.optim import Adam, SGD
-from torch.optim.optimizer import Optimizer
+from torch.nn import BCELoss
 from torch.utils.data import DataLoader
 from torchvision.transforms import RandomChoice, Compose
 from typing import Callable
@@ -28,15 +26,12 @@ from augmentation_utils.spec_augmentations import Noise, RandomTimeDropout, Rand
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
-from dcase2020_task4.dcase2019.models import dcase2019_model
 from dcase2020_task4.fixmatch.losses.tag.v1 import FixMatchLossMultiHotV1
 from dcase2020_task4.fixmatch.losses.tag.v2 import FixMatchLossMultiHotV2
 from dcase2020_task4.fixmatch.losses.tag.v3 import FixMatchLossMultiHotV3
 from dcase2020_task4.fixmatch.losses.tag.v4 import FixMatchLossMultiHotV4
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 from dcase2020_task4.fixmatch.trainer_v4 import FixMatchTrainerV4
-
-from dcase2020_task4.other_models.weak_baseline_rot import WeakBaselineRot
 
 from dcase2020_task4.mixmatch.losses.tag.multihot import MixMatchLossMultiHot
 from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
@@ -62,7 +57,7 @@ from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import SharpenMulti
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils import reset_seed, get_datetime
-from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer
+from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, run_to_train_name
 
 from dcase2020_task4.guessers import GuesserModelThreshold, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen
 from dcase2020_task4.learner import DefaultLearner
@@ -201,6 +196,7 @@ def main():
 	check_args(args)
 	if args.nb_rampup_epochs == "nb_epochs":
 		args.nb_rampup_epochs = args.nb_epochs
+	args.train_name = run_to_train_name(args.run)
 
 	print("Start match_multihot (%s)." % args.suffix)
 	print("- run:", args.run)
@@ -214,22 +210,6 @@ def main():
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
-
-	def model_factory() -> Module:
-		if args.model_name == "WeakBaseline":
-			return WeakBaselineRot().cuda()
-		elif args.model_name == "dcase2019":
-			return dcase2019_model().cuda()
-		else:
-			raise RuntimeError("Invalid model %s" % args.model_name)
-
-	def optim_factory(model_: Module) -> Optimizer:
-		if args.optim_name.lower() == "adam":
-			return Adam(model_.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-		elif args.optim_name.lower() == "sgd":
-			return SGD(model_.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-		else:
-			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
 
 	acti_fn = lambda batch, dim: batch.sigmoid()
 	augm_weak_fn, augm_strong_fn, augm_fn = get_desed_augms(args)
@@ -278,8 +258,8 @@ def main():
 	args_loader_train_u = dict(
 		batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
-	model = model_factory()
-	optim = optim_factory(model)
+	model = model_factory(args)
+	optim = optim_factory(args, model)
 	print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
 	if args.scheduler == "CosineLRScheduler":
@@ -300,7 +280,6 @@ def main():
 	rampup_lambda_r = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_r")
 
 	if "fm" == args.run or "fixmatch" == args.run:
-		args.train_name = "FixMatch"
 		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_weak = FnDataset(dataset_train_s_augm_weak, get_batch_label)
 
@@ -340,7 +319,6 @@ def main():
 			)
 
 	elif "mm" == args.run or "mixmatch" == args.run:
-		args.train_name = "MixMatch"
 		dataset_train_s_augm = DESEDDataset(augments=[augm_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm = FnDataset(dataset_train_s_augm, get_batch_label)
 
@@ -376,7 +354,6 @@ def main():
 		)
 
 	elif "rmm" == args.run or "remixmatch" == args.run:
-		args.train_name = "ReMixMatch"
 		dataset_train_s_augm_strong = DESEDDataset(augments=[augm_strong_fn], **args_dataset_train_s_augm)
 		dataset_train_s_augm_strong = FnDataset(dataset_train_s_augm_strong, get_batch_label)
 
@@ -422,7 +399,6 @@ def main():
 		)
 
 	elif "su" == args.run or "supervised" == args.run:
-		args.train_name = "Supervised"
 		dataset_train_s = DESEDDataset(**args_dataset_train_s)
 		dataset_train_s = FnDataset(dataset_train_s, get_batch_label)
 

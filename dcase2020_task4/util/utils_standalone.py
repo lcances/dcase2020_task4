@@ -3,9 +3,64 @@ import os.path as osp
 
 from argparse import Namespace
 from torch.nn import Module
+from torch.optim import Adam, SGD
+from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
 
+from dcase2020_task4.dcase2019.models import dcase2019_model
+from dcase2020_task4.other_models.weak_baseline_rot import WeakBaselineRot, WeakStrongBaselineRot
+from dcase2020_task4.other_models.vgg import VGG
+from dcase2020_task4.other_models.resnet import ResNet18
+from dcase2020_task4.other_models.UBS8KBaseline import UBS8KBaseline
 from dcase2020_task4.validator_abc import ValidatorABC
+
+
+def model_factory(args: Namespace) -> Module:
+	name = args.model_name.lower()
+
+	if name == "vgg11":
+		model = VGG("VGG11")
+	elif name == "resnet18":
+		model = ResNet18()
+	elif name == "ubs8kbaseline":
+		model = UBS8KBaseline()
+	elif name == "weakbaseline":
+		model = WeakBaselineRot()
+	elif name == "weakstrongbaseline":
+		model = WeakStrongBaselineRot()
+	elif name == "dcase2019":
+		model = dcase2019_model()
+	else:
+		raise RuntimeError("Invalid model %s" % args.model_name)
+
+	model = model.cuda()
+	return model
+
+
+def optim_factory(args: Namespace, model: Module) -> Optimizer:
+	if args.optim_name.lower() == "adam":
+		return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+	elif args.optim_name.lower() == "sgd":
+		return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+	else:
+		raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
+
+
+def run_to_train_name(run: str) -> str:
+	if run in ["fixmatch", "fm"]:
+		return "FixMatch"
+	elif run in ["mixmatch", "mm"]:
+		return "MixMatch"
+	elif run in ["remixmatch", "rmm"]:
+		return "ReMixMatch"
+	elif run in ["supervised_full", "sf"]:
+		return "Supervised_Full"
+	elif run in ["supervised_part", "sp"]:
+		return "Supervised_Part"
+	elif run in ["supervised", "su"]:
+		return "Supervised"
+	else:
+		return ""
 
 
 def filter_hparams(args: Namespace) -> dict:
@@ -18,7 +73,7 @@ def filter_hparams(args: Namespace) -> dict:
 		else:
 			return v
 
-	hparams = dict(args.__dict__)
+	hparams = args.__dict__
 	for key_, val_ in hparams.items():
 		hparams[key_] = filter_item(val_)
 	return hparams

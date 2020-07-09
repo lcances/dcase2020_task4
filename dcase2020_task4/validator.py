@@ -19,7 +19,7 @@ class DefaultValidator(ValidatorABC):
 		acti_fn: Callable,
 		loader: DataLoader,
 		metrics: Dict[str, Metrics],
-		writer: SummaryWriter,
+		writer: Optional[SummaryWriter],
 		checkpoint: Optional[CheckPoint] = None,
 		checkpoint_metric_key: Optional[str] = None,
 	):

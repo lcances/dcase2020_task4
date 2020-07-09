@@ -16,10 +16,7 @@ import torch
 
 from argparse import ArgumentParser, Namespace
 from time import time
-from torch.nn import Module
 from torch.nn.functional import one_hot
-from torch.optim import Adam, SGD
-from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose
@@ -42,10 +39,6 @@ from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
 
 from dcase2020_task4.mixup.mixers.tag import MixUpMixerTag
 
-from dcase2020_task4.other_models.resnet import ResNet18
-from dcase2020_task4.other_models.UBS8KBaseline import UBS8KBaseline
-from dcase2020_task4.other_models.vgg import VGG
-
 from dcase2020_task4.remixmatch.losses.tag.onehot import ReMixMatchLossOneHot
 from dcase2020_task4.remixmatch.mixers.tag import ReMixMatchMixer
 from dcase2020_task4.remixmatch.self_label import SelfSupervisedFlips, SelfSupervisedRotation
@@ -66,7 +59,7 @@ from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import Sharpen
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils_match import cross_entropy
-from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer
+from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, run_to_train_name
 
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.validator import DefaultValidator
@@ -211,6 +204,7 @@ def main():
 	check_args(args)
 	if args.nb_rampup_epochs == "nb_epochs":
 		args.nb_rampup_epochs = args.nb_epochs
+	args.train_name = run_to_train_name(args.run)
 
 	print("Start match_onehot. (%s)" % args.suffix)
 	print("- run:", args.run)
@@ -241,24 +235,6 @@ def main():
 		"eq": EqConfidenceMetric(args.confidence, dim=1),
 		"max": MaxMetric(dim=1),
 	}
-
-	def model_factory() -> Module:
-		if args.model_name.lower() == "vgg11":
-			return VGG("VGG11").cuda()
-		elif args.model_name.lower() == "resnet18":
-			return ResNet18().cuda()
-		elif args.model_name.lower() == "ubs8kbaseline":
-			return UBS8KBaseline().cuda()
-		else:
-			raise RuntimeError("Unknown model %s" % args.model_name)
-
-	def optim_factory(model_: Module) -> Optimizer:
-		if args.optim_name.lower() == "adam":
-			return Adam(model_.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-		elif args.optim_name.lower() == "sgd":
-			return SGD(model_.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-		else:
-			raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
 
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
 
@@ -298,8 +274,8 @@ def main():
 		args_loader_train_u = dict(
 			batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
-		model = model_factory()
-		optim = optim_factory(model)
+		model = model_factory(args)
+		optim = optim_factory(args, model)
 		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
 
 		if args.scheduler == "CosineLRScheduler":
@@ -321,7 +297,6 @@ def main():
 		rampup_lambda_r = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_r")
 
 		if "fm" == args.run or "fixmatch" == args.run:
-			args.train_name = "FixMatch"
 			dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
 			dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
 			dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
@@ -343,7 +318,6 @@ def main():
 			)
 
 		elif "mm" == args.run or "mixmatch" == args.run:
-			args.train_name = "MixMatch"
 			dataset_train_s_augm = Subset(dataset_train_augm, idx_train_s)
 			dataset_train_u_augm = Subset(dataset_train_augm, idx_train_u)
 
@@ -370,7 +344,6 @@ def main():
 			)
 
 		elif "rmm" == args.run or "remixmatch" == args.run:
-			args.train_name = "ReMixMatch"
 			dataset_train_s_augm_strong = Subset(dataset_train_augm_strong, idx_train_s)
 			dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
 			dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
@@ -417,7 +390,6 @@ def main():
 			)
 
 		elif "sf" == args.run or "supervised_full" == args.run:
-			args.train_name = "Supervised_Full"
 			dataset_train_full = Subset(dataset_train, idx_train_s + idx_train_u)
 			loader_train_full = DataLoader(dataset_train_full, **args_loader_train_s)
 
@@ -428,7 +400,6 @@ def main():
 			)
 
 		elif "sp" == args.run or "supervised_part" == args.run:
-			args.train_name = "Supervised_Part"
 			dataset_train_part = Subset(dataset_train, idx_train_s)
 			loader_train_part = DataLoader(dataset_train_part, **args_loader_train_s)
 
