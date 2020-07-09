@@ -45,7 +45,8 @@ class SelfSupervisedFlips(SelfSupervisedABC):
 	def create_batch_label(self, batch: Tensor) -> (Tensor, Tensor):
 		labels = np.random.randint(0, 4, len(batch))
 
-		batch_flipped = torch.stack([
+		batch = batch.numpy()
+		batch_flipped = torch.as_tensor([
 			self.flip_fn(x, idx) for x, idx in zip(batch, labels)
 		]).cuda()
 
@@ -63,3 +64,21 @@ def apply_random_rotation(batch: Tensor, angles_allowed) -> (Tensor, Tensor):
 		Transform(1.0, rotation=(ang, ang))(x) for x, ang in zip(batch, angles)
 	]).cuda()
 	return res, torch.from_numpy(indexes)
+
+
+def test():
+	ss_transform = SelfSupervisedFlips()
+	batch = torch.ones(16, 64, 400)
+
+	x = batch[0].numpy()
+	augm = HorizontalFlip(1.0)
+	x2 = augm(x)
+	print(x2.shape)
+
+	batch_flipped, labels = ss_transform.create_batch_label(batch)
+	print(batch_flipped.shape)
+	print(labels.shape)
+
+
+if __name__ == "__main__":
+	test()

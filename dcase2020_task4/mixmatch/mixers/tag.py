@@ -70,14 +70,14 @@ def test():
 		(batch + 0.1).tolist(), (batch + 0.2).tolist()
 	])
 
-	label = torch.as_tensor([10, 20, 30])
+	labels = torch.as_tensor([10, 20, 30])
 
-	repeated_size = [nb_augms] + [1] * (len(label.size()) - 1)
-	label_repeated = label.repeat(repeated_size)
+	repeated_size = [nb_augms] + [1] * (len(labels.size()) - 1)
+	label_repeated = labels.repeat(repeated_size)
 	batch_augms_merged = merge_first_dimension(batch_augms)
 
 	w_batch = torch.cat((batch, batch_augms_merged))
-	w_label = torch.cat((label, label_repeated))
+	w_label = torch.cat((labels, label_repeated))
 
 	w_batch, w_label = same_shuffle([w_batch, w_label])
 

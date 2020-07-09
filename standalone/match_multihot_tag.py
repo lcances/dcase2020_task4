@@ -46,6 +46,7 @@ from dcase2020_task4.mixup.mixers.tag_v2 import MixUpMixerTagV2
 
 from dcase2020_task4.remixmatch.losses.tag.multihot import ReMixMatchLossMultiHot
 from dcase2020_task4.remixmatch.mixers.tag import ReMixMatchMixer
+from dcase2020_task4.remixmatch.self_label import SelfSupervisedFlips
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
@@ -61,8 +62,9 @@ from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import SharpenMulti
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils import reset_seed, get_datetime
-from dcase2020_task4.util.utils_match import build_writer, get_nb_parameters, save_writer
+from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer
 
+from dcase2020_task4.guessers import GuesserModelThreshold, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.validator import DefaultValidator
 
@@ -292,6 +294,11 @@ def main():
 	else:
 		writer = None
 
+	nb_rampup_steps = args.nb_rampup_epochs if args.use_rampup else 0
+	rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u, obj=None, attr_name="lambda_u")
+	rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_u1")
+	rampup_lambda_r = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_r")
+
 	if "fm" == args.run or "fixmatch" == args.run:
 		args.train_name = "FixMatch"
 		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
@@ -319,16 +326,12 @@ def main():
 		else:
 			raise RuntimeError("Unknown experimental mode %s" % str(args.experimental))
 
-		if args.use_rampup:
-			nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms_weak_strong)
-			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
-		else:
-			rampup_lambda_u = None
+		guesser = GuesserModelThreshold(model, acti_fn, args.threshold_multihot)
 
 		if args.experimental.lower() != "v4":
 			trainer = FixMatchTrainer(
 				model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-				criterion, writer, args.mode, rampup_lambda_u, args.threshold_multihot
+				criterion, writer, guesser
 			)
 		else:
 			trainer = FixMatchTrainerV4(
@@ -365,12 +368,11 @@ def main():
 		else:
 			sharpen_fn = lambda x, dim: x
 
-		nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms)
-		rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
+		guesser = GuesserMeanModelSharpen(model, acti_fn, sharpen_fn)
 
 		trainer = MixMatchTrainer(
 			model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-			criterion, writer, mixer, rampup_lambda_u, sharpen_fn
+			criterion, writer, mixer, guesser
 		)
 
 	elif "rmm" == args.run or "remixmatch" == args.run:
@@ -406,18 +408,14 @@ def main():
 
 		distributions = AvgDistributions.from_edict(args)
 		acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
-		if args.use_rampup:
-			nb_rampup_steps = args.nb_rampup_epochs * len(loader_train_u_augms_weak_strongs)
-			rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u)
-			rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1)
-		else:
-			rampup_lambda_u = None
-			rampup_lambda_u1 = None
+		ss_transform = SelfSupervisedFlips()
+
+		guesser = GuesserModelAlignmentSharpen(model, acti_fn, distributions, sharpen_fn)
 
 		trainer = ReMixMatchTrainer(
 			model, acti_fn, acti_rot_fn, optim, loader_train_s_augm_strong, loader_train_u_augms_weak_strongs,
 			metrics_s, metrics_u, metrics_u1, metrics_r,
-			criterion, writer, mixer, distributions, rot_angles, sharpen_fn, rampup_lambda_u, rampup_lambda_u1
+			criterion, writer, mixer, distributions, rot_angles, guesser, ss_transform
 		)
 
 	elif "su" == args.run or "supervised" == args.run:
@@ -434,6 +432,10 @@ def main():
 
 	else:
 		raise RuntimeError("Unknown run %s" % args.run)
+
+	rampup_lambda_u.set_obj(criterion)
+	rampup_lambda_u1.set_obj(criterion)
+	rampup_lambda_r.set_obj(criterion)
 
 	if args.write_results:
 		checkpoint = CheckPoint(

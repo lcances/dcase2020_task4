@@ -58,7 +58,7 @@ from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import SharpenMulti
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils import reset_seed, get_datetime
-from dcase2020_task4.util.utils_match import build_writer, save_writer, get_nb_parameters
+from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer
 
 from dcase2020_task4.validator_loc import DefaultValidatorLoc
 from dcase2020_task4.other_models.weak_baseline_rot import WeakStrongBaselineRot
@@ -299,6 +299,11 @@ def main():
 		))
 	else:
 		writer = None
+
+	nb_rampup_steps = args.nb_rampup_epochs if args.use_rampup else 0
+	rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u, obj=None, attr_name="lambda_u")
+	rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_u1")
+	rampup_lambda_r = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_r")
 
 	if "fm" == args.run or "fixmatch" == args.run:
 		args.train_name = "FixMatch"

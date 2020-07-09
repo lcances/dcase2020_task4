@@ -64,7 +64,8 @@ from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMet
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import Sharpen
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
-from dcase2020_task4.util.utils_match import cross_entropy, build_writer, get_nb_parameters, save_writer
+from dcase2020_task4.util.utils_match import cross_entropy
+from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer
 
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.validator import DefaultValidator
@@ -328,8 +329,6 @@ def main():
 			loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
 			criterion = FixMatchLossOneHot.from_edict(args)
-			rampup_lambda_u.set_obj(criterion)
-
 			guesser = GuesserModelOneHot(model, acti_fn)
 
 			trainer = FixMatchTrainer(
@@ -353,8 +352,6 @@ def main():
 					loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
 
 			criterion = MixMatchLossOneHot.from_edict(args)
-			rampup_lambda_u.set_obj(criterion)
-
 			mixup_mixer = MixUpMixerTag.from_edict(args)
 			mixer = MixMatchMixer(mixup_mixer)
 
@@ -388,10 +385,6 @@ def main():
 			rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
 
 			criterion = ReMixMatchLossOneHot.from_edict(args)
-			rampup_lambda_u.set_obj(criterion)
-			rampup_lambda_u1.set_obj(criterion)
-			rampup_lambda_r.set_obj(criterion)
-
 			mixup_mixer = MixUpMixerTag.from_edict(args)
 			mixer = ReMixMatchMixer(mixup_mixer)
 
@@ -438,6 +431,10 @@ def main():
 
 		else:
 			raise RuntimeError("Unknown run %s" % args.run)
+
+		rampup_lambda_u.set_obj(criterion)
+		rampup_lambda_u1.set_obj(criterion)
+		rampup_lambda_r.set_obj(criterion)
 
 		validator = DefaultValidator(
 			model, acti_fn, loader_val, metrics_val, writer

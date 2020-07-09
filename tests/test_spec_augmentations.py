@@ -36,11 +36,12 @@ def test():
 		# Occlusion(ratio, max_size=1.0),
 		# RandomFreqDropout(ratio, dropout=0.25),
 		# RandomTimeDropout(ratio, dropout=0.25),
-		RandCropSpec(ratio, fill_value=-80),
+		# RandCropSpec(ratio, fill_value=-80),
 		HorizontalFlip(ratio),
 		VerticalFlip(ratio),
-		Compose([HorizontalFlip(ratio), VerticalFlip(ratio)])
+		# Compose([HorizontalFlip(ratio), VerticalFlip(ratio)])
 	]
+	print(spec.shape)
 
 	plt.imshow(spec)
 	for augm in augms:
