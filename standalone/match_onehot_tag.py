@@ -69,7 +69,7 @@ from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
 
 def create_args() -> Namespace:
 	parser = ArgumentParser()
-	parser.add_argument("--run", type=str, default="fixmatch",
+	parser.add_argument("--run", type=str, default=None,
 						choices=["fixmatch", "fm", "mixmatch", "mm", "remixmatch", "rmm", "supervised_full", "sf", "supervised_part", "sp"],
 						help="Training method to run.")
 	parser.add_argument("--seed", type=int, default=123)
@@ -78,12 +78,12 @@ def create_args() -> Namespace:
 						help="Suffix to Tensorboard log dir.")
 
 	parser.add_argument("--mode", type=str, default="onehot", choices=["onehot"])
-	parser.add_argument("--dataset", type=str, default="../dataset/CIFAR10")
-	parser.add_argument("--dataset_name", type=str, default="CIFAR10", choices=["CIFAR10", "UBS8K"])
+	parser.add_argument("--path_dataset", type=str, default="../dataset/CIFAR10/", required=True)
+	parser.add_argument("--dataset", type=str, default="CIFAR10", choices=["CIFAR10", "UBS8K"])
 	parser.add_argument("--nb_classes", type=int, default=10)
 
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
-	parser.add_argument("--model_name", type=str, default="VGG11", choices=["VGG11", "ResNet18", "UBS8KBaseline"])
+	parser.add_argument("--model", type=str, default="VGG11", choices=["VGG11", "ResNet18", "UBS8KBaseline"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--confidence", type=float, default=0.5,
 						help="Confidence threshold used in VALIDATION.")
@@ -97,9 +97,10 @@ def create_args() -> Namespace:
 	parser.add_argument("--num_workers_u", type=int, default=1,
 						help="Number of workers created by unsupervised loader.")
 
-	parser.add_argument("--optim_name", type=str, default="Adam", choices=["Adam", "SGD"],
+	parser.add_argument("--optimizer", type=str, default="Adam", choices=["Adam", "SGD"],
 						help="Optimizer used.")
-	parser.add_argument("--scheduler", "--sched", type=str_to_optional_str, default="CosineLRScheduler",
+	parser.add_argument("--scheduler", type=str_to_optional_str, default="Cosine",
+						choices=["CosineLRScheduler", "Cosine", "None"],
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 	parser.add_argument("--lr", type=float, default=1e-3,
 						help="Learning rate used.")
@@ -117,17 +118,17 @@ def create_args() -> Namespace:
 						help="Write results in a tensorboard SummaryWriter.")
 	parser.add_argument("--args_file", type=str_to_optional_str, default=None,
 						help="Filepath to args file. Values in this JSON will overwrite other options in terminal.")
+	parser.add_argument("--path_checkpoint", type=str, default="../models/",
+						help="Directory path where checkpoint models will be saved.")
+	parser.add_argument("--checkpoint_metric_name", type=str, default="acc",
+						choices=["acc"],
+						help="Metric used to compare and save best model during training.")
 
 	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
 						help="Use RampUp or not for lambda_u and lambda_u1 hyperparameters.")
 	parser.add_argument("--nb_rampup_epochs", type=str_to_union_str_int, default="nb_epochs",
 						help="Nb of epochs when lambda_u and lambda_u1 is increase from 0 to their value."
 							 "Use 0 for deactivate RampUp. Use \"nb_epochs\" for ramping up during all training.")
-
-	parser.add_argument("--path_checkpoint", type=str, default="../models/")
-	parser.add_argument("--checkpoint_metric_name", type=str, default="acc",
-						choices=["acc"],
-						help="Metric used to compare and save best model during training.")
 
 	parser.add_argument("--lambda_u", type=float, default=1.0,
 						help="MixMatch, FixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
@@ -145,7 +146,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--threshold_confidence", type=float, default=0.95,
 						help="FixMatch threshold for compute confidence mask in loss.")
-	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy", choices=["sq_diff", "cross_entropy"],
+	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy", choices=["sq_diff", "cross_entropy", "ce"],
 						help="MixMatch unsupervised loss component.")
 
 	parser.add_argument("--sharpen_temperature", "--temperature", type=float, default=0.5,
@@ -258,9 +259,9 @@ def main():
 
 		model = model_factory(args)
 		optim = optim_factory(args, model)
-		print("Model selected : %s (%d parameters)." % (args.model_name, get_nb_parameters(model)))
+		print("Model selected : %s (%d parameters)." % (args.model, get_nb_parameters(model)))
 
-		if args.scheduler == "CosineLRScheduler":
+		if args.scheduler in ["CosineLRScheduler", "Cosine"]:
 			scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
 		else:
 			scheduler = None
@@ -345,8 +346,6 @@ def main():
 				raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 					loader_train_s_strong.batch_size, loader_train_u_augms_weak_strongs.batch_size))
 
-			rot_angles = np.array([0.0, np.pi / 2.0, np.pi, -np.pi / 2.0])
-
 			criterion = ReMixMatchLossOneHot.from_edict(args)
 			rampup_lambda_u1.set_obj(criterion)
 			rampup_lambda_r.set_obj(criterion)
@@ -372,7 +371,7 @@ def main():
 			trainer = ReMixMatchTrainer(
 				model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs,
 				metrics_s, metrics_u, metrics_u1, metrics_r,
-				criterion, writer, mixer, distributions, rot_angles, guesser, ss_transform
+				criterion, writer, mixer, distributions, guesser, ss_transform
 			)
 
 		elif "sf" == args.run or "supervised_full" == args.run:
@@ -401,7 +400,7 @@ def main():
 		rampup_lambda_u.set_obj(criterion)
 
 		if args.write_results:
-			filename = "%s_%s_%s.torch" % (args.model_name, args.train_name, args.suffix)
+			filename = "%s_%s_%s.torch" % (args.model, args.train_name, args.suffix)
 			filepath = osp.join(args.path_checkpoint, filename)
 			checkpoint = CheckPoint(model, optim, name=filepath)
 		else:

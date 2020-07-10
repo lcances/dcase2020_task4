@@ -39,7 +39,6 @@ class ReMixMatchTrainer(SSTrainerABC):
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
 		distributions: Optional[AvgDistributions],
-		rot_angles: np.array,
 		guesser: GuesserModelABC,
 		ss_transform: SelfSupervisedABC,
 	):
@@ -59,7 +58,6 @@ class ReMixMatchTrainer(SSTrainerABC):
 		self.writer = writer
 		self.mixer = mixer
 		self.distributions = distributions
-		self.rot_angles = rot_angles
 		self.guesser = guesser
 		self.ss_transform = ss_transform
 

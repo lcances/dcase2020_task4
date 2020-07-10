@@ -18,9 +18,9 @@ class MixMatchLossOneHot(MixMatchLossTagABC):
 
 		self.criterion_s = cross_entropy
 
-		if criterion_name_u == "sq_diff":
+		if criterion_name_u in ["sq_diff", "sq_l2norm"]:
 			self.criterion_u = sq_diff
-		elif criterion_name_u == "cross_entropy":
+		elif criterion_name_u in ["cross_entropy", "ce"]:
 			self.criterion_u = cross_entropy
 		else:
 			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (criterion_name_u, " or ".join(("sq_diff", "cross_entropy"))))

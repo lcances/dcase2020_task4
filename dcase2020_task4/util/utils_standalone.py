@@ -62,7 +62,7 @@ def post_process_args(args: Namespace) -> Namespace:
 
 def model_factory(args: Namespace) -> Module:
 	"""
-		Instantiate CUDA model from args. Args must be an Namespace containing the attribute "model_name".
+		Instantiate CUDA model from args. Args must be an Namespace containing the attribute "model".
 		Available models :
 		- VGG11,
 		- ResNet18,
@@ -71,7 +71,7 @@ def model_factory(args: Namespace) -> Module:
 		- WeakStrongBaselineRot,
 		- dcase2019_model,
 	"""
-	name = args.model_name.lower()
+	name = args.model.lower()
 
 	if name == "vgg11":
 		model = VGG("VGG11")
@@ -95,12 +95,12 @@ def model_factory(args: Namespace) -> Module:
 def optim_factory(args: Namespace, model: Module) -> Optimizer:
 	"""
 		Instantiate optimizer from args.
-		Args must be an Namespace containing the attributes "optim_name", "lr" and "weight_decay".
+		Args must be an Namespace containing the attributes "optimizer", "lr" and "weight_decay".
 		Available optimizers :
 		- Adam,
 		- SGD,
 	"""
-	name = args.optim_name.lower()
+	name = args.optimizer.lower()
 
 	if name == "adam":
 		optim = Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
@@ -154,7 +154,7 @@ def get_nb_trainable_parameters(model: Module) -> int:
 
 
 def build_writer(args: Namespace, start_date: str, suffix: str = "") -> SummaryWriter:
-	dirname = "%s_%s_%s_%s_%s" % (args.dataset_name, args.train_name, args.model_name, start_date, suffix)
+	dirname = "%s_%s_%s_%s_%s" % (args.dataset_name, args.model_name, start_date, args.train_name, suffix)
 	dirpath = osp.join(args.logdir, dirname)
 	writer = SummaryWriter(log_dir=dirpath, comment=args.train_name)
 	return writer
