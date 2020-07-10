@@ -8,7 +8,6 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
-import json
 import numpy as np
 import os.path as osp
 import torch
@@ -57,7 +56,7 @@ from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import SharpenMulti
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils import reset_seed, get_datetime
-from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, run_to_train_name
+from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, post_process_args, check_args
 
 from dcase2020_task4.guessers import GuesserModelThreshold, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen
 from dcase2020_task4.learner import DefaultLearner
@@ -174,32 +173,6 @@ def create_args() -> Namespace:
 	return parser.parse_args()
 
 
-def check_args(args: Namespace):
-	if not osp.isdir(args.dataset):
-		raise RuntimeError("Invalid dirpath %s" % args.dataset)
-
-	if args.write_results:
-		if not osp.isdir(args.logdir):
-			raise RuntimeError("Invalid dirpath %s" % args.logdir)
-		if not osp.isdir(args.path_checkpoint):
-			raise RuntimeError("Invalid dirpath %s" % args.path_checkpoint)
-
-
-def post_process_args(args: Namespace) -> Namespace:
-	if args.args_file is not None:
-		with open(args.args_file, "r") as file:
-			args_dict = json.load(file)
-			differences = set(args_dict.keys()).difference(args.__dict__.keys())
-			if len(differences) > 0:
-				raise RuntimeError("Found unknown(s) key(s) in JSON file : %s" % ", ".join(differences))
-			args.__dict__.update(args_dict)
-
-	if args.nb_rampup_epochs == "nb_epochs":
-		args.nb_rampup_epochs = args.nb_epochs
-	args.train_name = run_to_train_name(args.run)
-	return args
-
-
 def main():
 	start_time = time()
 	start_date = get_datetime()
@@ -209,14 +182,22 @@ def main():
 	check_args(args)
 
 	print("Start match_multihot (%s)." % args.suffix)
-	print("- run:", args.run)
-	print("- from_disk:", args.from_disk)
-	print("- debug_mode:", args.debug_mode)
-	print("- experimental:", args.experimental)
-	print("- use_rampup:", args.use_rampup)
-	print("- use_sharpen_multihot:", args.use_sharpen_multihot)
-	print("- shuffle_s_with_u:", args.shuffle_s_with_u)
-	print("- threshold_confidence:", args.threshold_confidence)
+	print(" - train_name: %s" % args.train_name)
+
+	print(" - batch_size_s: %d" % args.batch_size_s)
+	print(" - batch_size_u: %d" % args.batch_size_u)
+	print(" - scheduler: %s" % args.scheduler)
+	print(" - threshold_confidence: %f" % args.threshold_confidence)
+
+	print(" - lambda_u: %f" % args.lambda_u)
+	print(" - lambda_u1: %f" % args.lambda_u1)
+	print(" - lambda_r: %f" % args.lambda_r)
+	print(" - criterion_name_u: %s" % args.criterion_name_u)
+	print(" - use_rampup: %s" % args.use_rampup)
+	print(" - nb_rampup_epochs: %d" % args.nb_rampup_epochs)
+
+	print(" - shuffle_s_with_u: %s" % args.shuffle_s_with_u)
+	print(" - experimental: %s" % args.experimental)
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
@@ -278,9 +259,12 @@ def main():
 		scheduler = None
 
 	if args.write_results:
-		writer = build_writer(args, start_date, suffix="%d_%d_%s_%.2f_%.2f_%.2f_%.2f_%s_%s" % (
+		writer = build_writer(args, start_date, "%d_%d_%s_%.2f_%.2f_%.2f_%.2f_%s_%s_%d_%s_%s_%s" % (
 			args.batch_size_s, args.batch_size_u, str(args.scheduler), args.threshold_confidence,
-			args.lambda_u, args.lambda_u1, args.lambda_r, args.criterion_name_u, args.suffix))
+			args.lambda_u, args.lambda_u1, args.lambda_r, args.criterion_name_u, args.use_rampup, args.nb_rampup_epochs,
+			args.shuffle_s_with_u,
+			args.experimental, args.suffix
+		))
 	else:
 		writer = None
 

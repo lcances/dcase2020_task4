@@ -2,8 +2,13 @@ from typing import Optional, Union
 
 
 def str_to_bool(x: str) -> bool:
-	x = str(x)
-	return x.lower() in ["true", "1", "yes", "y"]
+	x_low = str(x).lower()
+	if x_low in ["true", "1", "yes", "y"]:
+		return True
+	elif x_low in ["false", "0", "no", "n"]:
+		return False
+	else:
+		raise RuntimeError("Invalid boolean argument \"%s\"." % x)
 
 
 def str_to_optional_str(x: str) -> Optional[str]:

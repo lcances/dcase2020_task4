@@ -19,6 +19,47 @@ from dcase2020_task4.other_models.UBS8KBaseline import UBS8KBaseline
 from dcase2020_task4.validator_abc import ValidatorABC
 
 
+def check_args(args: Namespace):
+	if not osp.isdir(args.dataset):
+		raise RuntimeError("Invalid dirpath %s" % args.dataset)
+
+	if args.write_results:
+		if not osp.isdir(args.logdir):
+			raise RuntimeError("Invalid dirpath %s" % args.logdir)
+		if not osp.isdir(args.path_checkpoint):
+			raise RuntimeError("Invalid dirpath %s" % args.path_checkpoint)
+
+	if args.dataset_name == "CIFAR10":
+		if args.model_name not in ["VGG11", "ResNet18"]:
+			raise RuntimeError("Invalid model %s for dataset %s" % (args.model_name, args.dataset_name))
+		if args.cross_validation:
+			raise RuntimeError("Cross-validation on %s dataset is not supported." % args.dataset_name)
+
+	elif args.dataset_name == "UBS8K":
+		if args.model_name not in ["UBS8KBaseline"]:
+			raise RuntimeError("Invalid model %s for dataset %s" % (args.model_name, args.dataset_name))
+		if not(1 <= args.fold_val <= 10):
+			raise RuntimeError("Invalid fold %d (must be in [%d,%d])" % (args.fold_val, 1, 10))
+
+
+def post_process_args(args: Namespace) -> Namespace:
+	if args.args_file is not None:
+		if not osp.isfile(args.args_file):
+			raise RuntimeError("Unknown file \"%s\"." % args.args_file)
+
+		with open(args.args_file, "r") as file:
+			args_dict = json.load(file)
+			differences = set(args_dict.keys()).difference(args.__dict__.keys())
+			if len(differences) > 0:
+				raise RuntimeError("Found unknown(s) key(s) in JSON file : %s" % ", ".join(differences))
+			args.__dict__.update(args_dict)
+
+	if args.nb_rampup_epochs == "nb_epochs":
+		args.nb_rampup_epochs = args.nb_epochs
+	args.train_name = run_to_train_name(args.run)
+	return args
+
+
 def model_factory(args: Namespace) -> Module:
 	"""
 		Instantiate CUDA model from args. Args must be an Namespace containing the attribute "model_name".
