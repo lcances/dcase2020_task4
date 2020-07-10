@@ -1,3 +1,7 @@
+"""
+	Methods used in several standalone files for training MixMatch, ReMixMatch or FixMatch.
+"""
+
 import json
 import os.path as osp
 
@@ -16,6 +20,16 @@ from dcase2020_task4.validator_abc import ValidatorABC
 
 
 def model_factory(args: Namespace) -> Module:
+	"""
+		Instantiate CUDA model from args. Args must be an Namespace containing the attribute "model_name".
+		Available models :
+		- VGG11,
+		- ResNet18,
+		- UBS8KBaseline,
+		- WeakBaseline,
+		- WeakStrongBaselineRot,
+		- dcase2019_model,
+	"""
 	name = args.model_name.lower()
 
 	if name == "vgg11":
@@ -31,19 +45,30 @@ def model_factory(args: Namespace) -> Module:
 	elif name == "dcase2019":
 		model = dcase2019_model()
 	else:
-		raise RuntimeError("Invalid model %s" % args.model_name)
+		raise RuntimeError("Unknown model \"%s\"" % args.model_name)
 
 	model = model.cuda()
 	return model
 
 
 def optim_factory(args: Namespace, model: Module) -> Optimizer:
-	if args.optim_name.lower() == "adam":
-		return Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
-	elif args.optim_name.lower() == "sgd":
-		return SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+	"""
+		Instantiate optimizer from args.
+		Args must be an Namespace containing the attributes "optim_name", "lr" and "weight_decay".
+		Available optimizers :
+		- Adam,
+		- SGD,
+	"""
+	name = args.optim_name.lower()
+
+	if name == "adam":
+		optim = Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+	elif name == "sgd":
+		optim = SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 	else:
-		raise RuntimeError("Unknown optimizer %s" % str(args.optim_name))
+		raise RuntimeError("Unknown optimizer \"%s\"" % str(args.optim_name))
+
+	return optim
 
 
 def run_to_train_name(run: str) -> str:
@@ -95,15 +120,15 @@ def build_writer(args: Namespace, start_date: str, suffix: str = "") -> SummaryW
 
 
 def save_writer(writer: SummaryWriter, args: Namespace, validator: ValidatorABC):
-	with open(osp.join(writer.log_dir, "args.json"), "w") as file:
-		json.dump(args.__dict__, file, indent="\t")
+	save_args(writer.log_dir, args)
 
+	"""
+	TODO : rem this and validator arg ?
 	keys = []
 	metrics_recorder = validator.get_metrics_recorder()
 	for metrics in validator.get_all_metrics():
 		keys += list(metrics.keys())
 
-	"""
 	metric_dict = {}
 	metric_dict.update(
 		{"val_max/%s" % name: metrics_recorder.get_max(name) for name in keys})
@@ -113,3 +138,8 @@ def save_writer(writer: SummaryWriter, args: Namespace, validator: ValidatorABC)
 
 	writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 	writer.close()
+
+
+def save_args(filepath: str, args: Namespace):
+	with open(filepath, "w") as file:
+		json.dump(args.__dict__, file, indent="\t")

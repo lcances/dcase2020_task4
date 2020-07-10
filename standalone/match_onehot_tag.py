@@ -80,7 +80,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--mode", type=str, default="onehot", choices=["onehot"])
 	parser.add_argument("--dataset", type=str, default="../dataset/CIFAR10")
-	parser.add_argument("--dataset_name", type=str, default="CIFAR10", choices=["CIFAR10", "UBS8K"])
+	parser.add_argument("--dataset_name", type=str, default="CIFAR10", choices=["CIFAR10", "UBS8K"], required=True)
 	parser.add_argument("--nb_classes", type=int, default=10)
 
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
@@ -193,26 +193,36 @@ def check_args(args: Namespace):
 			raise RuntimeError("Invalid fold %d (must be in [%d,%d])" % (args.fold_val, 1, 10))
 
 
+def post_process_args(args: Namespace) -> Namespace:
+	if args.args_file is not None:
+		with open(args.args.file, "r") as file:
+			args_dict = json.load(file)
+			differences = set(args_dict.keys()).difference(args.__dict__.keys())
+			if len(differences) > 0:
+				raise RuntimeError("Found unknown(s) key(s) in JSON file : %s" % ", ".join(differences))
+			args.__dict__.update(args_dict)
+
+	if args.nb_rampup_epochs == "nb_epochs":
+		args.nb_rampup_epochs = args.nb_epochs
+	args.train_name = run_to_train_name(args.run)
+	return args
+
+
 def main():
 	start_time = time()
 	start_date = get_datetime()
 
 	args = create_args()
-	if args.args_file is not None:
-		args_dict = json.load(open(args.args.file, "r"))
-		args.__dict__.update(args_dict)
+	args = post_process_args(args)
 	check_args(args)
-	if args.nb_rampup_epochs == "nb_epochs":
-		args.nb_rampup_epochs = args.nb_epochs
-	args.train_name = run_to_train_name(args.run)
 
 	print("Start match_onehot. (%s)" % args.suffix)
 	print("- run:", args.run)
-	print("- confidence:", args.confidence)
 	print("- dataset_name:", args.dataset_name)
 	print("- cross_validation:", args.cross_validation)
 	print("- use_rampup:", args.use_rampup)
 	print("- shuffle_s_with_u:", args.shuffle_s_with_u)
+	print("- threshold_confidence:", args.threshold_confidence)
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)

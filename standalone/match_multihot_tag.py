@@ -185,28 +185,38 @@ def check_args(args: Namespace):
 			raise RuntimeError("Invalid dirpath %s" % args.path_checkpoint)
 
 
+def post_process_args(args: Namespace) -> Namespace:
+	if args.args_file is not None:
+		with open(args.args.file, "r") as file:
+			args_dict = json.load(file)
+			differences = set(args_dict.keys()).difference(args.__dict__.keys())
+			if len(differences) > 0:
+				raise RuntimeError("Found unknown(s) key(s) in JSON file : %s" % ", ".join(differences))
+			args.__dict__.update(args_dict)
+
+	if args.nb_rampup_epochs == "nb_epochs":
+		args.nb_rampup_epochs = args.nb_epochs
+	args.train_name = run_to_train_name(args.run)
+	return args
+
+
 def main():
 	start_time = time()
 	start_date = get_datetime()
 
 	args = create_args()
-	if args.args_file is not None:
-		args_dict = json.load(open(args.args.file, "r"))
-		args.__dict__.update(args_dict)
+	args = post_process_args(args)
 	check_args(args)
-	if args.nb_rampup_epochs == "nb_epochs":
-		args.nb_rampup_epochs = args.nb_epochs
-	args.train_name = run_to_train_name(args.run)
 
 	print("Start match_multihot (%s)." % args.suffix)
 	print("- run:", args.run)
-	print("- confidence:", args.confidence)
 	print("- from_disk:", args.from_disk)
 	print("- debug_mode:", args.debug_mode)
 	print("- experimental:", args.experimental)
 	print("- use_rampup:", args.use_rampup)
 	print("- use_sharpen_multihot:", args.use_sharpen_multihot)
 	print("- shuffle_s_with_u:", args.shuffle_s_with_u)
+	print("- threshold_confidence:", args.threshold_confidence)
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
