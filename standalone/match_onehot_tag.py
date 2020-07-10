@@ -195,7 +195,7 @@ def check_args(args: Namespace):
 
 def post_process_args(args: Namespace) -> Namespace:
 	if args.args_file is not None:
-		with open(args.args.file, "r") as file:
+		with open(args.args_file, "r") as file:
 			args_dict = json.load(file)
 			differences = set(args_dict.keys()).difference(args.__dict__.keys())
 			if len(differences) > 0:
