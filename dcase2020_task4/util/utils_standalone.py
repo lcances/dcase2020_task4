@@ -23,23 +23,23 @@ from dcase2020_task4.validator_abc import ValidatorABC
 
 def check_args(args: Namespace):
 	if not osp.isdir(args.dataset_path):
-		raise RuntimeError("Invalid dirpath %s" % args.dataset_path)
+		raise RuntimeError("Invalid dirpath \"%s\"" % args.dataset_path)
 
 	if args.write_results:
 		if not osp.isdir(args.logdir):
-			raise RuntimeError("Invalid dirpath %s" % args.logdir)
+			raise RuntimeError("Invalid dirpath \"%s\"" % args.logdir)
 		if not osp.isdir(args.checkpoint_path):
-			raise RuntimeError("Invalid dirpath %s" % args.checkpoint_path)
+			raise RuntimeError("Invalid dirpath \"%s\"" % args.checkpoint_path)
 
 	if args.dataset_name == "CIFAR10":
 		if args.model_name not in ["VGG11", "ResNet18"]:
-			raise RuntimeError("Invalid model %s for dataset %s" % (args.model_name, args.dataset_name))
+			raise RuntimeError("Invalid model \"%s\" for dataset \"%s\"" % (args.model_name, args.dataset_name))
 		if args.cross_validation:
-			raise RuntimeError("Cross-validation on %s dataset is not supported." % args.dataset_name)
+			raise RuntimeError("Cross-validation on \"%s\" dataset is not supported." % args.dataset_name)
 
 	elif args.dataset_name == "UBS8K":
 		if args.model_name not in ["UBS8KBaseline"]:
-			raise RuntimeError("Invalid model %s for dataset %s" % (args.model_name, args.dataset_name))
+			raise RuntimeError("Invalid model \"%s\" for dataset \"%s\"" % (args.model_name, args.dataset_name))
 		if not(1 <= args.fold_val <= 10):
 			raise RuntimeError("Invalid fold %d (must be in [%d,%d])" % (args.fold_val, 1, 10))
 
@@ -186,7 +186,8 @@ def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> Summ
 
 
 def save_writer(writer: SummaryWriter, args: Namespace, validator: ValidatorABC):
-	save_args(writer.log_dir, args)
+	filepath = osp.join(writer.log_dir, "args.json")
+	save_args(filepath, args)
 
 	"""
 	TODO : rem this and validator arg ?
@@ -212,16 +213,13 @@ def save_args(filepath: str, args: Namespace):
 
 
 def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namespace:
-	if not osp.isfile(filepath):
-		raise RuntimeError("Unknown file \"%s\"." % filepath)
-
 	with open(filepath, "r") as file:
 		args_dict = json.load(file)
 
 		if check_keys:
 			differences = set(args_dict.keys()).difference(args.__dict__.keys())
 			if len(differences) > 0:
-				raise RuntimeError("Found unknown(s) key(s) in JSON file : %s" % ", ".join(differences))
+				raise RuntimeError("Found unknown(s) key(s) in JSON file : \"%s\"." % ", ".join(differences))
 
 		args.__dict__.update(args_dict)
 
