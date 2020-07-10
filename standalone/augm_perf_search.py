@@ -1,4 +1,5 @@
 import json
+import numpy as np
 import os.path as osp
 import torch
 
@@ -42,19 +43,39 @@ def main():
 
 	ratio = 1.0
 	augms = [
-		Identity,
-		RandomTimeDropout,
-		# RandomFreqDropout,
-		# Noise,
 		# HorizontalFlip,
+		Identity,
+		Noise,
+		# Noise2,
+		# Occlusion,
+
+		# PitchShiftRandom,
+		# RandCropSpec,
+		# RandomFreqDropout,
+		RandomTimeDropout,
+		# TimeStretch,
+
+		# Transform,
+		# Transform,
+		# Transform,
 		# VerticalFlip,
 	]
 	augms_kwargs = [
 		dict(ratio=ratio),
-		dict(ratio=ratio),
-		dict(ratio=ratio),
+		dict(),
 		dict(ratio=ratio, snr=15.0),
+		dict(ratio=ratio, noise_factor=(10.0, 10.0)),
+		dict(ratio=ratio, max_size=1.0),
+
+		dict(ratio=ratio, steps=(-1, 1)),
+		dict(ratio=ratio, fill_value=-80),
 		dict(ratio=ratio),
+		dict(ratio=ratio),
+		dict(ratio=ratio),
+
+		dict(ratio=ratio, rotation=(-np.pi, np.pi)),
+		dict(ratio=ratio, scale=(0.9, 1.1)),
+		dict(ratio=ratio, translation=(-10, 10)),
 		dict(ratio=ratio),
 	]
 

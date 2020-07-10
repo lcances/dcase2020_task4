@@ -178,8 +178,8 @@ def main():
 	print("Start match_multihot_loc. (suffix: %s)" % args.suffix)
 
 	print(" - dataset_name: %s" % args.dataset_name)
-	print(" - model: %s" % args.model)
 	print(" - start_date: %s" % start_date)
+	print(" - model: %s" % args.model)
 	print(" - train_name: %s" % args.train_name)
 
 	print(" - optimizer: %s" % args.optimizer)

@@ -46,15 +46,7 @@ def check_args(args: Namespace):
 
 def post_process_args(args: Namespace) -> Namespace:
 	if args.args_file is not None:
-		if not osp.isfile(args.args_file):
-			raise RuntimeError("Unknown file \"%s\"." % args.args_file)
-
-		with open(args.args_file, "r") as file:
-			args_dict = json.load(file)
-			differences = set(args_dict.keys()).difference(args.__dict__.keys())
-			if len(differences) > 0:
-				raise RuntimeError("Found unknown(s) key(s) in JSON file : %s" % ", ".join(differences))
-			args.__dict__.update(args_dict)
+		args = load_args(args.args_file, args)
 
 	if args.nb_rampup_epochs == "nb_epochs":
 		args.nb_rampup_epochs = args.nb_epochs
@@ -181,7 +173,7 @@ def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> Summ
 				  "%s_%d_%s_%s"
 				  "%s_%s"
 			  ) % (
-		args.dataset_name, args.model, start_date, args.train_name,
+		args.dataset_name, start_date, args.model, args.train_name,
 		args.optimizer, args.scheduler, args.batch_size_s, args.batch_size_u,
 		args.lambda_u, args.lambda_u1, args.lambda_r, args.threshold_confidence,
 		args.use_rampup, args.nb_rampup_epochs, args.criterion_name_u, args.shuffle_s_with_u,
@@ -217,3 +209,20 @@ def save_writer(writer: SummaryWriter, args: Namespace, validator: ValidatorABC)
 def save_args(filepath: str, args: Namespace):
 	with open(filepath, "w") as file:
 		json.dump(args.__dict__, file, indent="\t")
+
+
+def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namespace:
+	if not osp.isfile(filepath):
+		raise RuntimeError("Unknown file \"%s\"." % filepath)
+
+	with open(filepath, "r") as file:
+		args_dict = json.load(file)
+
+		if check_keys:
+			differences = set(args_dict.keys()).difference(args.__dict__.keys())
+			if len(differences) > 0:
+				raise RuntimeError("Found unknown(s) key(s) in JSON file : %s" % ", ".join(differences))
+
+		args.__dict__.update(args_dict)
+
+	return args
