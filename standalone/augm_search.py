@@ -12,7 +12,7 @@ from augmentation_utils.signal_augmentations import TimeStretch, Noise, Noise2, 
 from augmentation_utils.spec_augmentations import RandomTimeDropout, RandomFreqDropout, HorizontalFlip, VerticalFlip
 from augmentation_utils.spec_augmentations import Noise as NoiseSpec
 
-from dcase2020.util.utils import reset_seed
+from dcase2020.util.utils import get_datetime, reset_seed
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.validator import DefaultValidator
@@ -56,6 +56,7 @@ def create_args() -> Namespace:
 
 
 def main():
+	start_date = get_datetime()
 	args = create_args()
 	reset_seed(args.seed)
 
@@ -183,7 +184,9 @@ def main():
 
 			augm_dic = {augm.__name__: augm_kwargs for augm, augm_kwargs in zip(augms, augms_kwargs)}
 			data = {"results": results, "augments": augm_dic}
-			json.dump(data, open("results.json", "w"))
+			filepath = "results_%s.json" % start_date
+			with open(filepath, "w") as file:
+				json.dump(data, file, indent="\t")
 
 
 if __name__ == "__main__":
