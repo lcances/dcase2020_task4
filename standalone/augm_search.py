@@ -174,6 +174,7 @@ def main():
 			validator = DefaultValidator(
 				model, acti_fn, loader_val, metrics_val, None, None, args.checkpoint_metric_name
 			)
+			validator.val(0)
 
 			_mins, maxs = validator.get_metrics_recorder().get_mins_maxs()
 			acc_max = maxs["acc"]
