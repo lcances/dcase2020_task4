@@ -10,11 +10,11 @@ from augmentation_utils.spec_augmentations import RandomTimeDropout, RandomFreqD
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.validator import DefaultValidator
-from dcase2020_task4.util.other_augments import Gray, Inversion, RandCrop, UniColor, RandCropSpec
+from dcase2020_task4.util.other_augments import RandCropSpec, InversionSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.utils_match import cross_entropy
-from dcase2020_task4.util.utils_standalone import model_factory, optim_factory
+from dcase2020_task4.util.utils_standalone import model_factory, optim_factory, sched_factory
 from dcase2020_task4.learner import DefaultLearner
 
 from ubs8k.datasets import Dataset as UBS8KDataset
@@ -30,11 +30,19 @@ def create_args() -> Namespace:
 	parser = ArgumentParser()
 	parser.add_argument("--dataset_name", type=str, default="UBS8K")
 	parser.add_argument("--dataset_path", type=str, default="/projets/samova/leocances/UrbanSound8K/")
+
 	parser.add_argument("--batch_size_s", type=int, default=64)
 	parser.add_argument("--num_workers_s", type=int, default=4)
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--checkpoint_path", type=str, default="~/root/task4/models/")
 	parser.add_argument("--checkpoint_metric_name", type=str, default="acc")
+	parser.add_argument("--confidence", type=float, default=0.5)
+
+	parser.add_argument("--model", type=str, default="UBS8KBaseline")
+	parser.add_argument("--optimizer", type=str, default="Adam")
+	parser.add_argument("--scheduler", type=str, default=None)
+	parser.add_argument("--lr", type=float, default=3e-3)
+	parser.add_argument("--weight_decay", type=float, default=0.0)
 	return parser.parse_args()
 
 
@@ -45,16 +53,17 @@ def main():
 	augms = [
 		# HorizontalFlip,
 		Identity,
+		# InversionSpec,
 		Noise,
 		# Noise2,
-		# Occlusion,
 
+		# Occlusion,
 		# PitchShiftRandom,
 		# RandCropSpec,
 		# RandomFreqDropout,
 		RandomTimeDropout,
-		# TimeStretch,
 
+		# TimeStretch,
 		# Transform,
 		# Transform,
 		# Transform,
@@ -63,16 +72,17 @@ def main():
 	augms_kwargs = [
 		dict(ratio=ratio),
 		dict(),
+		dict(ratio=ratio),
 		dict(ratio=ratio, snr=15.0),
 		dict(ratio=ratio, noise_factor=(10.0, 10.0)),
-		dict(ratio=ratio, max_size=1.0),
 
+		dict(ratio=ratio, max_size=1.0),
 		dict(ratio=ratio, steps=(-1, 1)),
 		dict(ratio=ratio, fill_value=-80),
 		dict(ratio=ratio),
 		dict(ratio=ratio),
-		dict(ratio=ratio),
 
+		dict(ratio=ratio),
 		dict(ratio=ratio, rotation=(-np.pi, np.pi)),
 		dict(ratio=ratio, scale=(0.9, 1.1)),
 		dict(ratio=ratio, translation=(-10, 10)),
@@ -111,7 +121,7 @@ def main():
 
 		kwargs_suffix = "_".join([value for key, value in sorted(augm_train_kwargs.items())])
 		filename = "%s_%s_%d_%d_%s_%s.torch" % (
-			args.model_name, augm_train_name, args.nb_epochs, args.batch_size_s, args.checkpoint_metric_name, kwargs_suffix)
+			args.model, augm_train_name, args.nb_epochs, args.batch_size_s, args.checkpoint_metric_name, kwargs_suffix)
 		filepath = osp.join(args.checkpoint_path, filename)
 
 		if not osp.isfile(filepath):
@@ -120,6 +130,7 @@ def main():
 
 			model = model_factory(args)
 			optim = optim_factory(args, model)
+			sched = sched_factory(args, optim)
 
 			criterion = cross_entropy
 
@@ -130,7 +141,7 @@ def main():
 			validator = DefaultValidator(
 				model, acti_fn, loader_val_origin, metrics_val, None, checkpoint, args.checkpoint_metric_name
 			)
-			learner = DefaultLearner("Supervised_%s" % augm_train_name, trainer, validator, args.nb_epochs)
+			learner = DefaultLearner("Supervised_%s" % augm_train_name, trainer, validator, args.nb_epochs, [sched])
 			learner.start()
 
 			validator.get_metrics_recorder().print_min_max()

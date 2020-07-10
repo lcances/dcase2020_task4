@@ -114,7 +114,7 @@ def sched_factory(args: Namespace, optim: Optimizer) -> Optional[object]:
 		- CosineLRScheduler,
 		- None,
 	"""
-	name = args.scheduler.lower()
+	name = str(args.scheduler).lower()
 
 	if name in ["cosinelrscheduler", "cosine"]:
 		scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)

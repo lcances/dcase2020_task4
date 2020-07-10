@@ -35,6 +35,15 @@ class RandCropSpec(SpecAugmentation):
 			return self.fill_value
 
 
+class InversionSpec(SpecAugmentation):
+	def __init__(self, ratio: float = 1.0):
+		super().__init__(ratio)
+		self.value_range = (-80.0, 0.0)
+
+	def apply_helper(self, data):
+		return self.value_range[1] + self.value_range[0] - data
+
+
 class ImgRGBAugmentation(ABC, ImgAugmentation):
 	""" Abstract class for images augmentations of size (3, width, height). """
 
