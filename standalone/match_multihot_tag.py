@@ -47,7 +47,6 @@ from dcase2020_task4.supervised.trainer import SupervisedTrainer
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.util.checkpoint import CheckPoint
-from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.MultipleDataset import MultipleDataset
 from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
@@ -56,7 +55,7 @@ from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import SharpenMulti
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils import reset_seed, get_datetime
-from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, post_process_args, check_args
+from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, sched_factory, post_process_args, check_args
 
 from dcase2020_task4.guessers import GuesserModelThreshold, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen
 from dcase2020_task4.learner import DefaultLearner
@@ -76,7 +75,7 @@ def create_args() -> Namespace:
 						help="Suffix to Tensorboard log dir.")
 
 	parser.add_argument("--mode", type=str, default="multihot")
-	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
+	parser.add_argument("--dataset_path", type=str, default="../dataset/DESED/")
 	parser.add_argument("--dataset_name", type=str, default="DESED_TAG")
 	parser.add_argument("--nb_classes", type=int, default=10)
 
@@ -118,7 +117,7 @@ def create_args() -> Namespace:
 						help="Write results in a tensorboard SummaryWriter.")
 	parser.add_argument("--args_file", type=str_to_optional_str, default=None,
 						help="Filepath to args file. Values found in this JSON file will overwrite other options in terminal.")
-	parser.add_argument("--path_checkpoint", type=str, default="../models/",
+	parser.add_argument("--checkpoint_path", type=str, default="../models/",
 						help="Directory path where checkpoint models will be saved.")
 	parser.add_argument("--checkpoint_metric_name", type=str, default="fscore_weak",
 						choices=["acc_weak", "fscore_weak"],
@@ -183,23 +182,27 @@ def main():
 	args = post_process_args(args)
 	check_args(args)
 
-	print("Start match_multihot (%s)." % args.suffix)
+	print("Start match_multihot_tag. (suffix: %s)" % args.suffix)
+
+	print(" - dataset_name: %s" % args.dataset_name)
+	print(" - model: %s" % args.model)
+	print(" - start_date: %s" % start_date)
 	print(" - train_name: %s" % args.train_name)
 
+	print(" - optimizer: %s" % args.optimizer)
+	print(" - scheduler: %s" % args.scheduler)
 	print(" - batch_size_s: %d" % args.batch_size_s)
 	print(" - batch_size_u: %d" % args.batch_size_u)
-	print(" - scheduler: %s" % args.scheduler)
-	print(" - threshold_confidence: %f" % args.threshold_confidence)
 
-	print(" - lambda_u: %f" % args.lambda_u)
-	print(" - lambda_u1: %f" % args.lambda_u1)
-	print(" - lambda_r: %f" % args.lambda_r)
-	print(" - criterion_name_u: %s" % args.criterion_name_u)
+	print(" - lambda_u: %.2f" % args.lambda_u)
+	print(" - lambda_u1: %.2f" % args.lambda_u1)
+	print(" - lambda_r: %.2f" % args.lambda_r)
+	print(" - threshold_confidence: %.2f" % args.threshold_confidence)
+
 	print(" - use_rampup: %s" % args.use_rampup)
 	print(" - nb_rampup_epochs: %d" % args.nb_rampup_epochs)
-
+	print(" - criterion_name_u: %s" % args.criterion_name_u)
 	print(" - shuffle_s_with_u: %s" % args.shuffle_s_with_u)
-	print(" - experimental: %s" % args.experimental)
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
@@ -253,20 +256,11 @@ def main():
 
 	model = model_factory(args)
 	optim = optim_factory(args, model)
+	sched = sched_factory(args, optim)
 	print("Model selected : %s (%d parameters)." % (args.model, get_nb_parameters(model)))
 
-	if args.scheduler in ["CosineLRScheduler", "Cosine"]:
-		scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
-	else:
-		scheduler = None
-
 	if args.write_results:
-		writer = build_writer(args, start_date, "%d_%d_%s_%.2f_%.2f_%.2f_%.2f_%s_%s_%d_%s_%s_%s" % (
-			args.batch_size_s, args.batch_size_u, args.scheduler, args.threshold_confidence,
-			args.lambda_u, args.lambda_u1, args.lambda_r, args.criterion_name_u, args.use_rampup, args.nb_rampup_epochs,
-			args.shuffle_s_with_u,
-			args.experimental, args.suffix
-		))
+		writer = build_writer(args, start_date, "%s" % args.experimental)
 	else:
 		writer = None
 
@@ -410,7 +404,7 @@ def main():
 
 	if args.write_results:
 		filename = "%s_%s_%s.torch" % (args.model, args.train_name, args.suffix)
-		filepath = osp.join(args.path_checkpoint, filename)
+		filepath = osp.join(args.checkpoint_path, filename)
 		checkpoint = CheckPoint(model, optim, name=filepath)
 	else:
 		checkpoint = None
@@ -418,7 +412,7 @@ def main():
 	validator = DefaultValidator(
 		model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 	)
-	steppables = [scheduler, rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
+	steppables = [sched, rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
 	learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, steppables)
 	learner.start()
 
@@ -434,8 +428,8 @@ def main():
 
 
 def get_desed_managers(args) -> (DESEDManager, DESEDManager):
-	desed_metadata_root = osp.join(args.dataset, "dataset", "metadata")
-	desed_audio_root = osp.join(args.dataset, "dataset", "audio")
+	desed_metadata_root = osp.join(args.dataset_path, "dataset", "metadata")
+	desed_audio_root = osp.join(args.dataset_path, "dataset", "audio")
 
 	manager_s = DESEDManager(
 		desed_metadata_root, desed_audio_root,

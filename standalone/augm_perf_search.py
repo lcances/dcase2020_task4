@@ -27,11 +27,12 @@ class Identity:
 
 def create_args() -> Namespace:
 	parser = ArgumentParser()
-	parser.add_argument("--dataset", type=str, default="/projets/samova/leocances/UrbanSound8K/")
+	parser.add_argument("--dataset_name", type=str, default="UBS8K")
+	parser.add_argument("--dataset_path", type=str, default="/projets/samova/leocances/UrbanSound8K/")
 	parser.add_argument("--batch_size_s", type=int, default=64)
 	parser.add_argument("--num_workers_s", type=int, default=4)
 	parser.add_argument("--nb_epochs", type=int, default=100)
-	parser.add_argument("--path_checkpoint", type=str, default="~/root/task4/models/")
+	parser.add_argument("--checkpoint_path", type=str, default="~/root/task4/models/")
 	parser.add_argument("--checkpoint_metric_name", type=str, default="acc")
 	return parser.parse_args()
 
@@ -57,8 +58,8 @@ def main():
 		dict(ratio=ratio),
 	]
 
-	metadata_root = osp.join(args.dataset, "metadata")
-	audio_root = osp.join(args.dataset, "audio")
+	metadata_root = osp.join(args.dataset_path, "metadata")
+	audio_root = osp.join(args.dataset_path, "audio")
 
 	fold_val = 10
 	folds_train = list(range(1, 11))
@@ -90,7 +91,7 @@ def main():
 		kwargs_suffix = "_".join([value for key, value in sorted(augm_train_kwargs.items())])
 		filename = "%s_%s_%d_%d_%s_%s.torch" % (
 			args.model_name, augm_train_name, args.nb_epochs, args.batch_size_s, args.checkpoint_metric_name, kwargs_suffix)
-		filepath = osp.join(args.path_checkpoint, filename)
+		filepath = osp.join(args.checkpoint_path, filename)
 
 		if not osp.isfile(filepath):
 			dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)

@@ -9,14 +9,14 @@ from dcase2020.datasets import DESEDDataset
 
 def create_args() -> Namespace:
 	parser = ArgumentParser()
-	parser.add_argument("--dataset", type=str, default="../dataset/DESED/")
+	parser.add_argument("--dataset_path", type=str, default="../dataset/DESED/")
 	return parser.parse_args()
 
 
 def test():
 	args = create_args()
-	desed_metadata_root = osp.join(args.dataset, "dataset", "metadata")
-	desed_audio_root = osp.join(args.dataset, "dataset", "audio")
+	desed_metadata_root = osp.join(args.dataset_path, "dataset", "metadata")
+	desed_audio_root = osp.join(args.dataset_path, "dataset", "audio")
 
 	manager = DESEDManager(
 		desed_metadata_root, desed_audio_root,

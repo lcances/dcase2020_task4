@@ -10,24 +10,26 @@ from torch.nn import Module
 from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
+from typing import Optional
 
 from dcase2020_task4.dcase2019.models import dcase2019_model
 from dcase2020_task4.other_models.weak_baseline_rot import WeakBaselineRot, WeakStrongBaselineRot
 from dcase2020_task4.other_models.vgg import VGG
 from dcase2020_task4.other_models.resnet import ResNet18
 from dcase2020_task4.other_models.UBS8KBaseline import UBS8KBaseline
+from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.validator_abc import ValidatorABC
 
 
 def check_args(args: Namespace):
-	if not osp.isdir(args.dataset):
-		raise RuntimeError("Invalid dirpath %s" % args.dataset)
+	if not osp.isdir(args.dataset_path):
+		raise RuntimeError("Invalid dirpath %s" % args.dataset_path)
 
 	if args.write_results:
 		if not osp.isdir(args.logdir):
 			raise RuntimeError("Invalid dirpath %s" % args.logdir)
-		if not osp.isdir(args.path_checkpoint):
-			raise RuntimeError("Invalid dirpath %s" % args.path_checkpoint)
+		if not osp.isdir(args.checkpoint_path):
+			raise RuntimeError("Invalid dirpath %s" % args.checkpoint_path)
 
 	if args.dataset_name == "CIFAR10":
 		if args.model_name not in ["VGG11", "ResNet18"]:
@@ -94,7 +96,7 @@ def model_factory(args: Namespace) -> Module:
 
 def optim_factory(args: Namespace, model: Module) -> Optimizer:
 	"""
-		Instantiate optimizer from args.
+		Instantiate optimizer from args and model.
 		Args must be an Namespace containing the attributes "optimizer", "lr" and "weight_decay".
 		Available optimizers :
 		- Adam,
@@ -110,6 +112,24 @@ def optim_factory(args: Namespace, model: Module) -> Optimizer:
 		raise RuntimeError("Unknown optimizer \"%s\"" % str(args.optim_name))
 
 	return optim
+
+
+def sched_factory(args: Namespace, optim: Optimizer) -> Optional[object]:
+	"""
+		Instantiate scheduler from args and optimizer.
+		Args must be an Namespace containing the attributes "scheduler", "nb_epochs" and "lr".
+		Available optimizers :
+		- CosineLRScheduler,
+		- None,
+	"""
+	name = args.scheduler.lower()
+
+	if name in ["cosinelrscheduler", "cosine"]:
+		scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
+	else:
+		scheduler = None
+
+	return scheduler
 
 
 def run_to_train_name(run: str) -> str:
@@ -153,8 +173,21 @@ def get_nb_trainable_parameters(model: Module) -> int:
 	return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def build_writer(args: Namespace, start_date: str, suffix: str = "") -> SummaryWriter:
-	dirname = "%s_%s_%s_%s_%s" % (args.dataset_name, args.model_name, start_date, args.train_name, suffix)
+def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> SummaryWriter:
+	dirname = (
+				  "%s_%s_%s_%s"
+				  "%s_%s_%d_%d"
+				  "%.2f_%.2f_%.2f_%.2f"
+				  "%s_%d_%s_%s"
+				  "%s_%s"
+			  ) % (
+		args.dataset_name, args.model, start_date, args.train_name,
+		args.optimizer, args.scheduler, args.batch_size_s, args.batch_size_u,
+		args.lambda_u, args.lambda_u1, args.lambda_r, args.threshold_confidence,
+		args.use_rampup, args.nb_rampup_epochs, args.criterion_name_u, args.shuffle_s_with_u,
+		pre_suffix, args.suffix,
+	)
+
 	dirpath = osp.join(args.logdir, dirname)
 	writer = SummaryWriter(log_dir=dirpath, comment=args.train_name)
 	return writer
