@@ -80,7 +80,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--mode", type=str, default="onehot", choices=["onehot"])
 	parser.add_argument("--dataset", type=str, default="../dataset/CIFAR10")
-	parser.add_argument("--dataset_name", type=str, default="CIFAR10", choices=["CIFAR10", "UBS8K"], required=True)
+	parser.add_argument("--dataset_name", type=str, default="CIFAR10", choices=["CIFAR10", "UBS8K"])
 	parser.add_argument("--nb_classes", type=int, default=10)
 
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
