@@ -1,5 +1,5 @@
 import json
-import numpy as np
+import os
 import os.path as osp
 import torch
 
@@ -109,10 +109,13 @@ def main():
 		augm_train_name = augm_train.__name__
 		augm_train_fn = augm_train(**augm_train_kwargs)
 
-		kwargs_suffix = "_".join([value for key, value in sorted(augm_train_kwargs.items())])
+		kwargs_suffix = "_".join([str(value) for key, value in sorted(augm_train_kwargs.items())])
 		filename = "%s_%s_%d_%d_%s_%s.torch" % (
 			args.model, augm_train_name, args.nb_epochs, args.batch_size_s, args.checkpoint_metric_name, kwargs_suffix)
+		filename_tmp = filename + ".tmp"
+
 		filepath = osp.join(args.checkpoint_path, filename)
+		filepath_tmp = osp.join(args.checkpoint_path, filename_tmp)
 
 		if not osp.isfile(filepath):
 			dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
@@ -128,7 +131,7 @@ def main():
 			trainer = SupervisedTrainer(
 				model, acti_fn, optim, loader_train, metrics_s, criterion, None
 			)
-			checkpoint = CheckPoint(model, optim, name=filepath)
+			checkpoint = CheckPoint(model, optim, name=filepath_tmp)
 			validator = DefaultValidator(
 				model, acti_fn, loader_val_origin, metrics_val, None, checkpoint, args.checkpoint_metric_name
 			)
@@ -139,6 +142,9 @@ def main():
 			learner.start()
 
 			validator.get_metrics_recorder().print_min_max()
+
+			print("Rename \"%s\" to \"%s\"..." % (filepath_tmp, filepath))
+			os.rename(filepath_tmp, filepath)
 
 		else:
 			state_dict = torch.load(filepath)
