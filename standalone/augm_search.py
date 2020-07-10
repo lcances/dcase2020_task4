@@ -12,6 +12,8 @@ from augmentation_utils.signal_augmentations import TimeStretch, Noise, Noise2, 
 from augmentation_utils.spec_augmentations import RandomTimeDropout, RandomFreqDropout, HorizontalFlip, VerticalFlip
 from augmentation_utils.spec_augmentations import Noise as NoiseSpec
 
+from dcase2020.util.utils import reset_seed
+
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.validator import DefaultValidator
 from dcase2020_task4.util.checkpoint import CheckPoint
@@ -36,6 +38,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--dataset_name", type=str, default="UBS8K")
 	parser.add_argument("--dataset_path", type=str, default="/projets/samova/leocances/UrbanSound8K/")
 	parser.add_argument("--nb_classes", type=int, default=10)
+	parser.add_argument("--seed", type=int, default=123)
 
 	parser.add_argument("--batch_size_s", type=int, default=64)
 	parser.add_argument("--num_workers_s", type=int, default=4)
@@ -54,6 +57,7 @@ def create_args() -> Namespace:
 
 def main():
 	args = create_args()
+	reset_seed(args.seed)
 
 	ratio = 1.0
 	augms_data = [
