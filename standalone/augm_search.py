@@ -113,10 +113,13 @@ def main():
 		augm_train_name = augm_train.__name__
 		augm_train_fn = augm_train(**augm_train_kwargs)
 
-		filter_ = lambda s: str(s).replace("(", "_op_").replace(")", "_cp_").replace("[", "_ob_").replace("]", "_cb_").replace(" ", "_").replace(",", "_c_")
+		filter_ = lambda s: str(s)\
+			.replace("(", "_op_").replace(")", "_cp_")\
+			.replace("[", "_ob_").replace("]", "_cb_")\
+			.replace(" ", "_").replace(",", "_c_")
 		kwargs_suffix = "_".join([filter_(value) for key, value in sorted(augm_train_kwargs.items())])
-		filename = "%s_%s_%d_%d_%s_%s.torch" % (
-			args.model, augm_train_name, args.nb_epochs, args.batch_size_s, args.checkpoint_metric_name, kwargs_suffix)
+		filename = "%s_%d_%d_%s_%s_%s.torch" % (
+			args.model, args.nb_epochs, args.batch_size_s, args.checkpoint_metric_name, augm_train_name, kwargs_suffix)
 		filename_tmp = filename + ".tmp"
 
 		filepath = osp.join(args.checkpoint_path, filename)
@@ -125,7 +128,8 @@ def main():
 		if not osp.isfile(filepath):
 			dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
 			dataset_train = FnDataset(dataset_train, label_one_hot)
-			loader_train = DataLoader(dataset_train, batch_size=args.batch_size_s, shuffle=True, num_workers=args.num_workers_s, drop_last=True)
+			loader_train = DataLoader(
+				dataset_train, batch_size=args.batch_size_s, shuffle=True, num_workers=args.num_workers_s, drop_last=True)
 
 			model = model_factory(args)
 			optim = optim_factory(args, model)
