@@ -6,7 +6,10 @@ import torch
 from argparse import ArgumentParser, Namespace
 from torch.utils.data import DataLoader
 
-from augmentation_utils.spec_augmentations import RandomTimeDropout, RandomFreqDropout, Noise, HorizontalFlip, VerticalFlip
+from augmentation_utils.img_augmentations import Transform
+from augmentation_utils.signal_augmentations import TimeStretch, Noise, Noise2, Occlusion, PitchShiftRandom
+from augmentation_utils.spec_augmentations import RandomTimeDropout, RandomFreqDropout, HorizontalFlip, VerticalFlip
+from augmentation_utils.spec_augmentations import Noise as NoiseSpec
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.validator import DefaultValidator
@@ -50,44 +53,26 @@ def main():
 	args = create_args()
 
 	ratio = 1.0
-	augms = [
-		# HorizontalFlip,
-		Identity,
-		# InversionSpec,
-		Noise,
-		# Noise2,
-
-		# Occlusion,
-		# PitchShiftRandom,
-		# RandCropSpec,
-		# RandomFreqDropout,
-		RandomTimeDropout,
-
-		# TimeStretch,
-		# Transform,
-		# Transform,
-		# Transform,
-		# VerticalFlip,
+	augms_data = [
+		(Identity, dict()),
+		(Noise, dict(ratio=ratio, snr=15.0)),
+		(RandomTimeDropout, dict(ratio=ratio)),
+		(HorizontalFlip, dict(ratio=ratio)),
+		(InversionSpec, dict(ratio=ratio)),
+		(Noise2, dict(ratio=ratio, noise_factor=(10.0, 10.0))),
+		(NoiseSpec, dict(ratio=ratio, snr=15.0)),
+		(Occlusion, dict(ratio=ratio, max_size=1.0)),
+		(PitchShiftRandom, dict(ratio=ratio, steps=(-1, 1))),
+		(RandCropSpec, dict(ratio=ratio, fill_value=-80)),
+		(RandomFreqDropout, dict(ratio=ratio)),
+		(TimeStretch, dict(ratio=ratio)),
+		(Transform, dict(ratio=ratio, scale=(0.9, 1.1))),
+		(Transform, dict(ratio=ratio, translation=(-10, 10))),
+		(VerticalFlip, dict(ratio=ratio)),
 	]
-	augms_kwargs = [
-		dict(ratio=ratio),
-		dict(),
-		dict(ratio=ratio),
-		dict(ratio=ratio, snr=15.0),
-		dict(ratio=ratio, noise_factor=(10.0, 10.0)),
-
-		dict(ratio=ratio, max_size=1.0),
-		dict(ratio=ratio, steps=(-1, 1)),
-		dict(ratio=ratio, fill_value=-80),
-		dict(ratio=ratio),
-		dict(ratio=ratio),
-
-		dict(ratio=ratio),
-		dict(ratio=ratio, rotation=(-np.pi, np.pi)),
-		dict(ratio=ratio, scale=(0.9, 1.1)),
-		dict(ratio=ratio, translation=(-10, 10)),
-		dict(ratio=ratio),
-	]
+	augms_data = augms_data[:3]
+	augms = [cls for cls, _ in augms_data]
+	augms_kwargs = [kwargs for _, kwargs in augms_data]
 
 	metadata_root = osp.join(args.dataset_path, "metadata")
 	audio_root = osp.join(args.dataset_path, "audio")
