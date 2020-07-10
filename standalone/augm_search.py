@@ -78,7 +78,7 @@ def main():
 		(Transform, dict(ratio=ratio, translation=(-10, 10))),
 		(VerticalFlip, dict(ratio=ratio)),
 	]
-	augms_data = augms_data[:3]  # TOOD: rem, for DEBUG
+
 	augms = [cls for cls, _ in augms_data]
 	augms_kwargs = [kwargs for _, kwargs in augms_data]
 
