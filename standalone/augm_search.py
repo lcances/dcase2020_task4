@@ -109,7 +109,8 @@ def main():
 		augm_train_name = augm_train.__name__
 		augm_train_fn = augm_train(**augm_train_kwargs)
 
-		kwargs_suffix = "_".join([str(value) for key, value in sorted(augm_train_kwargs.items())])
+		filter_ = lambda s: str(s).replace("(", "_op_").replace(")", "_cp_").replace("[", "_ob_").replace("]", "_cb_").replace(" ", "_").replace(",", "_c_")
+		kwargs_suffix = "_".join([filter_(value) for key, value in sorted(augm_train_kwargs.items())])
 		filename = "%s_%s_%d_%d_%s_%s.torch" % (
 			args.model, augm_train_name, args.nb_epochs, args.batch_size_s, args.checkpoint_metric_name, kwargs_suffix)
 		filename_tmp = filename + ".tmp"
