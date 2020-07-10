@@ -65,7 +65,6 @@ def main():
 		(Identity, dict()),
 		(Noise, dict(ratio=ratio, target_snr=15.0)),
 		(RandomTimeDropout, dict(ratio=ratio)),
-		(HorizontalFlip, dict(ratio=ratio)),
 		(InversionSpec, dict(ratio=ratio)),
 		(Noise2, dict(ratio=ratio, noise_factor=(10.0, 10.0))),
 		(NoiseSpec, dict(ratio=ratio, snr=15.0)),
@@ -76,7 +75,8 @@ def main():
 		(TimeStretch, dict(ratio=ratio)),
 		(Transform, dict(ratio=ratio, scale=(0.9, 1.1))),
 		(Transform, dict(ratio=ratio, translation=(-10, 10))),
-		(VerticalFlip, dict(ratio=ratio)),
+		# (HorizontalFlip, dict(ratio=ratio)),
+		# (VerticalFlip, dict(ratio=ratio)),
 	]
 
 	augms = [cls for cls, _ in augms_data]
