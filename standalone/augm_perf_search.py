@@ -4,6 +4,7 @@ import os.path as osp
 import torch
 
 from argparse import ArgumentParser, Namespace
+from torch.nn.functional import one_hot
 from torch.utils.data import DataLoader
 
 from augmentation_utils.img_augmentations import Transform
@@ -13,9 +14,10 @@ from augmentation_utils.spec_augmentations import Noise as NoiseSpec
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.validator import DefaultValidator
+from dcase2020_task4.util.checkpoint import CheckPoint
+from dcase2020_task4.util.FnDataset import FnDataset
 from dcase2020_task4.util.other_augments import RandCropSpec, InversionSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
-from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import model_factory, optim_factory, sched_factory
 from dcase2020_task4.learner import DefaultLearner
@@ -70,7 +72,7 @@ def main():
 		(Transform, dict(ratio=ratio, translation=(-10, 10))),
 		(VerticalFlip, dict(ratio=ratio)),
 	]
-	augms_data = augms_data[:3]
+	augms_data = augms_data[:3]  # TOOD: rem, for DEBUG
 	augms = [cls for cls, _ in augms_data]
 	augms_kwargs = [kwargs for _, kwargs in augms_data]
 
@@ -96,8 +98,10 @@ def main():
 
 	manager = UBS8KDatasetManager(metadata_root, audio_root)
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
+	label_one_hot = lambda item: (item[0], one_hot(torch.as_tensor(item[1]), args.nb_classes).numpy())
 
 	dataset_val_origin = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
+	dataset_val_origin = FnDataset(dataset_val_origin, label_one_hot)
 	loader_val_origin = DataLoader(dataset_val_origin, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
 
 	for i, (augm_train, augm_train_kwargs) in enumerate(zip(augms, augms_kwargs)):
@@ -111,6 +115,7 @@ def main():
 
 		if not osp.isfile(filepath):
 			dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
+			dataset_train = FnDataset(dataset_train, label_one_hot)
 			loader_train = DataLoader(dataset_train, batch_size=args.batch_size_s, shuffle=True, num_workers=args.num_workers_s, drop_last=True)
 
 			model = model_factory(args)
@@ -145,6 +150,7 @@ def main():
 			augm_val_fn = augm_val(**augm_val_kwargs)
 
 			dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(augm_val_fn,), cached=False)
+			dataset_val = FnDataset(dataset_val, label_one_hot)
 			loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
 			validator = DefaultValidator(
 				model, acti_fn, loader_val, metrics_val, None, None, args.checkpoint_metric_name
