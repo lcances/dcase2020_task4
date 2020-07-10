@@ -40,7 +40,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--batch_size_s", type=int, default=64)
 	parser.add_argument("--num_workers_s", type=int, default=4)
 	parser.add_argument("--nb_epochs", type=int, default=100)
-	parser.add_argument("--checkpoint_path", type=str, default="~/root/task4/models/")
+	parser.add_argument("--checkpoint_path", type=str, default="$HOME/root/task4/models/")
 	parser.add_argument("--checkpoint_metric_name", type=str, default="acc")
 	parser.add_argument("--confidence", type=float, default=0.5)
 
