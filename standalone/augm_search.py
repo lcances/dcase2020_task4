@@ -58,7 +58,7 @@ def main():
 	ratio = 1.0
 	augms_data = [
 		(Identity, dict()),
-		(Noise, dict(ratio=ratio, snr=15.0)),
+		(Noise, dict(ratio=ratio, target_snr=15.0)),
 		(RandomTimeDropout, dict(ratio=ratio)),
 		(HorizontalFlip, dict(ratio=ratio)),
 		(InversionSpec, dict(ratio=ratio)),
