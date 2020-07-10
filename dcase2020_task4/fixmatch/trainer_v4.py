@@ -29,7 +29,6 @@ class FixMatchTrainerV4(SSTrainerABC):
 		metrics_u: Dict[str, Metrics],
 		criterion: FixMatchLossMultiHotV4,
 		writer: Optional[SummaryWriter],
-		mode: str,
 		threshold_multihot: float,
 		nb_classes: int,
 	):
@@ -42,7 +41,6 @@ class FixMatchTrainerV4(SSTrainerABC):
 		self.metrics_u = metrics_u
 		self.criterion = criterion
 		self.writer = writer
-		self.mode = mode
 		self.threshold_multihot = threshold_multihot
 		self.nb_classes = nb_classes
 

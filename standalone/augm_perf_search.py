@@ -35,6 +35,7 @@ def create_args() -> Namespace:
 	parser = ArgumentParser()
 	parser.add_argument("--dataset_name", type=str, default="UBS8K")
 	parser.add_argument("--dataset_path", type=str, default="/projets/samova/leocances/UrbanSound8K/")
+	parser.add_argument("--nb_classes", type=int, default=10)
 
 	parser.add_argument("--batch_size_s", type=int, default=64)
 	parser.add_argument("--num_workers_s", type=int, default=4)

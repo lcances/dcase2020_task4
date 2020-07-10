@@ -305,7 +305,7 @@ def main():
 		else:
 			trainer = FixMatchTrainerV4(
 				model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-				criterion, writer, args.mode, args.threshold_multihot, args.nb_classes
+				criterion, writer, args.threshold_multihot, args.nb_classes
 			)
 
 	elif "mm" == args.run or "mixmatch" == args.run:
