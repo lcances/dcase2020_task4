@@ -34,13 +34,13 @@ def check_args(args: Namespace):
 			raise RuntimeError("Invalid dirpath \"%s\"" % args.checkpoint_path)
 
 	if args.dataset_name == "CIFAR10":
-		if args.model not in ["VGG11", "ResNet18"]:
+		if args.model not in ["VGG11", "ResNet18", "VGG11Rot", "ResNet18Rot"]:
 			raise RuntimeError("Invalid model \"%s\" for dataset \"%s\"" % (args.model, args.dataset_name))
 		if args.cross_validation:
 			raise RuntimeError("Cross-validation on \"%s\" dataset is not supported." % args.dataset_name)
 
 	elif args.dataset_name == "UBS8K":
-		if args.model not in ["UBS8KBaseline", "CNN03"]:
+		if args.model not in ["UBS8KBaseline", "CNN03", "UBS8KBaselineRot", "CNN03Rot"]:
 			raise RuntimeError("Invalid model \"%s\" for dataset \"%s\"" % (args.model, args.dataset_name))
 		if not(1 <= args.fold_val <= 10):
 			raise RuntimeError("Invalid fold %d (must be in [%d,%d])" % (args.fold_val, 1, 10))
