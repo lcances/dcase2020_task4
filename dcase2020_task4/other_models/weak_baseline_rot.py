@@ -4,17 +4,11 @@ from dcase2020_task4.baseline.models import WeakBaseline, WeakStrongBaseline
 
 
 class WeakBaselineRot(WeakBaseline):
-	def __init__(self, nb_rot: int = 4):
+	def __init__(self, rot_output_size: int = 4):
 		super().__init__()
-		nb_classes = 10
-
 		self.classifier_rot = nn.Sequential(
 			nn.Flatten(),
-			nn.Linear(1696, nb_rot)
-		)
-		self.classifier_count = nn.Sequential(
-			nn.Flatten(),
-			nn.Linear(1696, nb_classes + 1)
+			nn.Linear(1696, rot_output_size)
 		)
 
 	def forward_rot(self, x: Tensor) -> Tensor:
@@ -25,6 +19,15 @@ class WeakBaselineRot(WeakBaseline):
 		x = self.classifier_rot(x)
 
 		return x
+
+
+class WeakBaselineCount(WeakBaseline):
+	def __init__(self, output_size: int = 10):
+		super().__init__()
+		self.classifier_count = nn.Sequential(
+			nn.Flatten(),
+			nn.Linear(1696, output_size + 1)
+		)
 
 	def forward_count(self, x: Tensor) -> Tensor:
 		# For FixMatch V4 tag only
@@ -37,12 +40,12 @@ class WeakBaselineRot(WeakBaseline):
 
 
 class WeakStrongBaselineRot(WeakStrongBaseline):
-	def __init__(self, nb_rot: int = 4):
+	def __init__(self, rot_output_size: int = 4):
 		super().__init__()
 
 		self.classifier_rot = nn.Sequential(
 			nn.Flatten(),
-			nn.Linear(1696, nb_rot)
+			nn.Linear(1696, rot_output_size)
 		)
 
 	def forward_rot(self, x: Tensor) -> Tensor:

@@ -37,3 +37,22 @@ class CNN03(Module):
         x = self.classifier(x)
 
         return x
+
+
+class CNN03Rot(CNN03):
+    def __init__(self, rot_output_size: int = 4, **kwargs):
+        super().__init__(**kwargs)
+
+        self.classifier_rot = Sequential(
+            nn.Flatten(),
+            nn.Dropout(0.5),
+            nn.Linear(720, rot_output_size),
+        )
+
+    def forward_rot(self, x):
+        x = x.view(-1, 1, *x.shape[1:])
+
+        x = self.features(x)
+        x = self.classifier_rot(x)
+
+        return x

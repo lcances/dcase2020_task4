@@ -43,9 +43,9 @@ from dcase2020_task4.supervised.trainer_loc import SupervisedTrainerLoc
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.util.checkpoint import CheckPoint
-from dcase2020_task4.util.FnDataset import FnDataset
-from dcase2020_task4.util.MultipleDataset import MultipleDataset
-from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
+from dcase2020_task4.util.fn_dataset import FnDataset
+from dcase2020_task4.util.multiple_dataset import MultipleDataset
+from dcase2020_task4.util.no_label_dataset import NoLabelDataset
 from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import SharpenMulti

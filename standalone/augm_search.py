@@ -17,7 +17,7 @@ from dcase2020.util.utils import get_datetime, reset_seed
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.validator import DefaultValidator
 from dcase2020_task4.util.checkpoint import CheckPoint
-from dcase2020_task4.util.FnDataset import FnDataset
+from dcase2020_task4.util.fn_dataset import FnDataset
 from dcase2020_task4.util.other_augments import RandCropSpec, InversionSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.utils_match import cross_entropy
@@ -47,10 +47,10 @@ def create_args() -> Namespace:
 	parser.add_argument("--checkpoint_metric_name", type=str, default="acc")
 	parser.add_argument("--confidence", type=float, default=0.5)
 
-	parser.add_argument("--model", type=str, default="CNN03")
+	parser.add_argument("--model", type=str, default="CNN03Rot", choices=["UBS8KBaselineRot", "CNN03Rot"])
 	parser.add_argument("--optimizer", type=str, default="Adam")
 	parser.add_argument("--scheduler", type=str, default=None)
-	parser.add_argument("--lr", type=float, default=3e-3)
+	parser.add_argument("--lr", type=float, default=1e-3)
 	parser.add_argument("--weight_decay", type=float, default=0.0)
 	return parser.parse_args()
 

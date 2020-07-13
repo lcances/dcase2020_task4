@@ -17,7 +17,6 @@ class VGG(nn.Module):
         super(VGG, self).__init__()
         self.features = self._make_layers(cfg[vgg_name])
         self.classifier = nn.Linear(512, 10)
-        self.classifier_rot = nn.Linear(512, 4)
 
     def _make_layers(self, cfg):
         layers = []
@@ -43,6 +42,12 @@ class VGG(nn.Module):
         out = self.classifier(out)
         return out
 
+
+class VGGRot(VGG):
+    def __init__(self, vgg_name: str, rot_output_size: int = 4):
+        super().__init__(vgg_name)
+        self.classifier_rot = nn.Linear(512, rot_output_size)
+
     def forward_rot(self, x):
         """
             Input: (batch_size, 32, 32, 3)
@@ -54,8 +59,13 @@ class VGG(nn.Module):
         return out
 
 
+class VGG11Rot(VGGRot):
+    def __init__(self):
+        super(VGG11Rot, self).__init__("VGG11")
+
+
 def test():
-    net = VGG('VGG11')
+    net = VGG("VGG11")
     x = torch.randn(2, 3, 32, 32)
     y = net(x)
     print(y.size())

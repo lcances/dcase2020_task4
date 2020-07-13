@@ -2,22 +2,23 @@
 	Methods used in several standalone files for training MixMatch, ReMixMatch or FixMatch.
 """
 
+import inspect
 import json
 import os.path as osp
 
 from argparse import Namespace
+
 from torch.nn import Module
 from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
 from typing import Optional
 
-from dcase2020_task4.dcase2019.models import dcase2019_model
-from dcase2020_task4.other_models.cnn03 import CNN03
-from dcase2020_task4.other_models.resnet import ResNet18
-from dcase2020_task4.other_models.UBS8KBaseline import UBS8KBaseline
-from dcase2020_task4.other_models.vgg import VGG
-from dcase2020_task4.other_models.weak_baseline_rot import WeakBaselineRot, WeakStrongBaselineRot
+from dcase2020_task4.other_models import cnn03
+from dcase2020_task4.other_models import resnet
+from dcase2020_task4.other_models import ubs8k_baseline
+from dcase2020_task4.other_models import vgg
+from dcase2020_task4.other_models import weak_baseline_rot
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.validator_abc import ValidatorABC
 
@@ -55,37 +56,36 @@ def post_process_args(args: Namespace) -> Namespace:
 	return args
 
 
-def model_factory(args: Namespace) -> Module:
+def get_model_from_name(model_name: str, case_sensitive: bool = False, modules: list = None):
+	if modules is None:
+		modules = []
+
+	all_members = []
+	for module in modules:
+		all_members += inspect.getmembers(module)
+
+	for name, obj in all_members:
+		if inspect.isclass(obj) or inspect.isfunction(obj):
+			obj_name = obj.__name__
+			if obj_name == model_name or (not case_sensitive and obj_name.lower() == model_name.lower()):
+				return obj
+
+	raise AttributeError("This model does not exist: %s " % model_name)
+
+
+def model_factory(args: Namespace, case_sensitive: bool = False, modules: list = None) -> Module:
 	"""
 		Instantiate CUDA model from args. Args must be an Namespace containing the attribute "model".
-		Available models :
-		- VGG11,
-		- ResNet18,
-		- UBS8KBaseline,
-		- WeakBaseline,
-		- WeakStrongBaselineRot,
-		- dcase2019_model,
+		Models available are in files : cnn03, resnet, ubs8k_baseline, vgg, weak_baseline_rot
+			(in directory "dcase2020_task4/other_models/").
 	"""
-	name = args.model.lower()
+	if modules is None:
+		modules = []
+	modules += [cnn03, resnet, ubs8k_baseline, vgg, weak_baseline_rot]
 
-	if name == "vgg11":
-		model = VGG("VGG11")
-	elif name == "resnet18":
-		model = ResNet18()
-	elif name == "ubs8kbaseline":
-		model = UBS8KBaseline()
-	elif name == "weakbaseline":
-		model = WeakBaselineRot()
-	elif name == "weakstrongbaseline":
-		model = WeakStrongBaselineRot()
-	elif name == "dcase2019":
-		model = dcase2019_model()
-	elif name == "cnn03":
-		model = CNN03()
-	else:
-		raise RuntimeError("Unknown model \"%s\"" % args.model)
+	model_class = get_model_from_name(args.model, case_sensitive, modules)
+	model = model_class().cuda()
 
-	model = model.cuda()
 	return model
 
 

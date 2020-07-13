@@ -20,12 +20,6 @@ class UBS8KBaseline(nn.Module):
 			nn.Linear(672, 10)
 		)
 
-		self.classifier_rot = nn.Sequential(
-			nn.Flatten(),
-			nn.Dropout(0.5),
-			nn.Linear(672, 4)
-		)
-
 	def forward(self, x):
 		x = x.view(-1, 1, *x.shape[1:])
 
@@ -33,6 +27,16 @@ class UBS8KBaseline(nn.Module):
 		x = self.classifier(x)
 
 		return x
+
+
+class UBS8KBaselineRot(UBS8KBaseline):
+	def __init__(self, rot_output_size: int = 4, **kwargs):
+		super().__init__(**kwargs)
+		self.classifier_rot = nn.Sequential(
+			nn.Flatten(),
+			nn.Dropout(0.5),
+			nn.Linear(672, rot_output_size)
+		)
 
 	def forward_rot(self, x):
 		x = x.view(-1, 1, *x.shape[1:])

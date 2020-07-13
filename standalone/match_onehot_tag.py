@@ -49,9 +49,9 @@ from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
-from dcase2020_task4.util.FnDataset import FnDataset
-from dcase2020_task4.util.MultipleDataset import MultipleDataset
-from dcase2020_task4.util.NoLabelDataset import NoLabelDataset
+from dcase2020_task4.util.fn_dataset import FnDataset
+from dcase2020_task4.util.multiple_dataset import MultipleDataset
+from dcase2020_task4.util.no_label_dataset import NoLabelDataset
 from dcase2020_task4.util.other_augments import Gray, Inversion, RandCrop, UniColor, RandCropSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.ramp_up import RampUp
@@ -83,7 +83,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--nb_classes", type=int, default=10)
 
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
-	parser.add_argument("--model", type=str, default="VGG11", choices=["VGG11", "ResNet18", "UBS8KBaseline", "CNN03"])
+	parser.add_argument("--model", type=str, default="VGG11Rot",
+						choices=["VGG11Rot", "ResNet18Rot", "UBS8KBaselineRot", "CNN03Rot"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--confidence", type=float, default=0.5,
 						help="Confidence threshold used in VALIDATION.")
