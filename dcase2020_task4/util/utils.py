@@ -83,7 +83,7 @@ def get_datetime():
     return str(now)[:10] + "_" + str(now)[11:-7]
 
 
-def get_model_from_name(model_name):
+def get_model_from_name(model):
     import dcase2020_task4.baseline.models as baseline_models
     import dcase2020_task4.dcase2019.models as dcase2019_models
     import inspect
@@ -94,10 +94,10 @@ def get_model_from_name(model_name):
     
     for name, obj in all_members:
         if inspect.isclass(obj) or inspect.isfunction(obj):
-            if obj.__name__ == model_name:
-                logging.info("Model loaded: %s" % model_name)
+            if obj.__name__ == model:
+                logging.info("Model loaded: %s" % model)
                 return obj
-    raise AttributeError("This model does not exist: %s " % model_name)
+    raise AttributeError("This model does not exist: %s " % model)
 
 
 def reset_seed(seed):

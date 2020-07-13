@@ -33,14 +33,14 @@ def check_args(args: Namespace):
 			raise RuntimeError("Invalid dirpath \"%s\"" % args.checkpoint_path)
 
 	if args.dataset_name == "CIFAR10":
-		if args.model_name not in ["VGG11", "ResNet18"]:
-			raise RuntimeError("Invalid model \"%s\" for dataset \"%s\"" % (args.model_name, args.dataset_name))
+		if args.model not in ["VGG11", "ResNet18"]:
+			raise RuntimeError("Invalid model \"%s\" for dataset \"%s\"" % (args.model, args.dataset_name))
 		if args.cross_validation:
 			raise RuntimeError("Cross-validation on \"%s\" dataset is not supported." % args.dataset_name)
 
 	elif args.dataset_name == "UBS8K":
-		if args.model_name not in ["UBS8KBaseline", "CNN03"]:
-			raise RuntimeError("Invalid model \"%s\" for dataset \"%s\"" % (args.model_name, args.dataset_name))
+		if args.model not in ["UBS8KBaseline", "CNN03"]:
+			raise RuntimeError("Invalid model \"%s\" for dataset \"%s\"" % (args.model, args.dataset_name))
 		if not(1 <= args.fold_val <= 10):
 			raise RuntimeError("Invalid fold %d (must be in [%d,%d])" % (args.fold_val, 1, 10))
 
@@ -83,7 +83,7 @@ def model_factory(args: Namespace) -> Module:
 	elif name == "cnn03":
 		model = CNN03()
 	else:
-		raise RuntimeError("Unknown model \"%s\"" % args.model_name)
+		raise RuntimeError("Unknown model \"%s\"" % args.model)
 
 	model = model.cuda()
 	return model
@@ -104,7 +104,7 @@ def optim_factory(args: Namespace, model: Module) -> Optimizer:
 	elif name == "sgd":
 		optim = SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 	else:
-		raise RuntimeError("Unknown optimizer \"%s\"" % str(args.optim_name))
+		raise RuntimeError("Unknown optimizer \"%s\"" % str(args.optimizer))
 
 	return optim
 

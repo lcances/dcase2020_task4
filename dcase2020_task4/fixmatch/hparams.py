@@ -20,6 +20,6 @@ def default_fixmatch_hparams() -> edict:
 	hparams.nb_epochs = 100
 	hparams.begin_date = ""
 	hparams.dataset_name = ""
-	hparams.model_name = ""
+	hparams.model = ""
 	hparams.logdir = ""
 	return hparams

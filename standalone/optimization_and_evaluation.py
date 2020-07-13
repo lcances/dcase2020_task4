@@ -28,7 +28,7 @@ from aeseg.aeseg import eb_evaluator, sb_evaluator
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--model_save", default="../models/best_dcase2019.torch", help="Path to model save using checkpoint")
-parser.add_argument("--model_name", default="dcase2019_model", help="Name of the Class/function to use to construct the model")
+parser.add_argument("--model", default="dcase2019_model", help="Name of the Class/function to use to construct the model")
 parser.add_argument("-a", "--audio_root", default="../dataset/DESED/dataset/audio", type=str)
 parser.add_argument("-m", "--metadata_root", default="../dataset/DESED/dataset/metadata", type=str)
 parser.add_argument("-w", "--num_workers", default=1, type=int, help="Choose number of worker to train the model")
@@ -74,11 +74,11 @@ eval_loader = torch.utils.data.DataLoader(eval_dataset, batch_size=64, shuffle=F
 val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=64, shuffle=False)
 
 
-model_func = get_model_from_name(args.model_name)
+model_func = get_model_from_name(args.model)
 best_model = model_func()
 best_model.cpu()
 best_model.eval() # <-- for consistency in scoring (deactivate dropout and batchNorm)
-log.info("Model %s loaded" % args.model_name)
+log.info("Model %s loaded" % args.model)
 
 checkpoint = torch.load(args.model_save, map_location="cpu")
 best_model.load_state_dict(checkpoint["state_dict"])
