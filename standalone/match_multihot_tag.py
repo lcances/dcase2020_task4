@@ -409,7 +409,9 @@ def main():
 	validator = DefaultValidator(
 		model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 	)
-	steppables = [sched, rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
+	steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
+	if sched is not None:
+		steppables.append(sched)
 	learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, steppables)
 	learner.start()
 

@@ -171,15 +171,15 @@ def get_nb_trainable_parameters(model: Module) -> int:
 
 def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> SummaryWriter:
 	dirname = ""
-	dirname += "%s_%s_%s_%s" % (
+	dirname += "%s_%s_%s_%s_" % (
 		args.dataset_name, start_date, args.model, args.train_name)
-	dirname += "%d_%d_%s_%.2e" % (
+	dirname += "%d_%d_%s_%.2e_" % (
 		args.batch_size_s, args.batch_size_u, args.optimizer, args.lr)
-	dirname += "%s_%.2e_%.2e_%.2e" % (
+	dirname += "%s_%.2e_%.2e_%.2e_" % (
 		args.scheduler, args.lambda_u, args.lambda_u1, args.lambda_r)
-	dirname += "%s_%d_%s_%.2e" % (
+	dirname += "%s_%d_%s_%.2e_" % (
 		args.use_rampup, args.nb_rampup_epochs, args.shuffle_s_with_u, args.threshold_confidence)
-	dirname += "%s" % (
+	dirname += "%s_" % (
 		args.criterion_name_u)
 
 	dirname += "%s_%s" % (pre_suffix, args.suffix)
