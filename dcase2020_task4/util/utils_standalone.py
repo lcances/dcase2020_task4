@@ -19,6 +19,7 @@ from dcase2020_task4.other_models import resnet
 from dcase2020_task4.other_models import ubs8k_baseline
 from dcase2020_task4.other_models import vgg
 from dcase2020_task4.other_models import weak_baseline_rot
+from dcase2020_task4.other_models import wide_resnet
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.validator_abc import ValidatorABC
 
@@ -81,7 +82,7 @@ def model_factory(args: Namespace, case_sensitive: bool = False, modules: list =
 	"""
 	if modules is None:
 		modules = []
-	modules += [cnn03, resnet, ubs8k_baseline, vgg, weak_baseline_rot]
+	modules += [cnn03, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wide_resnet]
 
 	model_class = get_model_from_name(args.model, case_sensitive, modules)
 	model = model_class().cuda()
