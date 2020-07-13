@@ -12,7 +12,7 @@ from torch.nn import Module
 from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
-from typing import Optional
+from typing import Optional, List, Tuple
 
 from dcase2020_task4.other_models import cnn03
 from dcase2020_task4.other_models import resnet
@@ -22,6 +22,9 @@ from dcase2020_task4.other_models import weak_baseline_rot
 from dcase2020_task4.other_models import wide_resnet
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.validator_abc import ValidatorABC
+
+
+FLOAT_FORMAT = "%.3f"
 
 
 def check_args(args: Namespace):
@@ -169,22 +172,40 @@ def get_nb_trainable_parameters(model: Module) -> int:
 	return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
+def get_hparams_ordered() -> List[Tuple[str, str]]:
+	ordered = []
+
+	ordered += [("%s", "model")]
+	ordered += [("%s", "train_name")]
+
+	ordered += [("%d", "batch_size_s")]
+	ordered += [("%d", "batch_size_u")]
+	ordered += [("%s", "optimizer")]
+	ordered += [(FLOAT_FORMAT, "lr")]
+
+	ordered += [("%s", "scheduler")]
+	ordered += [(FLOAT_FORMAT, "lambda_u")]
+	ordered += [(FLOAT_FORMAT, "lambda_u1")]
+	ordered += [(FLOAT_FORMAT, "lambda_r")]
+
+	ordered += [("%d", "use_rampup")]
+	ordered += [("%d", "nb_rampup_epochs")]
+	ordered += [("%d", "shuffle_s_with_u")]
+	ordered += [(FLOAT_FORMAT, "threshold_confidence")]
+
+	ordered += [("%s", "criterion_name_u")]
+
+	return ordered
+
+
 def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> SummaryWriter:
 	dirname = ""
-	dirname += "%s_%s_%s_%s_" % (
-		args.dataset_name, start_date, args.model, args.train_name)
-	dirname += "%d_%d_%s_%.2e_" % (
-		args.batch_size_s, args.batch_size_u, args.optimizer, args.lr)
-	dirname += "%s_%.2e_%.2e_%.2e_" % (
-		args.scheduler, args.lambda_u, args.lambda_u1, args.lambda_r)
-	dirname += "%s_%d_%s_%.2e_" % (
-		args.use_rampup, args.nb_rampup_epochs, args.shuffle_s_with_u, args.threshold_confidence)
-	dirname += "%s_" % (
-		args.criterion_name_u)
 
+	dirname += "%s_%s_" % (args.dataset_name, start_date)
+	dirname += "%s_" % "_".join([(format_ % args.__dict__[name]) for format_, name in get_hparams_ordered()])
 	dirname += "%s_%s" % (pre_suffix, args.suffix)
-	dirpath = osp.join(args.logdir, dirname)
 
+	dirpath = osp.join(args.logdir, dirname)
 	writer = SummaryWriter(log_dir=dirpath, comment=args.train_name)
 	return writer
 

@@ -58,7 +58,7 @@ from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import Sharpen
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils_match import cross_entropy
-from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, sched_factory, post_process_args, check_args
+from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, sched_factory, post_process_args, check_args, get_hparams_ordered
 
 from dcase2020_task4.learner import DefaultLearner
 from dcase2020_task4.validator import DefaultValidator
@@ -188,25 +188,9 @@ def main():
 
 	print(" - dataset_name: %s" % args.dataset_name)
 	print(" - start_date: %s" % start_date)
-	print(" - model: %s" % args.model)
-	print(" - train_name: %s" % args.train_name)
 
-	print(" - batch_size_s: %d" % args.batch_size_s)
-	print(" - batch_size_u: %d" % args.batch_size_u)
-	print(" - optimizer: %s" % args.optimizer)
-	print(" - lr: %.2e" % args.lr)
-
-	print(" - scheduler: %s" % args.scheduler)
-	print(" - lambda_u: %.2e" % args.lambda_u)
-	print(" - lambda_u1: %.2e" % args.lambda_u1)
-	print(" - lambda_r: %.2e" % args.lambda_r)
-
-	print(" - use_rampup: %s" % args.use_rampup)
-	print(" - nb_rampup_epochs: %d" % args.nb_rampup_epochs)
-	print(" - threshold_confidence: %.2e" % args.threshold_confidence)
-	print(" - shuffle_s_with_u: %s" % args.shuffle_s_with_u)
-
-	print(" - criterion_name_u: %s" % args.criterion_name_u)
+	for format_, name in get_hparams_ordered():
+		print((" - %s: %s" % (name, format_)) % args.__dict__[name])
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
