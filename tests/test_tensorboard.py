@@ -8,7 +8,7 @@ def main():
 
 	print("Save distributions...")
 	distributions = torch.as_tensor([10, 20, 5, 10])
-	writer.add_histogram("hist_3", distributions)
+	writer.add_histogram("hist_4", distributions, bins="auto")
 	for v in distributions:
 		writer.add_hparams({}, {"acc": v})
 
