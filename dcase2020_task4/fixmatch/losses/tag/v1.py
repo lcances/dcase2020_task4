@@ -1,6 +1,6 @@
 from torch import Tensor
 from torch.nn import BCELoss
-from typing import Union
+from typing import Optional
 
 from dcase2020_task4.fixmatch.losses.abc import FixMatchLossTagABC
 
@@ -9,7 +9,7 @@ class FixMatchLossMultiHotV1(FixMatchLossTagABC):
 	def __init__(
 		self,
 		lambda_u: float = 1.0,
-		threshold_confidence: float = 0.5,
+		threshold_confidence: float = 0.95,
 		threshold_multihot: float = 0.5,
 	):
 		self.lambda_u = lambda_u
@@ -18,6 +18,7 @@ class FixMatchLossMultiHotV1(FixMatchLossTagABC):
 
 		self.criterion_s = BCELoss(reduction="none")
 		self.criterion_u = BCELoss(reduction="none")
+		self.last_mask = None
 
 	@staticmethod
 	def from_edict(hparams) -> 'FixMatchLossMultiHotV1':
@@ -36,18 +37,22 @@ class FixMatchLossMultiHotV1(FixMatchLossTagABC):
 		loss_s = loss_s.mean()
 
 		# Unsupervised loss
-		mask = self.get_confidence_mask(u_pred_weak_augm_weak, dim=1)
+		mask = self.confidence_mask(u_pred_weak_augm_weak, dim=1)
 		loss_u = self.criterion_u(u_pred_weak_augm_strong, u_labels_weak_guessed).mean(dim=1)
 		loss_u *= mask
 		loss_u = loss_u.mean()
 
 		loss = loss_s + self.lambda_u * loss_u
+		self.last_mask = mask.detach()
 
 		return loss, loss_s, loss_u
 
-	def get_confidence_mask(self, pred: Tensor, dim: Union[int, tuple]) -> Tensor:
+	def confidence_mask(self, pred: Tensor, dim: int) -> Tensor:
 		means, _ = pred.max(dim=dim)
 		return (means > self.threshold_confidence).float()
+
+	def get_last_mask(self) -> Optional[Tensor]:
+		return self.last_mask
 
 	def get_lambda_u(self) -> float:
 		return self.lambda_u

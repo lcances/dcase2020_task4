@@ -16,7 +16,7 @@ from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.util.zip_cycle import ZipCycle
 
 
-class MixMatchTrainer(SSTrainerABC):
+class MixMatchTrainerV3(SSTrainerABC):
 	def __init__(
 		self,
 		model: Module,
@@ -59,18 +59,19 @@ class MixMatchTrainer(SSTrainerABC):
 		iter_train = iter(loaders_zip)
 
 		for i, item in enumerate(iter_train):
-			(s_batch_augm, s_labels), u_batch_augms = item
+			(s_batch_augm, s_labels), u_batch_augms, u_batch = item
 
 			s_batch_augm = s_batch_augm.cuda().float()
 			s_labels = s_labels.cuda().float()
 			u_batch_augms = torch.stack(u_batch_augms).cuda().float()
+			u_batch = u_batch.cuda().float()
 
 			with torch.no_grad():
 				u_label_guessed = self.guesser.guess_label(u_batch_augms, dim=1)
 
 				# Apply mix
 				s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed = self.mixer(
-					s_batch_augm, s_labels, u_batch_augms, u_label_guessed
+					s_batch_augm, s_labels, u_batch.unsqueeze(dim=0), u_label_guessed
 				)
 
 			# Compute logits

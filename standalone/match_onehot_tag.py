@@ -35,6 +35,7 @@ from dcase2020_task4.guessers import GuesserModelOneHot, GuesserMeanModelSharpen
 from dcase2020_task4.mixmatch.losses.tag.onehot import MixMatchLossOneHot
 from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
 from dcase2020_task4.mixmatch.trainer import MixMatchTrainer
+from dcase2020_task4.mixmatch.trainer_v3 import MixMatchTrainerV3
 
 from dcase2020_task4.mixup.mixers.tag import MixUpMixerTag
 
@@ -168,6 +169,9 @@ def create_args() -> Namespace:
 	parser.add_argument("--fold_val", type=int, default=10,
 						help="Fold used for validation in UBS8K dataset.")
 
+	parser.add_argument("--experimental", type=str_to_optional_str, default="",
+						choices=["", "None", "V3"])
+
 	return parser.parse_args()
 
 
@@ -224,6 +228,7 @@ def main():
 	}
 
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
+	cross_validation_results = {}
 
 	def run(fold_val_ubs8k: int):
 		if args.dataset_name.lower() == "cifar10":
@@ -304,6 +309,10 @@ def main():
 			dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm)
 			dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * args.nb_augms)
 
+			if args.experimental.lower() == "v3":
+				dataset_train_u = Subset(dataset_train, idx_train_u)
+				dataset_train_u_augms = MultipleDataset([dataset_train_u_augms, dataset_train_u])
+
 			loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm, **args_loader_train_s)
 			loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
 
@@ -318,10 +327,16 @@ def main():
 			sharpen_fn = Sharpen(args.sharpen_temperature)
 			guesser = GuesserMeanModelSharpen(model, acti_fn, sharpen_fn)
 
-			trainer = MixMatchTrainer(
-				model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-				criterion, writer, mixer, guesser
-			)
+			if args.experimental.lower() != "v3":
+				trainer = MixMatchTrainer(
+					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
+					criterion, writer, mixer, guesser
+				)
+			else:
+				trainer = MixMatchTrainerV3(
+					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
+					criterion, writer, mixer, guesser
+				)
 
 		elif "rmm" == args.run or "remixmatch" == args.run:
 			dataset_train_s_augm_strong = Subset(dataset_train_augm_strong, idx_train_s)
@@ -412,9 +427,16 @@ def main():
 			save_writer(writer, args, validator)
 		validator.get_metrics_recorder().print_min_max()
 
+		_, maxs = validator.get_metrics_recorder().get_mins_maxs()
+		cross_validation_results[fold_val_ubs8k] = maxs["acc"]
+
 	if args.cross_validation:
 		for fold_val_ubs8k_ in range(1, 11):
 			run(fold_val_ubs8k_)
+
+		content = [(" %d: %f" % (fold, value)) for fold, value in cross_validation_results.items()]
+		print("Cross-validation results : \n", "\n".join(content))
+		print("Cross-validation mean : ", np.mean(cross_validation_results.values()))
 	else:
 		run(args.fold_val)
 
@@ -487,6 +509,7 @@ def get_ubs8k_augms(args: Namespace) -> (Callable, Callable, Callable):
 		Noise(ratio=args.ratio_augm_weak, snr=5.0),
 		Noise2(args.ratio_augm_weak, noise_factor=(5.0, 5.0)),
 	])
+	# TODO : rem
 	augm_strong_fn = Compose([
 		RandomChoice([
 			TimeStretch(args.ratio_augm_strong),
@@ -501,6 +524,13 @@ def get_ubs8k_augms(args: Namespace) -> (Callable, Callable, Callable):
 			RandCropSpec(args.ratio_augm_strong),
 		]),
 	])
+	augm_strong_fn = RandomChoice([
+		Occlusion(args.ratio_augm_strong, max_size=1.0),
+		RandomFreqDropout(args.ratio_augm_strong, dropout=0.5),
+		RandomTimeDropout(args.ratio_augm_strong, dropout=0.5),
+		RandCropSpec(args.ratio_augm_strong),
+	])
+
 	augm_fn = RandomChoice([
 		TimeStretch(args.ratio_augm),
 		PitchShiftRandom(args.ratio_augm),

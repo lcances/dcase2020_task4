@@ -45,7 +45,7 @@ class FixMatchTrainer(SSTrainerABC):
 			"train/",
 			list(self.metrics_s.keys()) +
 			list(self.metrics_u.keys()) +
-			["loss", "loss_s", "loss_u"]
+			["loss", "loss_s", "loss_u", "labels_used"]
 		)
 
 	def train(self, epoch: int):
@@ -73,7 +73,7 @@ class FixMatchTrainer(SSTrainerABC):
 
 			# Use guess u label with prediction of weak augmentation of u
 			with torch.no_grad():
-				u_labels_guessed = self.guesser(u_batch_augm_weak, dim=1)
+				u_labels_guessed = self.guesser.guess_label(u_batch_augm_weak, dim=1)
 				u_pred_augm_weak = self.guesser.get_last_pred()
 
 			# Update model
@@ -89,6 +89,7 @@ class FixMatchTrainer(SSTrainerABC):
 				self.metrics_recorder.add_value("loss", loss.item())
 				self.metrics_recorder.add_value("loss_s", loss_s.item())
 				self.metrics_recorder.add_value("loss_u", loss_u.item())
+				self.metrics_recorder.add_values("labels_used", self.criterion.get_last_mask().tolist())
 
 				metrics_preds_labels = [
 					(self.metrics_s, s_pred_augm_weak, s_labels),

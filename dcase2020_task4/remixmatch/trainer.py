@@ -88,7 +88,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 			u_batch_augm_strongs = torch.stack(u_batch_augm_strongs).cuda().float()
 
 			with torch.no_grad():
-				u_label_guessed = self.guesser(u_batch_augm_weak, dim=1)
+				u_label_guessed = self.guesser.guess_label(u_batch_augm_weak, dim=1)
 				u_pred_augm_weak = self.guesser.get_last_pred()
 
 				if self.distributions is not None:

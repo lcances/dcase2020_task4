@@ -1,4 +1,5 @@
 from torch import Tensor
+from typing import Optional
 
 from dcase2020_task4.fixmatch.losses.abc import FixMatchLossTagABC
 from dcase2020_task4.util.utils_match import cross_entropy
@@ -15,6 +16,7 @@ class FixMatchLossOneHot(FixMatchLossTagABC):
 
 		self.criterion_s = cross_entropy
 		self.criterion_u = cross_entropy
+		self.last_mask = None
 
 	@staticmethod
 	def from_edict(hparams) -> 'FixMatchLossOneHot':
@@ -33,18 +35,22 @@ class FixMatchLossOneHot(FixMatchLossTagABC):
 		loss_s = loss_s.mean()
 
 		# Unsupervised loss
-		mask = self.get_confidence_mask(u_pred_augm_weak)
+		mask = self.confidence_mask(u_pred_augm_weak, dim=1)
 		loss_u = self.criterion_u(u_pred_augm_strong, u_labels_guessed)
 		loss_u *= mask
 		loss_u = loss_u.mean()
 
 		loss = loss_s + self.lambda_u * loss_u
+		self.last_mask = mask.detach()
 
 		return loss, loss_s, loss_u
 
-	def get_confidence_mask(self, pred_weak: Tensor) -> Tensor:
-		max_values, _ = pred_weak.max(dim=1)
+	def confidence_mask(self, pred_weak: Tensor, dim: int) -> Tensor:
+		max_values, _ = pred_weak.max(dim=dim)
 		return (max_values > self.threshold_confidence).float()
+
+	def get_last_mask(self) -> Optional[Tensor]:
+		return self.last_mask
 
 	def get_lambda_u(self) -> float:
 		return self.lambda_u

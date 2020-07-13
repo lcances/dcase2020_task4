@@ -14,8 +14,11 @@ KEY_MAX_LENGTH = 10
 
 class MetricsRecorderABC:
 	def add_value(self, name: str, value: float):
-		""" Store a value of a metric. """
+		""" Store a value of a metric named. """
 		raise NotImplementedError("Abstract method")
+
+	def add_values(self, name: str, values: List[float]):
+		""" Store a values of a metric named. """
 
 	def apply_metrics_and_add(self, metrics_preds_labels: List[Tuple[Dict[str, Metrics], Tensor, Tensor]]):
 		""" Call metrics with predictions and labels and store their values. """
@@ -93,6 +96,10 @@ class MetricsRecorder(MetricsRecorderABC):
 				raise RuntimeError("Invalid name %s. Include name in \"keys\" when building MetricsRecorder or change "
 								   "\"accept_unknown_metrics\" to True." % name)
 		self.data[name].append(value)
+
+	def add_values(self, name: str, values: List[float]):
+		for value in values:
+			self.add_value(name, value)
 
 	def apply_metrics_and_add(self, metrics_preds_labels: List[Tuple[Dict[str, Metrics], Tensor, Tensor]]):
 		with torch.no_grad():

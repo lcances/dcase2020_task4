@@ -55,6 +55,15 @@ def create_args() -> Namespace:
 	return parser.parse_args()
 
 
+def get_augm_with_args_name(augm, augm_kwargs: dict) -> str:
+	filter_ = lambda s: str(s)\
+		.replace("(", "_op_").replace(")", "_cp_")\
+		.replace("[", "_ob_").replace("]", "_cb_")\
+		.replace(" ", "_").replace(",", "_c_")
+	kwargs_suffix = "_".join([filter_(value) for key, value in sorted(augm_kwargs.items())])
+	return "%s_%s" % (augm.__name__, kwargs_suffix)
+
+
 def main():
 	start_date = get_datetime()
 	args = create_args()
@@ -111,16 +120,11 @@ def main():
 	loader_val_origin = DataLoader(dataset_val_origin, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
 
 	for i, (augm_train, augm_train_kwargs) in enumerate(zip(augms, augms_kwargs)):
-		augm_train_name = augm_train.__name__
+		augm_train_name = get_augm_with_args_name(augm_train, augm_train_kwargs)
 		augm_train_fn = augm_train(**augm_train_kwargs)
 
-		filter_ = lambda s: str(s)\
-			.replace("(", "_op_").replace(")", "_cp_")\
-			.replace("[", "_ob_").replace("]", "_cb_")\
-			.replace(" ", "_").replace(",", "_c_")
-		kwargs_suffix = "_".join([filter_(value) for key, value in sorted(augm_train_kwargs.items())])
-		filename = "%s_%d_%d_%s_%s_%s.torch" % (
-			args.model, args.nb_epochs, args.batch_size_s, args.checkpoint_metric_name, augm_train_name, kwargs_suffix)
+		filename = "%s_%d_%d_%s_%s.torch" % (
+			args.model, args.nb_epochs, args.batch_size_s, args.checkpoint_metric_name, augm_train_name)
 		filename_tmp = filename + ".tmp"
 
 		filepath = osp.join(args.checkpoint_path, filename)
@@ -166,7 +170,7 @@ def main():
 			results[augm_train_name] = {}
 
 		for j, (augm_val, augm_val_kwargs) in enumerate(zip(augms, augms_kwargs)):
-			augm_val_name = augm_val.__name__
+			augm_val_name = get_augm_with_args_name(augm_val, augm_val_kwargs)
 			augm_val_fn = augm_val(**augm_val_kwargs)
 
 			dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(augm_val_fn,), cached=False)

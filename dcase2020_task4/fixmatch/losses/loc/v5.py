@@ -42,22 +42,22 @@ class FixMatchLossMultiHotLocV5(FixMatchLossLocABC):
 		loss_s_weak = loss_s_weak.mean()
 
 		# Supervised strong loss
-		s_mask_has_strong = self.get_strong_mask(s_labels_strong)
+		s_mask_has_strong = self.strong_mask(s_labels_strong)
 
 		loss_s_strong = self.criterion_s_strong(s_pred_strong_augm_weak, s_labels_strong).mean(dim=(1, 2))
 		loss_s_strong = s_mask_has_strong * loss_s_strong
 		loss_s_strong = loss_s_strong.mean()
 
 		# Unsupervised weak loss
-		u_mask_confidence_weak = self.get_confidence_mask(u_pred_weak_augm_weak, u_labels_weak_guessed, dim=1)
+		u_mask_confidence_weak = self.confidence_mask(u_pred_weak_augm_weak, u_labels_weak_guessed, dim=1)
 
 		loss_u_weak = self.criterion_u_weak(u_pred_weak_augm_strong, u_labels_weak_guessed).mean(dim=1)
 		loss_u_weak *= u_mask_confidence_weak
 		loss_u_weak = loss_u_weak.mean()
 
 		# Unsupervised strong loss
-		u_mask_has_strong = self.get_strong_mask(u_labels_strong_guessed)
-		u_mask_confidence_strong = self.get_confidence_mask(u_pred_strong_augm_weak, u_labels_strong_guessed, dim=(1, 2))
+		u_mask_has_strong = self.strong_mask(u_labels_strong_guessed)
+		u_mask_confidence_strong = self.confidence_mask(u_pred_strong_augm_weak, u_labels_strong_guessed, dim=(1, 2))
 
 		loss_u_strong = self.criterion_u_strong(u_pred_strong_augm_strong, u_labels_strong_guessed).mean(dim=(1, 2))
 		loss_u_strong = u_mask_has_strong * u_mask_confidence_strong * loss_u_strong
@@ -68,10 +68,10 @@ class FixMatchLossMultiHotLocV5(FixMatchLossLocABC):
 
 		return loss, loss_s_weak, loss_u_weak, loss_s_strong, loss_u_strong
 
-	def get_strong_mask(self, labels_strong: Tensor) -> Tensor:
+	def strong_mask(self, labels_strong: Tensor) -> Tensor:
 		return torch.clamp(labels_strong.sum(dim=(1, 2)), 0, 1)
 
-	def get_confidence_mask(self, pred: Tensor, labels: Tensor, dim: Union[int, tuple]) -> Tensor:
+	def confidence_mask(self, pred: Tensor, labels: Tensor, dim: Union[int, tuple]) -> Tensor:
 		return torch.clamp(labels.sum(dim=dim), 0, 1)
 
 	def get_lambda_u(self) -> float:

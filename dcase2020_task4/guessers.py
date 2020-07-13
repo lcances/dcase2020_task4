@@ -12,7 +12,7 @@ class GuesserABC(ABC, Callable):
 	def __call__(self, x: Tensor, dim: int) -> Tensor:
 		raise NotImplementedError("Abstract method")
 
-	def guess(self, x: Tensor, dim: int) -> Tensor:
+	def guess_label(self, x: Tensor, dim: int) -> Tensor:
 		return self.__call__(x, dim)
 
 
@@ -97,6 +97,7 @@ class GuesserMeanModel(GuesserABC):
 	def __init__(self, model: Module, acti_fn: Callable):
 		self.model = model
 		self.acti_fn = acti_fn
+		self.last_pred = None
 
 	def __call__(self, batches: Tensor, dim: int) -> Tensor:
 		nb_augms = batches.shape[0]
@@ -105,8 +106,12 @@ class GuesserMeanModel(GuesserABC):
 			logits = self.model(batches[k])
 			preds[k] = self.acti_fn(logits, dim=dim)
 		preds = torch.stack(preds).cuda()
+		self.last_pred = preds
 		label_guessed = preds.mean(dim=0)
 		return label_guessed
+
+	def get_last_pred(self) -> Optional[Tensor]:
+		return self.last_pred
 
 
 class GuesserMeanModelSharpen(GuesserModelABC):
