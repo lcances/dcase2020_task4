@@ -47,7 +47,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--checkpoint_metric_name", type=str, default="acc")
 	parser.add_argument("--confidence", type=float, default=0.5)
 
-	parser.add_argument("--model", type=str, default="UBS8KBaseline")
+	parser.add_argument("--model", type=str, default="CNN03")
 	parser.add_argument("--optimizer", type=str, default="Adam")
 	parser.add_argument("--scheduler", type=str, default=None)
 	parser.add_argument("--lr", type=float, default=3e-3)
@@ -60,7 +60,7 @@ def get_augm_with_args_name(augm, augm_kwargs: dict) -> str:
 		.replace("(", "_op_").replace(")", "_cp_")\
 		.replace("[", "_ob_").replace("]", "_cb_")\
 		.replace(" ", "_").replace(",", "_c_")
-	kwargs_suffix = "_".join([filter_(value) for key, value in sorted(augm_kwargs.items())])
+	kwargs_suffix = "_".join([("%s_%s" % (key, filter_(value))) for key, value in sorted(augm_kwargs.items())])
 	return "%s_%s" % (augm.__name__, kwargs_suffix)
 
 
