@@ -13,9 +13,9 @@ path_board="$HOME/root/tensorboard_DESED_TAG/"
 path_checkpoint="$HOME/root/task4/models/"
 
 tmp_file=".tmp_sbatch.sh"
-name="TAG_$run"
-out_file="$HOME/logs/DESED_TAG_%j.out"
-err_file="$HOME/logs/DESED_TAG_%j.err"
+name="DTAG_$run"
+out_file="$HOME/logs/DESED_TAG_%j_$run.out"
+err_file="$HOME/logs/DESED_TAG_%j_$run.err"
 
 cat << EOT > $tmp_file
 #!/bin/sh

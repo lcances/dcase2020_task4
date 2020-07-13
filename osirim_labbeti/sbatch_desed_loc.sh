@@ -13,9 +13,9 @@ path_board="$HOME/root/tensorboard_DESED_LOC/"
 path_checkpoint="$HOME/root/task4/models/"
 
 tmp_file=".tmp_sbatch.sh"
-name="LOC_$run"
-out_file="$HOME/logs/DESED_LOC_%j.out"
-err_file="$HOME/logs/DESED_LOC_%j.err"
+name="DLOC_$run"
+out_file="$HOME/logs/DESED_LOC_%j_$run.out"
+err_file="$HOME/logs/DESED_LOC_%j_$run.err"
 
 cat << EOT > $tmp_file
 #!/bin/sh

@@ -14,9 +14,9 @@ path_dataset="/projets/samova/leocances/CIFAR10/"
 path_board="$HOME/root/tensorboard_CIFAR10/"
 
 tmp_file=".tmp_sbatch.sh"
-name="TAG_$run"
-out_file="$HOME/logs/CIFAR10_%j.out"
-err_file="$HOME/logs/CIFAR10_%j.err"
+name="CTAG_$run"
+out_file="$HOME/logs/CIFAR10_%j_$run.out"
+err_file="$HOME/logs/CIFAR10_%j_$run.err"
 
 cat << EOT > $tmp_file
 #!/bin/sh

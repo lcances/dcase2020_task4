@@ -1,0 +1,16 @@
+{
+	"dataset_name": "UBS8K",
+	"nb_classes": 10,
+	"model_name": "UBS8KBaseline",
+	"num_workers_s": 4,
+	"num_workers_u": 4,
+	"checkpoint_metric_name": "acc",
+	"batch_size_s": 64,
+	"batch_size_u": 64,
+	
+	"use_rampup": false,
+	"lambda_u": 1.0,
+	"cross_validation": false,
+	"threshold_confidence": 0.9,
+	"nb_rampup_epochs": "nb_epochs"
+}
