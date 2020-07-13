@@ -83,7 +83,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--nb_classes", type=int, default=10)
 
 	parser.add_argument("--logdir", type=str, default="../../tensorboard")
-	parser.add_argument("--model", type=str, default="VGG11", choices=["VGG11", "ResNet18", "UBS8KBaseline"])
+	parser.add_argument("--model", type=str, default="VGG11", choices=["VGG11", "ResNet18", "UBS8KBaseline", "CNN03"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--confidence", type=float, default=0.5,
 						help="Confidence threshold used in VALIDATION.")

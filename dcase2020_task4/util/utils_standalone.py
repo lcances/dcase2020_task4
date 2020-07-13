@@ -13,10 +13,11 @@ from torch.utils.tensorboard import SummaryWriter
 from typing import Optional
 
 from dcase2020_task4.dcase2019.models import dcase2019_model
-from dcase2020_task4.other_models.weak_baseline_rot import WeakBaselineRot, WeakStrongBaselineRot
-from dcase2020_task4.other_models.vgg import VGG
+from dcase2020_task4.other_models.cnn03 import CNN03
 from dcase2020_task4.other_models.resnet import ResNet18
 from dcase2020_task4.other_models.UBS8KBaseline import UBS8KBaseline
+from dcase2020_task4.other_models.vgg import VGG
+from dcase2020_task4.other_models.weak_baseline_rot import WeakBaselineRot, WeakStrongBaselineRot
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.validator_abc import ValidatorABC
 
@@ -38,7 +39,7 @@ def check_args(args: Namespace):
 			raise RuntimeError("Cross-validation on \"%s\" dataset is not supported." % args.dataset_name)
 
 	elif args.dataset_name == "UBS8K":
-		if args.model_name not in ["UBS8KBaseline"]:
+		if args.model_name not in ["UBS8KBaseline", "CNN03"]:
 			raise RuntimeError("Invalid model \"%s\" for dataset \"%s\"" % (args.model_name, args.dataset_name))
 		if not(1 <= args.fold_val <= 10):
 			raise RuntimeError("Invalid fold %d (must be in [%d,%d])" % (args.fold_val, 1, 10))
@@ -79,6 +80,8 @@ def model_factory(args: Namespace) -> Module:
 		model = WeakStrongBaselineRot()
 	elif name == "dcase2019":
 		model = dcase2019_model()
+	elif name == "cnn03":
+		model = CNN03()
 	else:
 		raise RuntimeError("Unknown model \"%s\"" % args.model_name)
 
