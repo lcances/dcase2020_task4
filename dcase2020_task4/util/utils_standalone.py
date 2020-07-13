@@ -169,21 +169,21 @@ def get_nb_trainable_parameters(model: Module) -> int:
 
 
 def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> SummaryWriter:
-	dirname = (
-				  "%s_%s_%s_%s"
-				  "%s_%s_%d_%d"
-				  "%.2f_%.2f_%.2f_%.2f"
-				  "%s_%d_%s_%s"
-				  "%s_%s"
-			  ) % (
-		args.dataset_name, start_date, args.model, args.train_name,
-		args.optimizer, args.scheduler, args.batch_size_s, args.batch_size_u,
-		args.lambda_u, args.lambda_u1, args.lambda_r, args.threshold_confidence,
-		args.use_rampup, args.nb_rampup_epochs, args.criterion_name_u, args.shuffle_s_with_u,
-		pre_suffix, args.suffix,
-	)
+	dirname = ""
+	dirname += "%s_%s_%s_%s" % (
+		args.dataset_name, start_date, args.model, args.train_name)
+	dirname += "%d_%d_%s_%.2e" % (
+		args.batch_size_s, args.batch_size_u, args.optimizer, args.lr)
+	dirname += "%s_%.2e_%.2e_%.2e" % (
+		args.scheduler, args.lambda_u, args.lambda_u1, args.lambda_r)
+	dirname += "%s_%d_%s_%.2e" % (
+		args.use_rampup, args.nb_rampup_epochs, args.criterion_name_u, args.threshold_confidence)
+	dirname += "%s" % (
+		args.shuffle_s_with_u)
 
+	dirname += "%s_%s" % (pre_suffix, args.suffix)
 	dirpath = osp.join(args.logdir, dirname)
+	print("Data saved in tensorboard writer \"%s\"." % dirpath)
 	writer = SummaryWriter(log_dir=dirpath, comment=args.train_name)
 	return writer
 

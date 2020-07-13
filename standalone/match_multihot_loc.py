@@ -175,26 +175,28 @@ def main():
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
 
-	print("Start match_multihot_loc. (suffix: %s)" % args.suffix)
+	print("Start match_multihot_loc. (suffix: \"%s\")" % args.suffix)
 
 	print(" - dataset_name: %s" % args.dataset_name)
 	print(" - start_date: %s" % start_date)
 	print(" - model: %s" % args.model)
 	print(" - train_name: %s" % args.train_name)
 
-	print(" - optimizer: %s" % args.optimizer)
-	print(" - scheduler: %s" % args.scheduler)
 	print(" - batch_size_s: %d" % args.batch_size_s)
 	print(" - batch_size_u: %d" % args.batch_size_u)
+	print(" - optimizer: %s" % args.optimizer)
+	print(" - lr: %.2e" % args.lr)
 
-	print(" - lambda_u: %.2f" % args.lambda_u)
-	print(" - lambda_u1: %.2f" % args.lambda_u1)
-	print(" - lambda_r: %.2f" % args.lambda_r)
-	print(" - threshold_confidence: %.2f" % args.threshold_confidence)
+	print(" - scheduler: %s" % args.scheduler)
+	print(" - lambda_u: %.2e" % args.lambda_u)
+	print(" - lambda_u1: %.2e" % args.lambda_u1)
+	print(" - lambda_r: %.2e" % args.lambda_r)
 
 	print(" - use_rampup: %s" % args.use_rampup)
 	print(" - nb_rampup_epochs: %d" % args.nb_rampup_epochs)
 	print(" - criterion_name_u: %s" % args.criterion_name_u)
+	print(" - threshold_confidence: %.2e" % args.threshold_confidence)
+
 	print(" - shuffle_s_with_u: %s" % args.shuffle_s_with_u)
 
 	acti_fn = lambda batch, dim: batch.sigmoid()
