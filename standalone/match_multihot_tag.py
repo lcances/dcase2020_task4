@@ -133,9 +133,6 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--from_disk", type=str_to_bool, default=True,
 						help="Select False if you want ot load all data into RAM.")
-	parser.add_argument("--criterion_name_u", type=str, default="cross_entropy",
-						choices=["sq_diff", "cross_entropy"],
-						help="MixMatch unsupervised loss component.")
 
 	parser.add_argument("--lambda_u", type=float, default=1.0,
 						help="FixMatch, MixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
@@ -201,9 +198,7 @@ def main():
 
 	print(" - use_rampup: %s" % args.use_rampup)
 	print(" - nb_rampup_epochs: %d" % args.nb_rampup_epochs)
-	print(" - criterion_name_u: %s" % args.criterion_name_u)
 	print(" - threshold_confidence: %.2e" % args.threshold_confidence)
-
 	print(" - shuffle_s_with_u: %s" % args.shuffle_s_with_u)
 
 	reset_seed(args.seed)

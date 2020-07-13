@@ -177,13 +177,13 @@ def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> Summ
 	dirname += "%s_%.2e_%.2e_%.2e" % (
 		args.scheduler, args.lambda_u, args.lambda_u1, args.lambda_r)
 	dirname += "%s_%d_%s_%.2e" % (
-		args.use_rampup, args.nb_rampup_epochs, args.criterion_name_u, args.threshold_confidence)
+		args.use_rampup, args.nb_rampup_epochs, args.shuffle_s_with_u, args.threshold_confidence)
 	dirname += "%s" % (
-		args.shuffle_s_with_u)
+		args.criterion_name_u)
 
 	dirname += "%s_%s" % (pre_suffix, args.suffix)
 	dirpath = osp.join(args.logdir, dirname)
-	print("Data saved in tensorboard writer \"%s\"." % dirpath)
+
 	writer = SummaryWriter(log_dir=dirpath, comment=args.train_name)
 	return writer
 
@@ -208,11 +208,13 @@ def save_writer(writer: SummaryWriter, args: Namespace, validator: ValidatorABC)
 
 	writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 	writer.close()
+	print("Data will saved in tensorboard writer \"%s\"." % writer.log_dir)
 
 
 def save_args(filepath: str, args: Namespace):
 	with open(filepath, "w") as file:
 		json.dump(args.__dict__, file, indent="\t")
+	print("Arguments saved in file \"%s\"." % filepath)
 
 
 def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namespace:

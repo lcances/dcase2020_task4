@@ -194,9 +194,7 @@ def main():
 
 	print(" - use_rampup: %s" % args.use_rampup)
 	print(" - nb_rampup_epochs: %d" % args.nb_rampup_epochs)
-	print(" - criterion_name_u: %s" % args.criterion_name_u)
 	print(" - threshold_confidence: %.2e" % args.threshold_confidence)
-
 	print(" - shuffle_s_with_u: %s" % args.shuffle_s_with_u)
 
 	acti_fn = lambda batch, dim: batch.sigmoid()

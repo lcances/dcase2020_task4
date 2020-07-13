@@ -67,7 +67,7 @@ class MetricsRecorder(MetricsRecorderABC):
 	"""
 
 	def __init__(
-		self, prefix: str, keys: List[str], accept_unknown_metrics: bool = False
+			self, prefix: str, keys: List[str], accept_unknown_metrics: bool = False
 	):
 		"""
 			prefix: prefix used in tensorboard names. Example: "train/" or "val/". Can be empty.
@@ -183,7 +183,7 @@ class MetricsRecorder(MetricsRecorderABC):
 
 	def _old_print_metrics(self, epoch: int, i: int, len_: int):
 		""" Unused method. """
-		
+
 		content = ["{:s}: {:.4e}".format(name, np.mean(values)) for name, values in self.data.items()]
 		content += ["took: {:.2f}s".format(time() - self.start)]
 
