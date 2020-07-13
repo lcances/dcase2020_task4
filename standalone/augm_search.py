@@ -187,7 +187,8 @@ def main():
 			results[augm_train_name][augm_val_name] = acc_max
 
 			augm_dic = {augm.__name__: augm_kwargs for augm, augm_kwargs in zip(augms, augms_kwargs)}
-			data = {"results": results, "augments": augm_dic}
+			data = {"results": results, "augments": augm_dic, "args": args.__dict__}
+
 			filepath = "results_%s.json" % start_date
 			with open(filepath, "w") as file:
 				json.dump(data, file, indent="\t")

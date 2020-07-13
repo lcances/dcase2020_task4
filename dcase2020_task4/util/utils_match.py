@@ -86,3 +86,7 @@ def multilabel_to_num(labels: Tensor) -> List[List[int]]:
 			if bin == 1.0:
 				res[i].append(j)
 	return res
+
+
+def sq_diff(a: Tensor, b: Tensor) -> Tensor:
+	return (a - b) ** 2

@@ -2,7 +2,7 @@
 from torch import Tensor
 
 from dcase2020_task4.mixmatch.losses.abc import MixMatchLossTagABC
-from dcase2020_task4.util.utils_match import cross_entropy
+from dcase2020_task4.util.utils_match import cross_entropy, sq_diff
 
 
 class MixMatchLossOneHot(MixMatchLossTagABC):
@@ -42,7 +42,3 @@ class MixMatchLossOneHot(MixMatchLossTagABC):
 
 	def get_lambda_u(self) -> float:
 		return self.lambda_u
-
-
-def sq_diff(a: Tensor, b: Tensor) -> Tensor:
-	return (a - b) ** 2
