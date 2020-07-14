@@ -91,7 +91,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--optimizer", type=str, default="Adam", choices=["Adam", "SGD"],
 						help="Optimizer used.")
 	parser.add_argument("--scheduler", type=str_to_optional_str, default="Cosine",
-						choices=["CosineLRScheduler", "Cosine", "None"],
+						choices=["CosineLRScheduler", "Cosine", None],
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 	parser.add_argument("--lr", type=float, default=3e-3,
 						help="Learning rate used.")
@@ -127,7 +127,7 @@ def create_args() -> Namespace:
 						help="Select False if you want ot load all data into RAM. "
 							 "It will be faster but consume a lot of RAM.")
 	parser.add_argument("--experimental", type=str_to_optional_str, default="",
-						choices=["", "None", "V1", "V2", "V3", "V5"],
+						choices=[None, "V1", "V2", "V3", "V5"],
 						help="Experimental FixMatch mode.")
 
 	parser.add_argument("--lambda_u", type=float, default=1.0,

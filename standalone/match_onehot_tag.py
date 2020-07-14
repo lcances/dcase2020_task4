@@ -101,7 +101,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--optimizer", type=str, default="Adam", choices=["Adam", "SGD"],
 						help="Optimizer used.")
 	parser.add_argument("--scheduler", type=str_to_optional_str, default="Cosine",
-						choices=["CosineLRScheduler", "Cosine", "None"],
+						choices=["CosineLRScheduler", "Cosine", None],
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 	parser.add_argument("--lr", type=float, default=1e-3,
 						help="Learning rate used.")
@@ -170,8 +170,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--fold_val", type=int, default=10,
 						help="Fold used for validation in UBS8K dataset.")
 
-	parser.add_argument("--experimental", type=str_to_optional_str, default="",
-						choices=["", "None", "V3"])
+	parser.add_argument("--experimental", type=str_to_optional_str, default=None,
+						choices=[None, "V3"])
 
 	return parser.parse_args()
 

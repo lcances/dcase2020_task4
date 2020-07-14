@@ -99,7 +99,7 @@ def create_args() -> Namespace:
 						choices=["Adam", "SGD"],
 						help="Optimizer used.")
 	parser.add_argument("--scheduler", type=str_to_optional_str, default="Cosine",
-						choices=["CosineLRScheduler", "Cosine", "None"],
+						choices=["CosineLRScheduler", "Cosine", None],
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 	parser.add_argument("--lr", type=float, default=3e-3,
 						help="Learning rate used.")
@@ -166,7 +166,7 @@ def create_args() -> Namespace:
 						help="MixMatch shuffle supervised and unsupervised data.")
 
 	parser.add_argument("--experimental", type=str_to_optional_str, default="",
-						choices=["", "None", "V1", "V2", "V3", "V4"])
+						choices=[None, "V1", "V2", "V3", "V4"])
 
 	return parser.parse_args()
 
