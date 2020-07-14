@@ -101,7 +101,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--optimizer", type=str, default="Adam", choices=["Adam", "SGD"],
 						help="Optimizer used.")
 	parser.add_argument("--scheduler", type=str_to_optional_str, default="Cosine",
-						choices=["CosineLRScheduler", "Cosine", None],
+						choices=[None, "CosineLRScheduler", "Cosine"],
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 	parser.add_argument("--lr", type=float, default=1e-3,
 						help="Learning rate used.")
@@ -296,7 +296,7 @@ def main():
 			dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm)
 			dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * args.nb_augms)
 
-			if args.experimental.lower() == "v3":
+			if args.experimental == "V3":
 				dataset_train_u = Subset(dataset_train, idx_train_u)
 				dataset_train_u_augms = MultipleDataset([dataset_train_u_augms, dataset_train_u])
 
@@ -314,7 +314,7 @@ def main():
 			sharpen_fn = Sharpen(args.sharpen_temperature)
 			guesser = GuesserMeanModelSharpen(model, acti_fn, sharpen_fn)
 
-			if args.experimental.lower() != "v3":
+			if args.experimental != "V3":
 				trainer = MixMatchTrainer(
 					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
 					criterion, writer, mixer, guesser

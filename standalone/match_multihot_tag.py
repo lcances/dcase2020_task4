@@ -25,6 +25,7 @@ from augmentation_utils.spec_augmentations import Noise, RandomTimeDropout, Rand
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
+from dcase2020_task4.fixmatch.losses.tag.default import FixMatchLossMultiHot
 from dcase2020_task4.fixmatch.losses.tag.v1 import FixMatchLossMultiHotV1
 from dcase2020_task4.fixmatch.losses.tag.v2 import FixMatchLossMultiHotV2
 from dcase2020_task4.fixmatch.losses.tag.v3 import FixMatchLossMultiHotV3
@@ -99,7 +100,7 @@ def create_args() -> Namespace:
 						choices=["Adam", "SGD"],
 						help="Optimizer used.")
 	parser.add_argument("--scheduler", type=str_to_optional_str, default="Cosine",
-						choices=["CosineLRScheduler", "Cosine", None],
+						choices=[None, "CosineLRScheduler", "Cosine"],
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 	parser.add_argument("--lr", type=float, default=3e-3,
 						help="Learning rate used.")
@@ -281,20 +282,22 @@ def main():
 		loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
-		if args.experimental.lower() == "v1":
+		if args.experimental is None:
+			criterion = FixMatchLossMultiHot.from_edict(args)
+		elif args.experimental == "V1":
 			criterion = FixMatchLossMultiHotV1.from_edict(args)
-		elif args.experimental.lower() == "v2":
+		elif args.experimental == "V2":
 			criterion = FixMatchLossMultiHotV2.from_edict(args)
-		elif args.experimental.lower() == "v3":
+		elif args.experimental == "V3":
 			criterion = FixMatchLossMultiHotV3.from_edict(args)
-		elif args.experimental.lower() == "v4":
+		elif args.experimental == "V4":
 			criterion = FixMatchLossMultiHotV4.from_edict(args)
 		else:
 			raise RuntimeError("Unknown experimental mode \"%s\"." % args.experimental)
 
 		guesser = GuesserModelThreshold(model, acti_fn, args.threshold_multihot)
 
-		if args.experimental.lower() != "v4":
+		if args.experimental != "V4":
 			trainer = FixMatchTrainer(
 				model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
 				criterion, writer, guesser
@@ -322,10 +325,10 @@ def main():
 				loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
 
 		criterion = MixMatchLossMultiHot.from_edict(args)
-		if args.experimental.lower() == "v2":
-			mixup_mixer = MixUpMixerTagV2.from_edict(args)
-		else:
+		if args.experimental != "V2":
 			mixup_mixer = MixUpMixerTag.from_edict(args)
+		else:
+			mixup_mixer = MixUpMixerTagV2.from_edict(args)
 		mixer = MixMatchMixer(mixup_mixer, args.shuffle_s_with_u)
 
 		if args.use_sharpen_multihot:

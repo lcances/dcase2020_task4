@@ -91,7 +91,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--optimizer", type=str, default="Adam", choices=["Adam", "SGD"],
 						help="Optimizer used.")
 	parser.add_argument("--scheduler", type=str_to_optional_str, default="Cosine",
-						choices=["CosineLRScheduler", "Cosine", None],
+						choices=[None, "CosineLRScheduler", "Cosine"],
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 	parser.add_argument("--lr", type=float, default=3e-3,
 						help="Learning rate used.")
@@ -292,13 +292,13 @@ def main():
 
 		if args.experimental is None:
 			criterion = FixMatchLossMultiHotLoc.from_edict(args)
-		elif args.experimental.lower() == "v1":
+		elif args.experimental == "V1":
 			criterion = FixMatchLossMultiHotLocV1.from_edict(args)
-		elif args.experimental.lower() == "v2":
+		elif args.experimental == "V2":
 			criterion = FixMatchLossMultiHotLocV2.from_edict(args)
-		elif args.experimental.lower() == "v3":
+		elif args.experimental == "V3":
 			criterion = FixMatchLossMultiHotLocV3.from_edict(args)
-		elif args.experimental.lower() == "v5":
+		elif args.experimental == "V5":
 			criterion = FixMatchLossMultiHotLocV5.from_edict(args)
 		else:
 			raise RuntimeError("Unknown experimental mode \"%s\"." % args.experimental)
