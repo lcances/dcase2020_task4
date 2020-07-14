@@ -1,0 +1,105 @@
+{
+	"results": {
+		"Identity_": {
+			"Identity_": 0.8125,
+			"Noise_1.0_15.0": 0.3629807692307692,
+			"RandomTimeDropout_1.0": 0.22115384615384615,
+			"InversionSpec_1.0": 0.10216346153846154,
+			"Noise2__op_10.0_c__10.0_cp__1.0": 0.1201923076923077,
+			"Occlusion_1.0_1.0": 0.765625,
+			"PitchShiftRandom_1.0__op_-1_c__1_cp_": 0.765625,
+			"RandCropSpec_-80_1.0": 0.6778846153846154,
+			"RandomFreqDropout_1.0": 0.14423076923076922,
+			"TimeStretch_1.0": 0.7776442307692307,
+			"Transform_1.0__op_0.9_c__1.1_cp_": 0.8125,
+			"Transform_1.0__op_-10_c__10_cp_": 0.8125
+		},
+		"Noise_1.0_15.0": {
+			"Identity_": 0.5288461538461539,
+			"Noise_1.0_15.0": 0.36899038461538464,
+			"RandomTimeDropout_1.0": 0.18269230769230768,
+			"InversionSpec_1.0": 0.08413461538461539,
+			"Noise2__op_10.0_c__10.0_cp__1.0": 0.1141826923076923,
+			"Occlusion_1.0_1.0": 0.4699519230769231,
+			"PitchShiftRandom_1.0__op_-1_c__1_cp_": 0.44591346153846156,
+			"RandCropSpec_-80_1.0": 0.46033653846153844,
+			"RandomFreqDropout_1.0": 0.15745192307692307,
+			"TimeStretch_1.0": 0.43509615384615385,
+			"Transform_1.0__op_0.9_c__1.1_cp_": 0.5288461538461539,
+			"Transform_1.0__op_-10_c__10_cp_": 0.5288461538461539
+		},
+		"RandomTimeDropout_1.0": {
+			"Identity_": 0.6598557692307693,
+			"Noise_1.0_15.0": 0.20673076923076922,
+			"RandomTimeDropout_1.0": 0.7055288461538461,
+			"InversionSpec_1.0": 0.13701923076923078,
+			"Noise2__op_10.0_c__10.0_cp__1.0": 0.1201923076923077,
+			"Occlusion_1.0_1.0": 0.6334134615384616,
+			"PitchShiftRandom_1.0__op_-1_c__1_cp_": 0.6358173076923077,
+			"RandCropSpec_-80_1.0": 0.5024038461538461,
+			"RandomFreqDropout_1.0": 0.09975961538461539,
+			"TimeStretch_1.0": 0.6430288461538461,
+			"Transform_1.0__op_0.9_c__1.1_cp_": 0.6598557692307693,
+			"Transform_1.0__op_-10_c__10_cp_": 0.6598557692307693
+		},
+		"InversionSpec_1.0": {
+			"Identity_": 0.13341346153846154,
+			"Noise_1.0_15.0": 0.11899038461538461,
+			"RandomTimeDropout_1.0": 0.12259615384615384,
+			"InversionSpec_1.0": 0.6346153846153846,
+			"Noise2__op_10.0_c__10.0_cp__1.0": 0.1201923076923077,
+			"Occlusion_1.0_1.0": 0.12980769230769232,
+			"PitchShiftRandom_1.0__op_-1_c__1_cp_": 0.125,
+			"RandCropSpec_-80_1.0": 0.11057692307692307,
+			"RandomFreqDropout_1.0": 0.1141826923076923
+		}
+	},
+	"augments": {
+		"Identity": {},
+		"Noise": {
+			"ratio": 1.0,
+			"snr": 15.0
+		},
+		"RandomTimeDropout": {
+			"ratio": 1.0
+		},
+		"InversionSpec": {
+			"ratio": 1.0
+		},
+		"Noise2": {
+			"ratio": 1.0,
+			"noise_factor": [
+				10.0,
+				10.0
+			]
+		},
+		"Occlusion": {
+			"ratio": 1.0,
+			"max_size": 1.0
+		},
+		"PitchShiftRandom": {
+			"ratio": 1.0,
+			"steps": [
+				-1,
+				1
+			]
+		},
+		"RandCropSpec": {
+			"ratio": 1.0,
+			"fill_value": -80
+		},
+		"RandomFreqDropout": {
+			"ratio": 1.0
+		},
+		"TimeStretch": {
+			"ratio": 1.0
+		},
+		"Transform": {
+			"ratio": 1.0,
+			"translation": [
+				-10,
+				10
+			]
+		}
+	}
+}
