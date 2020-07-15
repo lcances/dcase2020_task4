@@ -83,6 +83,7 @@ class MetricsRecorder(MetricsRecorderABC):
 
 		self.mins = {k: np.inf for k in self.keys}
 		self.maxs = {k: -np.inf for k in self.keys}
+		self.stds_max = {k: 0 for k in self.keys}
 
 		if len(set(keys)) != len(keys):
 			raise RuntimeError("Duplicate found for metrics names : %s" % " ".join(keys))
@@ -141,12 +142,19 @@ class MetricsRecorder(MetricsRecorderABC):
 				mean_ = self.get_mean_epoch(key)
 				if mean_ > self.maxs[key]:
 					self.maxs[key] = mean_
+					self.stds_max[key] = self.get_std_epoch(key)
 				if mean_ < self.mins[key]:
 					self.mins[key] = mean_
 
 	def store_in_writer(self, writer: SummaryWriter, epoch: int):
 		for metric_name, values in self.data.items():
 			writer.add_scalar("%s%s" % (self.prefix, metric_name), np.mean(values), epoch)
+
+	def store_min_max_in_writer(self, writer: SummaryWriter, epoch: int):
+		for name in self.get_keys():
+			writer.add_scalar("val_min/%s" % name, self.get_min(name), epoch)
+			writer.add_scalar("val_max/%s" % name, self.get_max(name), epoch)
+			writer.add_scalar("val_std_max/%s" % name, self.get_std_of_max(name), epoch)
 
 	def get_keys(self) -> List[str]:
 		return self.keys
@@ -162,6 +170,9 @@ class MetricsRecorder(MetricsRecorderABC):
 
 	def get_max(self, name: str) -> float:
 		return self.maxs[name]
+
+	def get_std_of_max(self, name: str) -> float:
+		return self.stds_max[name]
 
 	def get_mins_maxs(self) -> (Dict[str, float], Dict[str, float]):
 		mins = {name: self.get_min(name) for name in sorted(self.data.keys())}

@@ -1,8 +1,8 @@
 import torch
 
-from dcase2020_task4.fixmatch.losses.loc.v2 import FixMatchLossMultiHotLocV2
+from dcase2020_task4.fixmatch.losses.loc.v1 import FixMatchLossMultiHotLocV1
 
-FixMatchLossMultiHotLoc = FixMatchLossMultiHotLocV2
+FixMatchLossMultiHotLoc = FixMatchLossMultiHotLocV1
 
 
 def test():

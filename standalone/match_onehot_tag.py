@@ -1,7 +1,7 @@
 """
 	Main script for testing MixMatch, ReMixMatch, FixMatch or supervised training on a mono-label dataset.
 	Available datasets are CIFAR10 and UrbanSound8k.
-	They do not have a supervised/unsupervised separation, so we need to create it.
+	They do not have a supervised/unsupervised separation, so we need to split it manually.
 """
 
 import os
@@ -197,9 +197,11 @@ def main():
 
 	metrics_s = {
 		"s_acc": CategoricalAccuracyOnehot(dim=1),
+		"s_max": MaxMetric(dim=1),
 	}
 	metrics_u = {
 		"u_acc": CategoricalAccuracyOnehot(dim=1),
+		"u_max": MaxMetric(dim=1),
 	}
 	metrics_u1 = {
 		"u1_acc": CategoricalAccuracyOnehot(dim=1),
@@ -298,6 +300,7 @@ def main():
 
 			if args.experimental == "V3":
 				dataset_train_u = Subset(dataset_train, idx_train_u)
+				dataset_train_u = NoLabelDataset(dataset_train_u)
 				dataset_train_u_augms = MultipleDataset([dataset_train_u_augms, dataset_train_u])
 
 			loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm, **args_loader_train_s)
@@ -309,7 +312,7 @@ def main():
 
 			criterion = MixMatchLossOneHot.from_edict(args)
 			mixup_mixer = MixUpMixerTag.from_edict(args)
-			mixer = MixMatchMixer(mixup_mixer)
+			mixer = MixMatchMixer(mixup_mixer, args.shuffle_s_with_u)
 
 			sharpen_fn = Sharpen(args.sharpen_temperature)
 			guesser = GuesserMeanModelSharpen(model, acti_fn, sharpen_fn)

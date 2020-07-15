@@ -59,7 +59,7 @@ class MixMatchTrainerV3(SSTrainerABC):
 		iter_train = iter(loaders_zip)
 
 		for i, item in enumerate(iter_train):
-			(s_batch_augm, s_labels), u_batch_augms, u_batch = item
+			(s_batch_augm, s_labels), (u_batch_augms, u_batch) = item
 
 			s_batch_augm = s_batch_augm.cuda().float()
 			s_labels = s_labels.cuda().float()
