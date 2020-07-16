@@ -14,6 +14,9 @@ class ReMixMatchLossTagABC(ABC, Callable):
 	) -> (Tensor, Tensor, Tensor, Tensor, Tensor):
 		raise NotImplementedError("Abstract method")
 
+	def get_lambda_s(self) -> float:
+		raise NotImplementedError("Abstract method")
+
 	def get_lambda_u(self) -> float:
 		raise NotImplementedError("Abstract method")
 

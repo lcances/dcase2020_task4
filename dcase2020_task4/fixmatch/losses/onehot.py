@@ -8,9 +8,11 @@ from dcase2020_task4.util.utils_match import cross_entropy
 class FixMatchLossOneHot(FixMatchLossTagABC):
 	def __init__(
 		self,
+		lambda_s: float = 1.0,
 		lambda_u: float = 1.0,
 		threshold_confidence: float = 0.95,
 	):
+		self.lambda_s = lambda_s
 		self.lambda_u = lambda_u
 		self.threshold_confidence = threshold_confidence
 
@@ -20,7 +22,7 @@ class FixMatchLossOneHot(FixMatchLossTagABC):
 
 	@staticmethod
 	def from_edict(hparams) -> 'FixMatchLossOneHot':
-		return FixMatchLossOneHot(hparams.lambda_u, hparams.threshold_confidence)
+		return FixMatchLossOneHot(hparams.lambda_s, hparams.lambda_u, hparams.threshold_confidence)
 
 	def __call__(
 		self,
@@ -51,6 +53,9 @@ class FixMatchLossOneHot(FixMatchLossTagABC):
 
 	def get_last_mask(self) -> Optional[Tensor]:
 		return self.last_mask
+
+	def get_lambda_s(self) -> float:
+		return self.lambda_s
 
 	def get_lambda_u(self) -> float:
 		return self.lambda_u

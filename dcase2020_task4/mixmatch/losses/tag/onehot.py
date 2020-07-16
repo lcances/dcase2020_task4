@@ -10,9 +10,11 @@ class MixMatchLossOneHot(MixMatchLossTagABC):
 
 	def __init__(
 		self,
+		lambda_s: float = 1.0,
 		lambda_u: float = 1.0,
 		criterion_name_u: str = "sq_diff"
 	):
+		self.lambda_s = lambda_s
 		self.lambda_u = lambda_u
 		self.unsupervised_loss_mode = criterion_name_u
 
@@ -27,7 +29,7 @@ class MixMatchLossOneHot(MixMatchLossTagABC):
 
 	@staticmethod
 	def from_edict(hparams) -> 'MixMatchLossOneHot':
-		return MixMatchLossOneHot(hparams.lambda_u, hparams.criterion_name_u)
+		return MixMatchLossOneHot(hparams.lambda_s, hparams.lambda_u, hparams.criterion_name_u)
 
 	def __call__(self, s_pred: Tensor, s_target: Tensor, u_pred: Tensor, u_target: Tensor) -> (Tensor, Tensor, Tensor):
 		loss_s = self.criterion_s(s_pred, s_target)
@@ -36,9 +38,12 @@ class MixMatchLossOneHot(MixMatchLossTagABC):
 		loss_u = self.criterion_u(u_pred, u_target)
 		loss_u = loss_u.mean()
 
-		loss = loss_s + self.lambda_u * loss_u
+		loss = self.lambda_s * loss_s + self.lambda_u * loss_u
 
 		return loss, loss_s, loss_u
+
+	def get_lambda_s(self) -> float:
+		return self.lambda_s
 
 	def get_lambda_u(self) -> float:
 		return self.lambda_u

@@ -57,6 +57,7 @@ from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMet
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import Sharpen
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
+from dcase2020_task4.util.uniloss import UniLoss
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, sched_factory, post_process_args, check_args, get_hparams_ordered
 
@@ -131,6 +132,8 @@ def create_args() -> Namespace:
 						help="Nb of epochs when lambda_u and lambda_u1 is increase from 0 to their value."
 							 "Use 0 for deactivate RampUp. Use \"nb_epochs\" for ramping up during all training.")
 
+	parser.add_argument("--lambda_s", type=float, default=1.0,
+						help="MixMatch, FixMatch and ReMixMatch \"lambda_s\" hyperparameter.")
 	parser.add_argument("--lambda_u", type=float, default=1.0,
 						help="MixMatch, FixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
 	parser.add_argument("--lambda_u1", type=float, default=0.5,
@@ -171,7 +174,7 @@ def create_args() -> Namespace:
 						help="Fold used for validation in UBS8K dataset.")
 
 	parser.add_argument("--experimental", type=str_to_optional_str, default=None,
-						choices=[None, "V3"])
+						choices=[None, "V3", "V8"])
 
 	return parser.parse_args()
 
@@ -269,6 +272,7 @@ def main():
 		rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u, obj=None, attr_name="lambda_u")
 		rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_u1")
 		rampup_lambda_r = RampUp(nb_rampup_steps, args.lambda_r, obj=None, attr_name="lambda_r")
+		uni_loss = None
 
 		if "fm" == args.run or "fixmatch" == args.run:
 			dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
@@ -313,6 +317,15 @@ def main():
 			criterion = MixMatchLossOneHot.from_edict(args)
 			mixup_mixer = MixUpMixerTag.from_edict(args)
 			mixer = MixMatchMixer(mixup_mixer, args.shuffle_s_with_u)
+
+			if args.experimental == "V8":
+				uni_loss = UniLoss(
+					attributes=[(criterion, "lambda_s"), (criterion, "lambda_u")],
+					ratios_range=[
+						([1.0, 0.0], 0, 9),
+						([0.5, 0.5], 10, args.nb_epochs)
+					]
+				)
 
 			sharpen_fn = Sharpen(args.sharpen_temperature)
 			guesser = GuesserMeanModelSharpen(model, acti_fn, sharpen_fn)
@@ -410,6 +423,8 @@ def main():
 			model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 		)
 		steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
+		if uni_loss is not None:
+			steppables.append(uni_loss)
 		if sched is not None:
 			steppables.append(sched)
 		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, steppables)
