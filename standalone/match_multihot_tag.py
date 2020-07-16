@@ -265,7 +265,7 @@ def main():
 	nb_rampup_steps = args.nb_rampup_epochs if args.use_rampup else 0
 	rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u, obj=None, attr_name="lambda_u")
 	rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_u1")
-	rampup_lambda_r = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_r")
+	rampup_lambda_r = RampUp(nb_rampup_steps, args.lambda_r, obj=None, attr_name="lambda_r")
 
 	if "fm" == args.run or "fixmatch" == args.run:
 		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
