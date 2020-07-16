@@ -8,7 +8,6 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
-import numpy as np
 import os.path as osp
 import torch
 
@@ -25,7 +24,6 @@ from augmentation_utils.spec_augmentations import Noise, RandomTimeDropout, Rand
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
-from dcase2020_task4.fixmatch.losses.tag.default import FixMatchLossMultiHot
 from dcase2020_task4.fixmatch.losses.tag.multihot_v1 import FixMatchLossMultiHotV1
 from dcase2020_task4.fixmatch.losses.tag.multihot_v2 import FixMatchLossMultiHotV2
 from dcase2020_task4.fixmatch.losses.tag.multihot_v3 import FixMatchLossMultiHotV3
@@ -59,8 +57,8 @@ from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, sched_factory, post_process_args, check_args
 
 from dcase2020_task4.guessers import GuesserModelThreshold, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen
-from dcase2020_task4.learner import DefaultLearner
-from dcase2020_task4.validator import DefaultValidator
+from dcase2020_task4.learner import Learner
+from dcase2020_task4.validator import ValidatorTag
 
 from metric_utils.metrics import FScore
 
@@ -283,7 +281,7 @@ def main():
 		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
 		if args.experimental is None:
-			criterion = FixMatchLossMultiHot.from_edict(args)
+			criterion = FixMatchLossMultiHotV1.from_edict(args)
 		elif args.experimental == "V1":
 			criterion = FixMatchLossMultiHotV1.from_edict(args)
 		elif args.experimental == "V2":
@@ -409,13 +407,13 @@ def main():
 	else:
 		checkpoint = None
 
-	validator = DefaultValidator(
+	validator = ValidatorTag(
 		model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 	)
 	steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
 	if sched is not None:
 		steppables.append(sched)
-	learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, steppables)
+	learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables)
 	learner.start()
 
 	if writer is not None:

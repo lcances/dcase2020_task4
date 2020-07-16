@@ -12,7 +12,7 @@ from dcase2020_task4.validator_abc import ValidatorABC
 from dcase2020_task4.util.checkpoint import CheckPoint
 
 
-class DefaultValidatorLoc(ValidatorABC):
+class ValidatorLoc(ValidatorABC):
 	def __init__(
 		self,
 		model: Module,

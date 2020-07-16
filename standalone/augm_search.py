@@ -15,14 +15,14 @@ from augmentation_utils.spec_augmentations import Noise as NoiseSpec
 from dcase2020.util.utils import get_datetime, reset_seed
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
-from dcase2020_task4.validator import DefaultValidator
+from dcase2020_task4.validator import ValidatorTag
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.fn_dataset import FnDataset
 from dcase2020_task4.util.other_augments import RandCropSpec, InversionSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import model_factory, optim_factory, sched_factory
-from dcase2020_task4.learner import DefaultLearner
+from dcase2020_task4.learner import Learner
 
 from ubs8k.datasets import Dataset as UBS8KDataset
 from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
@@ -146,13 +146,13 @@ def main():
 				model, acti_fn, optim, loader_train, metrics_s, criterion, None
 			)
 			checkpoint = CheckPoint(model, optim, name=filepath_tmp)
-			validator = DefaultValidator(
+			validator = ValidatorTag(
 				model, acti_fn, loader_val_origin, metrics_val, None, checkpoint, args.checkpoint_metric_name
 			)
 			steppables = []
 			if sched is not None:
 				steppables.append(sched)
-			learner = DefaultLearner("Supervised_%s" % augm_train_name, trainer, validator, args.nb_epochs, steppables)
+			learner = Learner("Supervised_%s" % augm_train_name, trainer, validator, args.nb_epochs, steppables)
 			learner.start()
 
 			validator.get_metrics_recorder().print_min_max()
@@ -176,7 +176,7 @@ def main():
 			dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(augm_val_fn,), cached=False)
 			dataset_val = FnDataset(dataset_val, label_one_hot)
 			loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
-			validator = DefaultValidator(
+			validator = ValidatorTag(
 				model, acti_fn, loader_val, metrics_val, None, None, args.checkpoint_metric_name
 			)
 			validator.val(0)

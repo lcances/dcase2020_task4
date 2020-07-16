@@ -102,6 +102,7 @@ class FixMatchTrainer(SSTrainerABC):
 
 		if self.writer is not None:
 			self.writer.add_scalar("hparams/lr", get_lr(self.optim), epoch)
+			self.writer.add_scalar("hparams/lambda_s", self.criterion.get_lambda_s(), epoch)
 			self.writer.add_scalar("hparams/lambda_u", self.criterion.get_lambda_u(), epoch)
 			self.metrics_recorder.store_in_writer(self.writer, epoch)
 

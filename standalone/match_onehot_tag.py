@@ -61,8 +61,8 @@ from dcase2020_task4.util.uniloss import UniLoss
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, sched_factory, post_process_args, check_args, get_hparams_ordered
 
-from dcase2020_task4.learner import DefaultLearner
-from dcase2020_task4.validator import DefaultValidator
+from dcase2020_task4.learner import Learner
+from dcase2020_task4.validator import ValidatorTag
 
 from ubs8k.datasets import Dataset as UBS8KDataset
 from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
@@ -419,7 +419,7 @@ def main():
 		else:
 			checkpoint = None
 
-		validator = DefaultValidator(
+		validator = ValidatorTag(
 			model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 		)
 		steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
@@ -427,7 +427,7 @@ def main():
 			steppables.append(uni_loss)
 		if sched is not None:
 			steppables.append(sched)
-		learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, steppables)
+		learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables)
 		learner.start()
 
 		if writer is not None:

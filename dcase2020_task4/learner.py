@@ -12,7 +12,7 @@ class LearnerABC(ABC):
 		raise NotImplementedError("Abstract method")
 
 
-class DefaultLearner(LearnerABC):
+class Learner(LearnerABC):
 	def __init__(
 		self,
 		name: str,

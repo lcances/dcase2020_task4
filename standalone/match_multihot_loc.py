@@ -24,20 +24,19 @@ from augmentation_utils.spec_augmentations import Noise, RandomTimeDropout, Rand
 from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
-from dcase2020_task4.fixmatch.losses.loc.default import FixMatchLossMultiHotLoc
 from dcase2020_task4.fixmatch.losses.loc.v1 import FixMatchLossMultiHotLocV1
 from dcase2020_task4.fixmatch.losses.loc.v2 import FixMatchLossMultiHotLocV2
 from dcase2020_task4.fixmatch.losses.loc.v3 import FixMatchLossMultiHotLocV3
 from dcase2020_task4.fixmatch.losses.loc.v5 import FixMatchLossMultiHotLocV5
 from dcase2020_task4.fixmatch.trainer_loc import FixMatchTrainerLoc
 
-from dcase2020_task4.mixmatch.losses.loc.default import MixMatchLossMultiHotLoc
+from dcase2020_task4.mixmatch.losses.loc.v1 import MixMatchLossMultiHotLoc
 from dcase2020_task4.mixmatch.mixers.loc import MixMatchMixerMultiHotLoc
 from dcase2020_task4.mixmatch.trainer_loc import MixMatchTrainerLoc
 
 from dcase2020_task4.mixup.mixers.loc import MixUpMixerLoc
 
-from dcase2020_task4.learner import DefaultLearner
+from dcase2020_task4.learner import Learner
 from dcase2020_task4.supervised.losses.loc import SupervisedLossLoc
 from dcase2020_task4.supervised.trainer_loc import SupervisedTrainerLoc
 
@@ -53,7 +52,7 @@ from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_
 from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, sched_factory, post_process_args, check_args
 
-from dcase2020_task4.validator_loc import DefaultValidatorLoc
+from dcase2020_task4.validator_loc import ValidatorLoc
 
 from metric_utils.metrics import FScore
 
@@ -291,7 +290,7 @@ def main():
 			distributions = None
 
 		if args.experimental is None:
-			criterion = FixMatchLossMultiHotLoc.from_edict(args)
+			criterion = FixMatchLossMultiHotLocV1.from_edict(args)
 		elif args.experimental == "V1":
 			criterion = FixMatchLossMultiHotLocV1.from_edict(args)
 		elif args.experimental == "V2":
@@ -364,13 +363,13 @@ def main():
 	else:
 		checkpoint = None
 
-	validator = DefaultValidatorLoc(
+	validator = ValidatorLoc(
 		model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, args.checkpoint_metric_name
 	)
 	steppables = [rampup_lambda_u]
 	if sched is not None:
 		steppables.append(sched)
-	learner = DefaultLearner(args.train_name, trainer, validator, args.nb_epochs, steppables)
+	learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables)
 	learner.start()
 
 	if writer is not None:

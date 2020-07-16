@@ -151,6 +151,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 		if self.writer is not None:
 			self.writer.add_scalar("hparams/lr", get_lr(self.optim), epoch)
+			self.writer.add_scalar("hparams/lambda_s", self.criterion.get_lambda_s(), epoch)
 			self.writer.add_scalar("hparams/lambda_u", self.criterion.get_lambda_u(), epoch)
 			self.writer.add_scalar("hparams/lambda_u1", self.criterion.get_lambda_u1(), epoch)
 			self.writer.add_scalar("hparams/lambda_r", self.criterion.get_lambda_r(), epoch)
