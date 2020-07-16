@@ -42,7 +42,7 @@ class FixMatchLossOneHot(FixMatchLossTagABC):
 		loss_u *= mask
 		loss_u = loss_u.mean()
 
-		loss = loss_s + self.lambda_u * loss_u
+		loss = self.lambda_s * loss_s + self.lambda_u * loss_u
 		self.last_mask = mask.detach()
 
 		return loss, loss_s, loss_u

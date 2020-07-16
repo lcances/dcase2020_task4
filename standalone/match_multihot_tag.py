@@ -26,10 +26,10 @@ from dcase2020.datasetManager import DESEDManager
 from dcase2020.datasets import DESEDDataset
 
 from dcase2020_task4.fixmatch.losses.tag.default import FixMatchLossMultiHot
-from dcase2020_task4.fixmatch.losses.tag.v1 import FixMatchLossMultiHotV1
-from dcase2020_task4.fixmatch.losses.tag.v2 import FixMatchLossMultiHotV2
-from dcase2020_task4.fixmatch.losses.tag.v3 import FixMatchLossMultiHotV3
-from dcase2020_task4.fixmatch.losses.tag.v4 import FixMatchLossMultiHotV4
+from dcase2020_task4.fixmatch.losses.tag.multihot_v1 import FixMatchLossMultiHotV1
+from dcase2020_task4.fixmatch.losses.tag.multihot_v2 import FixMatchLossMultiHotV2
+from dcase2020_task4.fixmatch.losses.tag.multihot_v3 import FixMatchLossMultiHotV3
+from dcase2020_task4.fixmatch.losses.tag.multihot_v4 import FixMatchLossMultiHotV4
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 from dcase2020_task4.fixmatch.trainer_v4 import FixMatchTrainerV4
 

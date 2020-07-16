@@ -10,10 +10,12 @@ from dcase2020_task4.util.utils_match import cross_entropy, binarize_onehot_labe
 class FixMatchLossMultiHotV4(Callable):
 	def __init__(
 		self,
+		lambda_s: float = 1.0,
 		lambda_u: float = 1.0,
 		threshold_confidence: float = 0.95,
 		threshold_multihot: float = 0.5,
 	):
+		self.lambda_s = lambda_s
 		self.lambda_u = lambda_u
 		self.threshold_confidence = threshold_confidence
 		self.threshold_multihot = threshold_multihot
@@ -25,7 +27,7 @@ class FixMatchLossMultiHotV4(Callable):
 
 	@staticmethod
 	def from_edict(hparams) -> 'FixMatchLossMultiHotV4':
-		return FixMatchLossMultiHotV4(hparams.lambda_u, hparams.threshold_confidence, hparams.threshold_multihot)
+		return FixMatchLossMultiHotV4(hparams.lambda_s, hparams.lambda_u, hparams.threshold_confidence, hparams.threshold_multihot)
 
 	def __call__(
 		self,
@@ -56,7 +58,7 @@ class FixMatchLossMultiHotV4(Callable):
 		loss_uc *= mask
 		loss_uc = loss_uc.mean()
 
-		loss = loss_s + self.lambda_u * loss_u + loss_sc + 0.1 * loss_uc
+		loss = self.lambda_s * loss_s + self.lambda_u * loss_u + loss_sc + 0.1 * loss_uc
 		self.last_mask = mask.detach()
 
 		return loss, loss_s, loss_u, loss_sc, loss_uc

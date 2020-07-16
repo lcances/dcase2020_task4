@@ -27,7 +27,7 @@ from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, 
 
 from dcase2020.util.utils import get_datetime, reset_seed
 
-from dcase2020_task4.fixmatch.losses.onehot import FixMatchLossOneHot
+from dcase2020_task4.fixmatch.losses.tag.onehot import FixMatchLossOneHot
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 
 from dcase2020_task4.guessers import GuesserModelOneHot, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen

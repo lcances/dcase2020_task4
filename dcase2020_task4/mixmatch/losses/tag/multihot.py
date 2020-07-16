@@ -26,7 +26,7 @@ class MixMatchLossMultiHot(MixMatchLossTagABC):
 		loss_u = self.criterion_u(u_pred, u_target)
 		loss_u = loss_u.mean()
 
-		loss = loss_s + self.lambda_u * loss_u
+		loss = self.lambda_s * loss_s + self.lambda_u * loss_u
 
 		return loss, loss_s, loss_u
 
