@@ -5,14 +5,16 @@
 import inspect
 import json
 import os.path as osp
+import torch
 
 from argparse import Namespace
 
 from torch.nn import Module
+from torch.nn.functional import one_hot
 from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
-from typing import Optional, List, Tuple
+from typing import Callable, List, Optional, Tuple
 
 from dcase2020_task4.other_models import cnn03
 from dcase2020_task4.other_models import resnet
@@ -251,3 +253,7 @@ def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namesp
 		args.__dict__.update(args_dict)
 
 	return args
+
+
+def get_to_onehot_label_fn(nb_classes: int) -> Callable:
+	return lambda item: tuple(item[:-1]) + (one_hot(torch.as_tensor(item[-1]), nb_classes).numpy(),)

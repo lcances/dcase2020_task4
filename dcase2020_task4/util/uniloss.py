@@ -28,8 +28,8 @@ class UniLoss:
 		self._choose_loss()
 
 	def step(self):
-		self._choose_loss()
 		self.cur_step += 1
+		self._choose_loss()
 
 	def _choose_loss(self):
 		for ratios, epoch_min, epoch_max in self.ratios_range:
@@ -40,45 +40,3 @@ class UniLoss:
 					new_value = value_fn() if i == cur_loss_idx else self.default_value
 					obj.__setattr__(attr_name, new_value)
 				break
-
-
-def test():
-	class A:
-		def __init__(self):
-			self.a = 1
-			self.b = 2
-			self.c = 3
-
-	class DummyRampup:
-		def __init__(self, value: float, nb: int):
-			self.value = value
-			self.nb = nb
-			self.i = 0
-
-		def step(self):
-			if self.i < self.nb:
-				self.i += 1
-
-		def __call__(self) -> float:
-			return self.value * self.i / self.nb + 10
-
-	obj = A()
-	ramp = DummyRampup(15.0, 5)
-
-	uni_loss = UniLoss(
-		attributes=[(obj, "a", ramp), (obj, "b"), (obj, "c")],
-		ratios_range=[
-			([1.0, 0.0, 0.0], 0, 9),
-			([0.5, 0.5, 0.0], 10, 14),
-			([0.0, 0.1, 0.9], 15, 20),
-		]
-	)
-
-	for i in range(20):
-		print("[%2d] obj.a : %.2f ; obj.b : %.2f ; obj.c : %.2f" % (i, obj.a, obj.b, obj.c))
-		ramp.step()
-		uni_loss.step()
-
-
-if __name__ == "__main__":
-	test()
