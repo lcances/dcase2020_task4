@@ -176,7 +176,7 @@ class MetricsRecorder(MetricsRecorderABC):
 
 	def get_mins_maxs(self) -> (Dict[str, float], Dict[str, float]):
 		mins = {name: self.get_min(name) for name in sorted(self.data.keys())}
-		maxs = {name: self.get_min(name) for name in sorted(self.data.keys())}
+		maxs = {name: self.get_max(name) for name in sorted(self.data.keys())}
 		return mins, maxs
 
 	def _print_header(self):
@@ -232,6 +232,9 @@ def test():
 		raise RuntimeError("Test unit error")
 	if recorder.get_max("b") != 25.0:
 		raise RuntimeError("Test unit error")
+
+	recorder.print_min_max()
+	print(recorder.get_mins_maxs())
 
 
 if __name__ == "__main__":

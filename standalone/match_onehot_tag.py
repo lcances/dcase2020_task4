@@ -427,8 +427,9 @@ def main():
 			run(fold_val_ubs8k_)
 
 		content = [(" %d: %f" % (fold, value)) for fold, value in cross_validation_results.items()]
+		print("\n")
 		print("Cross-validation results : \n", "\n".join(content))
-		print("Cross-validation mean : ", np.mean(cross_validation_results.values()))
+		print("Cross-validation mean : ", np.mean(list(cross_validation_results.values())))
 	else:
 		run(args.fold_val)
 
