@@ -318,15 +318,6 @@ def main():
 			mixup_mixer = MixUpMixerTag.from_edict(args)
 			mixer = MixMatchMixer(mixup_mixer, args.shuffle_s_with_u)
 
-			if args.experimental == "V8":
-				uni_loss = UniLoss(
-					attributes=[(criterion, "lambda_s"), (criterion, "lambda_u")],
-					ratios_range=[
-						([1.0, 0.0], 0, 9),
-						([0.5, 0.5], 10, args.nb_epochs)
-					]
-				)
-
 			sharpen_fn = Sharpen(args.sharpen_temperature)
 			guesser = GuesserMeanModelSharpen(model, acti_fn, sharpen_fn)
 
@@ -412,6 +403,23 @@ def main():
 
 		rampup_lambda_u.set_obj(criterion)
 
+		if args.experimental == "V8":
+			if args.nb_epochs < 10:
+				raise RuntimeError("Cannot train with V8 with less than %d epochs." % 10)
+			begin_s = 0
+			begin_unif = int(args.nb_epochs * 0.1)
+			begin_u = int(args.nb_epochs * 0.9)
+
+			attributes = [(criterion, "lambda_s"), (criterion, "lambda_u")]
+			uni_loss = UniLoss(
+				attributes=attributes,
+				ratios_range=[
+					([1.0, 0.0], begin_s, begin_unif - 1),
+					([0.5, 0.5], begin_unif, begin_u - 1),
+					([0.0, 1.0], begin_u, args.nb_epochs),
+				]
+			)
+
 		if args.write_results:
 			filename = "%s_%s_%s.torch" % (args.model, args.train_name, args.suffix)
 			filepath = osp.join(args.checkpoint_path, filename)
@@ -423,10 +431,10 @@ def main():
 			model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 		)
 		steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
-		if uni_loss is not None:
-			steppables.append(uni_loss)
 		if sched is not None:
 			steppables.append(sched)
+		if uni_loss is not None:
+			steppables.append(uni_loss)
 		learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables)
 		learner.start()
 

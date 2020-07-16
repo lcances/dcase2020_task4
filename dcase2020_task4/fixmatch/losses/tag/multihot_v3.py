@@ -53,7 +53,7 @@ class FixMatchLossMultiHotV3(FixMatchLossTagABC):
 		means = (pred * labels).sum(dim=dim) / labels.sum(dim=dim).clamp(min=1.0)
 		return (means > self.threshold_confidence).float()
 
-	def get_last_mask(self) -> Optional[Tensor]:
+	def get_current_mask(self) -> Optional[Tensor]:
 		return self.last_mask
 
 	def get_lambda_u(self) -> float:

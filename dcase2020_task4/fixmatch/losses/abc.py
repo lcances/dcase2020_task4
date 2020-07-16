@@ -17,7 +17,7 @@ class FixMatchLossTagABC(ABC, Callable):
 	def confidence_mask(self, *args) -> Tensor:
 		raise NotImplementedError("Abstract method")
 
-	def get_last_mask(self) -> Optional[Tensor]:
+	def get_current_mask(self) -> Optional[Tensor]:
 		raise NotImplementedError("Abstract method")
 
 	def get_lambda_s(self) -> float:

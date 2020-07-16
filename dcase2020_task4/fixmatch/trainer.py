@@ -89,7 +89,7 @@ class FixMatchTrainer(SSTrainerABC):
 				self.metrics_recorder.add_value("loss", loss.item())
 				self.metrics_recorder.add_value("loss_s", loss_s.item())
 				self.metrics_recorder.add_value("loss_u", loss_u.item())
-				self.metrics_recorder.add_values("labels_used", self.criterion.get_last_mask().tolist())
+				self.metrics_recorder.add_values("labels_used", self.criterion.get_current_mask().tolist())
 
 				metrics_preds_labels = [
 					(self.metrics_s, s_pred_augm_weak, s_labels),

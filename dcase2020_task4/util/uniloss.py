@@ -1,6 +1,6 @@
 import numpy as np
 
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Tuple, Union
 
 
 class UniLoss:
@@ -25,8 +25,6 @@ class UniLoss:
 
 	def reset(self):
 		self.cur_step = 0
-		self.default_value = 0.0
-
 		self._choose_loss()
 
 	def step(self):
@@ -62,7 +60,7 @@ def test():
 				self.i += 1
 
 		def __call__(self) -> float:
-			return self.value * self.i / self.nb
+			return self.value * self.i / self.nb + 10
 
 	obj = A()
 	ramp = DummyRampup(15.0, 5)
@@ -70,9 +68,9 @@ def test():
 	uni_loss = UniLoss(
 		attributes=[(obj, "a", ramp), (obj, "b"), (obj, "c")],
 		ratios_range=[
-			([0.5, 0.5, 0.0], 0, 9),
+			([1.0, 0.0, 0.0], 0, 9),
 			([0.5, 0.5, 0.0], 10, 14),
-			([0.05, 0.9, 0.05], 15, 20),
+			([0.0, 0.1, 0.9], 15, 20),
 		]
 	)
 

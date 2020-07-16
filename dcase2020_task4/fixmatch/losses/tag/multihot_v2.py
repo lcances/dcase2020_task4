@@ -53,7 +53,7 @@ class FixMatchLossMultiHotV2(FixMatchLossTagABC):
 		means = pred.mean(dim=dim)
 		return (means > self.threshold_confidence).float()
 
-	def get_last_mask(self) -> Optional[Tensor]:
+	def get_current_mask(self) -> Optional[Tensor]:
 		return self.last_mask
 
 	def get_lambda_u(self) -> float:
