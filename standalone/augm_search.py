@@ -119,79 +119,81 @@ def main():
 	dataset_val_origin = FnDataset(dataset_val_origin, label_one_hot)
 	loader_val_origin = DataLoader(dataset_val_origin, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
 
-	for i, (augm_train, augm_train_kwargs) in enumerate(zip(augms, augms_kwargs)):
-		augm_train_name = get_augm_with_args_name(augm_train, augm_train_kwargs)
-		augm_train_fn = augm_train(**augm_train_kwargs)
+	augm_train = Identity
+	augm_train_kwargs = {}
 
-		filename = "%s_%d_%d_%s_%s.torch" % (
-			args.model, args.nb_epochs, args.batch_size_s, args.checkpoint_metric_name, augm_train_name)
-		filename_tmp = filename + ".tmp"
+	augm_train_name = get_augm_with_args_name(augm_train, augm_train_kwargs)
+	augm_train_fn = augm_train()
 
-		filepath = osp.join(args.checkpoint_path, filename)
-		filepath_tmp = osp.join(args.checkpoint_path, filename_tmp)
+	filename = "%s_%d_%d_%s_%s.torch" % (
+		args.model, args.nb_epochs, args.batch_size_s, args.checkpoint_metric_name, augm_train_name)
+	filename_tmp = filename + ".tmp"
 
-		if not osp.isfile(filepath):
-			dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
-			dataset_train = FnDataset(dataset_train, label_one_hot)
-			loader_train = DataLoader(
-				dataset_train, batch_size=args.batch_size_s, shuffle=True, num_workers=args.num_workers_s, drop_last=True)
+	filepath = osp.join(args.checkpoint_path, filename)
+	filepath_tmp = osp.join(args.checkpoint_path, filename_tmp)
 
-			model = model_factory(args)
-			optim = optim_factory(args, model)
-			sched = sched_factory(args, optim)
+	if not osp.isfile(filepath):
+		dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
+		dataset_train = FnDataset(dataset_train, label_one_hot)
+		loader_train = DataLoader(
+			dataset_train, batch_size=args.batch_size_s, shuffle=True, num_workers=args.num_workers_s, drop_last=True)
 
-			criterion = cross_entropy
+		model = model_factory(args)
+		optim = optim_factory(args, model)
+		sched = sched_factory(args, optim)
 
-			trainer = SupervisedTrainer(
-				model, acti_fn, optim, loader_train, metrics_s, criterion, None
-			)
-			checkpoint = CheckPoint(model, optim, name=filepath_tmp)
-			validator = ValidatorTag(
-				model, acti_fn, loader_val_origin, metrics_val, None, checkpoint, args.checkpoint_metric_name
-			)
-			steppables = []
-			if sched is not None:
-				steppables.append(sched)
-			learner = Learner("Supervised_%s" % augm_train_name, trainer, validator, args.nb_epochs, steppables)
-			learner.start()
+		criterion = cross_entropy
 
-			validator.get_metrics_recorder().print_min_max()
+		trainer = SupervisedTrainer(
+			model, acti_fn, optim, loader_train, metrics_s, criterion, None
+		)
+		checkpoint = CheckPoint(model, optim, name=filepath_tmp)
+		validator = ValidatorTag(
+			model, acti_fn, loader_val_origin, metrics_val, None, checkpoint, args.checkpoint_metric_name
+		)
+		steppables = []
+		if sched is not None:
+			steppables.append(sched)
+		learner = Learner("Supervised_%s" % augm_train_name, trainer, validator, args.nb_epochs, steppables)
+		learner.start()
 
-			print("Rename \"%s\" to \"%s\"..." % (filepath_tmp, filepath))
-			os.rename(filepath_tmp, filepath)
+		validator.get_metrics_recorder().print_min_max()
 
-		else:
-			state_dict = torch.load(filepath)
-			model = model_factory(args)
-			model.load_state_dict(state_dict["state_dict"])
-			print("Load model \"%s\" with best metric \"%f\"." % (filepath, state_dict["best_metric"]))
+		print("Rename \"%s\" to \"%s\"..." % (filepath_tmp, filepath))
+		os.rename(filepath_tmp, filepath)
 
-		if augm_train_name not in results.keys():
-			results[augm_train_name] = {}
+	else:
+		state_dict = torch.load(filepath)
+		model = model_factory(args)
+		model.load_state_dict(state_dict["state_dict"])
+		print("Load model \"%s\" with best metric \"%f\"." % (filepath, state_dict["best_metric"]))
 
-		for j, (augm_val, augm_val_kwargs) in enumerate(zip(augms, augms_kwargs)):
-			augm_val_name = get_augm_with_args_name(augm_val, augm_val_kwargs)
-			augm_val_fn = augm_val(**augm_val_kwargs)
+	if augm_train_name not in results.keys():
+		results[augm_train_name] = {}
 
-			dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(augm_val_fn,), cached=False)
-			dataset_val = FnDataset(dataset_val, label_one_hot)
-			loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
-			validator = ValidatorTag(
-				model, acti_fn, loader_val, metrics_val, None, None, args.checkpoint_metric_name
-			)
-			validator.val(0)
+	for augm_val, augm_val_kwargs in zip(augms, augms_kwargs):
+		augm_val_name = get_augm_with_args_name(augm_val, augm_val_kwargs)
+		augm_val_fn = augm_val(**augm_val_kwargs)
 
-			_mins, maxs = validator.get_metrics_recorder().get_mins_maxs()
-			acc_max = maxs["acc"]
-			print("[%s][%s] Acc max = %f" % (augm_train_name, augm_val_name, acc_max))
-			results[augm_train_name][augm_val_name] = acc_max
+		dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(augm_val_fn,), cached=False)
+		dataset_val = FnDataset(dataset_val, label_one_hot)
+		loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
+		validator = ValidatorTag(
+			model, acti_fn, loader_val, metrics_val, None, None, args.checkpoint_metric_name
+		)
+		validator.val(0)
 
-			augm_dic = {get_augm_with_args_name(augm, augm_kwargs) for augm, augm_kwargs in zip(augms, augms_kwargs)}
-			data = {"results": results, "augments": augm_dic, "args": args.__dict__}
+		_mins, maxs = validator.get_metrics_recorder().get_mins_maxs()
+		acc_max = maxs["acc"]
+		print("[%s][%s] Acc max = %f" % (augm_train_name, augm_val_name, acc_max))
+		results[augm_train_name][augm_val_name] = acc_max
 
-			filepath = "results_%s.json" % start_date
-			with open(filepath, "w") as file:
-				json.dump(data, file, indent="\t")
+		augm_dic = {get_augm_with_args_name(augm, augm_kwargs): augm_kwargs for augm, augm_kwargs in zip(augms, augms_kwargs)}
+		data = {"results": results, "augments": augm_dic, "args": args.__dict__}
+
+		filepath = "results_%s.json" % start_date
+		with open(filepath, "w") as file:
+			json.dump(data, file, indent="\t")
 
 
 if __name__ == "__main__":

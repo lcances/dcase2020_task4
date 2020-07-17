@@ -415,8 +415,8 @@ def main():
 				attributes=attributes,
 				ratios_range=[
 					([1.0, 0.0], begin_s, begin_unif - 1),
-					([0.5, 0.5], begin_unif, begin_u - 1),
-					([0.0, 1.0], begin_u, args.nb_epochs),
+					([0.5, 0.5], begin_unif, args.nb_epochs),
+					# ([0.0, 1.0], begin_u, args.nb_epochs),
 				]
 			)
 
