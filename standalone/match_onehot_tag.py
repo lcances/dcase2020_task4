@@ -272,7 +272,6 @@ def main():
 		rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u, obj=None, attr_name="lambda_u")
 		rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_u1")
 		rampup_lambda_r = RampUp(nb_rampup_steps, args.lambda_r, obj=None, attr_name="lambda_r")
-		uni_loss = None
 
 		if "fm" == args.run or "fixmatch" == args.run:
 			dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
@@ -404,6 +403,8 @@ def main():
 		rampup_lambda_u.set_obj(criterion)
 
 		if args.experimental == "V8":
+			if args.use_rampup:
+				raise RuntimeError("Experimental MMV8 cannot be used with RampUp.")
 			if args.nb_epochs < 10:
 				raise RuntimeError("Cannot train with V8 with less than %d epochs." % 10)
 			begin_s = 0
@@ -419,6 +420,8 @@ def main():
 					# ([0.0, 1.0], begin_u, args.nb_epochs),
 				]
 			)
+		else:
+			uni_loss = None
 
 		if args.write_results:
 			filename = "%s_%s_%s.torch" % (args.model, args.train_name, args.suffix)
@@ -430,11 +433,8 @@ def main():
 		validator = ValidatorTag(
 			model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 		)
-		steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
-		if sched is not None:
-			steppables.append(sched)
-		if uni_loss is not None:
-			steppables.append(uni_loss)
+		steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r, sched, uni_loss]
+		steppables = [steppable for steppable in steppables if steppable is not None]
 		learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables)
 		learner.start()
 
