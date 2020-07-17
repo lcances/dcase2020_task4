@@ -10,18 +10,21 @@ def main():
 
 	results = data["results"]
 	augments = data["augments"]
-	augm_idx = {k: i for i, k in enumerate(results.keys())}
+	augm_idx = {k: i for i, k in enumerate(augments.keys())}
 
 	results_mat = np.zeros((len(augm_idx), len(augm_idx)), dtype=float)
 	for k1, i1 in augm_idx.items():
 		for k2, i2 in augm_idx.items():
-			results_mat[i1][i2] = results[k1][k2]
+			if k1 in results.keys() and k2 in results[k1].keys():
+				results_mat[i1][i2] = results[k1][k2]
 
 	augms_str = ["{} : {}".format(name, str(kwargs)) for name, kwargs in augments.items()]
 	print("Augmentations : ", "\n".join(augms_str))
 
-	values = results_mat[0]
-	labels = [k.split("_")[0] for k in results.keys()]
+	main_augm = "Identity_"
+	main_idx = augm_idx[main_augm]
+	values = results_mat[main_idx]
+	labels = [k.split("_")[0] for k in results[main_augm].keys()]
 
 	positions = np.arange(len(labels))
 

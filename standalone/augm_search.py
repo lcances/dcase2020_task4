@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, Noise, Noise2, Occlusion, PitchShiftRandom
 from augmentation_utils.spec_augmentations import RandomTimeDropout, RandomFreqDropout, HorizontalFlip, VerticalFlip
-from augmentation_utils.spec_augmentations import Noise as NoiseSpec
+from augmentation_utils.spec_augmentations import Noise as NoiseS
 
 from dcase2020.util.utils import get_datetime, reset_seed
 
@@ -26,6 +26,11 @@ from dcase2020_task4.learner import Learner
 
 from ubs8k.datasets import Dataset as UBS8KDataset
 from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
+
+
+class NoiseSpec(NoiseS):
+	def __init__(self, *args, **kwargs):
+		super().__init__(*args, **kwargs)
 
 
 class Identity:
@@ -73,19 +78,23 @@ def main():
 	augms_data = [
 		(Identity, dict()),
 		(Noise, dict(ratio=ratio, target_snr=15.0)),
-		(RandomTimeDropout, dict(ratio=ratio)),
 		(InversionSpec, dict(ratio=ratio)),
 		(Noise2, dict(ratio=ratio, noise_factor=(10.0, 10.0))),
 		(NoiseSpec, dict(ratio=ratio, snr=15.0)),
 		(Occlusion, dict(ratio=ratio, max_size=1.0)),
 		(PitchShiftRandom, dict(ratio=ratio, steps=(-1, 1))),
 		(RandCropSpec, dict(ratio=ratio, fill_value=-80)),
-		(RandomFreqDropout, dict(ratio=ratio)),
+		(RandomTimeDropout, dict(ratio=ratio, dropout=0.5)),
+		(RandomTimeDropout, dict(ratio=ratio, dropout=0.1)),
+		(RandomFreqDropout, dict(ratio=ratio, dropout=0.5)),
+		(RandomFreqDropout, dict(ratio=ratio, dropout=0.1)),
 		(TimeStretch, dict(ratio=ratio)),
 		(Transform, dict(ratio=ratio, scale=(0.9, 1.1))),
 		(Transform, dict(ratio=ratio, translation=(-10, 10))),
-		# (HorizontalFlip, dict(ratio=ratio)),
-		# (VerticalFlip, dict(ratio=ratio)),
+		(Transform, dict(ratio=ratio, scale=(0.5, 1.5))),
+		(Transform, dict(ratio=ratio, translation=(-100, 100))),
+		(HorizontalFlip, dict(ratio=ratio)),
+		(VerticalFlip, dict(ratio=ratio)),
 	]
 
 	augms = [cls for cls, _ in augms_data]
