@@ -3,16 +3,16 @@
 run=$1
 suffix=$2
 
+write_results=False
+nb_epochs=300
+
 path_torch="/logiciels/containerCollections/CUDA10/pytorch.sif"
 path_py="$HOME/miniconda3/envs/dcase2020/bin/python"
 path_script="$HOME/root/task4/standalone/match_onehot_tag.py"
 
 path_dataset="/projets/samova/leocances/CIFAR10/"
-path_board="$HOME/root/tensorboard_CIFAR10/"
+path_board="$HOME/root/tensorboard/CIFAR10/"
 path_checkpoint="$HOME/root/task4/models/"
-
-write_results=False
-nb_epochs=10
 
 dataset_name="CIFAR10"
 nb_classes=10
@@ -25,7 +25,6 @@ batch_size_u=64
 
 scheduler="None"
 use_rampup=true
-lambda_u=75.0
 cross_validation=false
 threshold_confidence=0.9
 nb_rampup_epochs=10
@@ -34,6 +33,13 @@ lr=3e-3
 shuffle_s_with_u=true
 experimental="None"
 criterion_name_u="ce"
+
+nb_augms=2
+nb_augms_strong=2
+lambda_u=75.0
+lambda_u1=0.5
+lambda_r=0.5
+
 
 $path_py $path_script \
 	--run "$run" \
@@ -53,7 +59,6 @@ $path_py $path_script \
 	--batch_size_u $batch_size_u \
 	--scheduler $scheduler \
 	--use_rampup $use_rampup \
-	--lambda_u $lambda_u \
 	--cross_validation $cross_validation \
 	--threshold_confidence $threshold_confidence \
 	--nb_rampup_epochs $nb_rampup_epochs \
@@ -62,3 +67,8 @@ $path_py $path_script \
 	--shuffle_s_with_u $shuffle_s_with_u \
 	--experimental $experimental \
 	--criterion_name_u $criterion_name_u \
+	--nb_augms $nb_augms \
+	--nb_augms_strong $nb_augms_strong \
+	--lambda_u $lambda_u \
+	--lambda_u1 $lambda_u1 \
+	--lambda_r $lambda_r \
