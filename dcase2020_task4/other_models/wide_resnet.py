@@ -97,7 +97,7 @@ class WideResNetRot(WideResNet):
 		self, depth: int, num_classes: int = 10, widen_factor: int = 1, dropout: float = 0.0, rot_output_size: int = 4
 	):
 		super().__init__(depth, num_classes, widen_factor, dropout)
-		classifier_input_size = 32 * widen_factor
+		classifier_input_size = 64 * widen_factor
 		self.classifier_rot = nn.Linear(classifier_input_size, rot_output_size)
 
 	def forward_rot(self, x: Tensor) -> Tensor:

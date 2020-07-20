@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-from dcase2020_task4.util.other_augments import Inversion, UniColor, RandCrop, Gray
+from dcase2020_task4.util.other_img_augments import Inversion, UniColor, CutOut, Gray
 
 
 def get_demo_image():
@@ -14,7 +14,7 @@ def get_demo_image():
 def test():
 	img = get_demo_image()
 
-	augms = [Inversion(), UniColor(), RandCrop(), Gray()]
+	augms = [Inversion(), UniColor(), CutOut(), Gray()]
 
 	plt.imshow(np.array(img.T, dtype=int))
 	for augm in augms:
