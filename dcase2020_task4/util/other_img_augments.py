@@ -438,11 +438,11 @@ class RandAugment(ImgRGBAugmentation):
 		super().__init__(ratio)
 		sub_ratio = 1.0
 
-		enhance_range = duplicate(to_range(magnitude, 0.05, 0.95))
-		transforms_range = duplicate(to_range(magnitude, -0.3, 0.3))
-		posterize_range = duplicate(int(to_range(magnitude, 1, 8)))
-		angles_range = duplicate(to_range(magnitude, -30, 30))
-		thresholds_range = duplicate(int(to_range(magnitude, 0, 255)))
+		enhance_range = (0.05, 0.95)
+		transforms_range = (-0.3, 0.3)
+		posterize_range = (4, 8)
+		angles_range = (-30, 30)
+		thresholds_range = (0, 256)
 
 		self.magnitude = magnitude
 		self.augment_fn = RandomChoice([
