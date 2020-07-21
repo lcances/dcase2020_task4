@@ -363,7 +363,7 @@ def main():
 			acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
 
 			if args.dataset_name.startswith("CIFAR10"):
-				ss_transform = SelfSupervisedRotation()
+				ss_transform = SelfSupervisedFlips()
 			elif args.dataset_name.startswith("UBS8K"):
 				ss_transform = SelfSupervisedFlips()
 			else:
