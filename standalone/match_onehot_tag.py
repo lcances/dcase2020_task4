@@ -52,7 +52,7 @@ from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_id
 from dcase2020_task4.util.fn_dataset import FnDataset
 from dcase2020_task4.util.multiple_dataset import MultipleDataset
 from dcase2020_task4.util.no_label_dataset import NoLabelDataset
-from dcase2020_task4.util.other_img_augments import Gray, Inversion, CutOut, UniColor
+from dcase2020_task4.util.other_img_augments import *
 from dcase2020_task4.util.other_spec_augments import CutOutSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.ramp_up import RampUp
@@ -467,21 +467,12 @@ def get_cifar10_augms(args: Namespace) -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	augm_weak_fn = RandomChoice([
 		HorizontalFlip(args.ratio_augm_weak),
-		VerticalFlip(args.ratio_augm_weak),
+		# VerticalFlip(args.ratio_augm_weak),
 		# Transform(args.ratio_augm_weak, scale=(0.75, 1.25)),
-		# Transform(args.ratio_augm_weak, rotation=(-np.pi, np.pi)),
 	])
-	augm_strong_fn = Compose([
-		# RandomChoice([
-		# Transform(args.ratio_augm_strong, scale=(0.5, 1.5)),
-		# Transform(args.ratio_augm_strong, rotation=(-np.pi, np.pi)),
-		# ]),
-		RandomChoice([
-			# Gray(args.ratio_augm_strong),
-			CutOut(args.ratio_augm_strong),
-			# UniColor(args.ratio_augm_strong),
-			# Inversion(args.ratio_augm_strong),
-		]),
+	augm_strong_fn = RandomChoice([
+		# CutOut(args.ratio_augm_strong),
+		RandAugment(args.ratio_augm_strong, 0.75),
 	])
 	# Augmentation used by MixMatch
 	augm_fn = RandomChoice([
@@ -490,10 +481,11 @@ def get_cifar10_augms(args: Namespace) -> (Callable, Callable, Callable):
 		Transform(args.ratio_augm, scale=(0.75, 1.25)),
 		Transform(args.ratio_augm, rotation=(-np.pi, np.pi)),
 		Gray(args.ratio_augm),
-		CutOut(args.ratio_augm, rect_max_scale=(0.2, 0.2)),
+		CutOut(args.ratio_augm, rect_height_scale_range=(0.2, 0.2)),
 		UniColor(args.ratio_augm),
 		Inversion(args.ratio_augm),
 	])
+	augm_fn = augm_weak_fn
 
 	return augm_weak_fn, augm_strong_fn, augm_fn
 

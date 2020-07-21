@@ -1,3 +1,0 @@
-[submodule "dcase2020_task4/pytorch_metrics"]
-	path = dcase2020_task4/pytorch_metrics
-	url = https://github.com/leocances/pytorch_metrics.git

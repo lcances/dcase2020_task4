@@ -29,19 +29,20 @@ def test():
 	manager.add_subset("synthetic20")
 	# manager.add_subset("unlabel_in_domain")
 
-	ds = DESEDDataset(manager, train=True, val=False, augments=[], cached=False, weak=True, strong=True)
+	dataset = DESEDDataset(manager, train=True, val=False, augments=[], cached=False, weak=True, strong=True)
 
-	print("len : ", len(ds))  # weak = 11808, synthetic20 = 2584
+	print("len : ", len(dataset))  # weak = 11808, synthetic20 = 2584
 
 	print("Strong sizes : ")
-	x, y = ds[0]
+	idx = 0
+	x, y = dataset[idx]
 	print("x = ", x.shape)  # (64, 431)
 	print("y[0] = ", y[0].shape)  # (10,)
 	print("y[1] = ", y[1].shape)  # (10, 431)
 
-	data = {"x": x.tolist(), "y_weak": y[0].tolist(), "y_strong": y[1].tolist()}
+	data = {"x": x.tolist(), "y_weak": y[0].tolist(), "y_strong": y[1].tolist(), "index": idx}
 	with open("spec.json", "w") as file:
-		json.dump(data, file)
+		json.dump(data, file, indent="\t")
 
 
 if __name__ == "__main__":

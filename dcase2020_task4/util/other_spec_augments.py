@@ -9,30 +9,23 @@ class CutOutSpec(SpecAugmentation):
 	def __init__(
 		self,
 		ratio: float = 1.0,
-		rect_min_scale: tuple = (0.1, 0.1),
-		rect_max_scale: tuple = (0.5, 0.5),
+		rect_width_scale_range: tuple = (0.1, 0.5),
+		rect_height_scale_range: tuple = (0.1, 0.5),
 		fill_value: Optional[int] = None
 	):
 		super().__init__(ratio)
-		self.rect_min_scale = rect_min_scale
-		self.rect_max_scale = rect_max_scale
-		self.fill_value = fill_value
+		self.rect_width_scale_range = rect_width_scale_range
+		self.rect_height_scale_range = rect_height_scale_range
+		self.fill_value = fill_value if fill_value is not None else int((self.value_range[1] + self.value_range[0]) / 2.0)
 		self.value_range = (-80.0, 0.0)
 
 	def apply_helper(self, data):
 		width, height = data.shape[0], data.shape[1]
-		r_left, r_right, r_top, r_down = random_rect(width, height, self.rect_min_scale, self.rect_max_scale)
+		r_left, r_right, r_top, r_down = random_rect(width, height, self.rect_width_scale_range, self.rect_height_scale_range)
 
-		fill_value = self.get_fill_value()
-		data[r_left:r_right, r_top:r_down] = fill_value
+		data[r_left:r_right, r_top:r_down] = self.fill_value
 
 		return data
-
-	def get_fill_value(self) -> int:
-		if self.fill_value is None:
-			return int((self.value_range[1] + self.value_range[0]) / 2.0)
-		else:
-			return self.fill_value
 
 
 class InversionSpec(SpecAugmentation):
