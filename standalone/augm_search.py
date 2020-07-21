@@ -18,7 +18,7 @@ from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.validator import ValidatorTag
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.fn_dataset import FnDataset
-from dcase2020_task4.util.other_augments import RandCropSpec, InversionSpec
+from dcase2020_task4.util.other_spec_augments import CutOutSpec, InversionSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import model_factory, optim_factory, sched_factory
@@ -83,7 +83,7 @@ def main():
 		(NoiseSpec, dict(ratio=ratio, snr=15.0)),
 		(Occlusion, dict(ratio=ratio, max_size=1.0)),
 		(PitchShiftRandom, dict(ratio=ratio, steps=(-1, 1))),
-		(RandCropSpec, dict(ratio=ratio, fill_value=-80)),
+		(CutOutSpec, dict(ratio=ratio, fill_value=-80)),
 		(RandomTimeDropout, dict(ratio=ratio, dropout=0.5)),
 		(RandomTimeDropout, dict(ratio=ratio, dropout=0.1)),
 		(RandomFreqDropout, dict(ratio=ratio, dropout=0.5)),

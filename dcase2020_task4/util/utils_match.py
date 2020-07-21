@@ -1,9 +1,10 @@
+import numpy as np
 import torch
 
 from torch import Tensor
 from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
-from typing import List, Union
+from typing import List, Tuple, Union
 
 
 def normalized(batch: Tensor, dim: int) -> Tensor:
@@ -90,3 +91,14 @@ def multilabel_to_num(labels: Tensor) -> List[List[int]]:
 
 def sq_diff(a: Tensor, b: Tensor) -> Tensor:
 	return (a - b) ** 2
+
+
+def random_rect(width: int, height: int, min_scale: Tuple[int, int], max_scale: Tuple[int, int]) -> (int, int, int, int):
+	r_width = np.random.randint(max(1, min_scale[0] * width), max(2, max_scale[0] * width))
+	r_height = np.random.randint(max(1, min_scale[1] * height), max(2, max_scale[1] * height))
+
+	r_left = np.random.randint(0, width - r_width)
+	r_top = np.random.randint(0, height - r_height)
+	r_right = r_left + r_width
+	r_down = r_top + r_height
+	return r_left, r_right, r_top, r_down
