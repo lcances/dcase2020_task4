@@ -243,13 +243,12 @@ def main():
 
 		idx_val = list(range(int(len(dataset_val) * args.dataset_ratio)))
 
-		label_one_hot = lambda item: (item[0], one_hot(torch.as_tensor(item[1]), args.nb_classes).numpy())
-		dataset_train = FnDataset(dataset_train, label_one_hot)
-		dataset_val = FnDataset(dataset_val, label_one_hot)
-
-		dataset_train_augm_weak = FnDataset(dataset_train_augm_weak, label_one_hot)
-		dataset_train_augm_strong = FnDataset(dataset_train_augm_strong, label_one_hot)
-		dataset_train_augm = FnDataset(dataset_train_augm, label_one_hot)
+		convert_label_fn = lambda item: (item[0], one_hot(torch.as_tensor(item[1]), args.nb_classes).numpy())
+		dataset_train = FnDataset(dataset_train, convert_label_fn)
+		dataset_val = FnDataset(dataset_val, convert_label_fn)
+		dataset_train_augm_weak = FnDataset(dataset_train_augm_weak, convert_label_fn)
+		dataset_train_augm_strong = FnDataset(dataset_train_augm_strong, convert_label_fn)
+		dataset_train_augm = FnDataset(dataset_train_augm, convert_label_fn)
 
 		dataset_val = Subset(dataset_val, idx_val)
 		loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
@@ -495,17 +494,18 @@ def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset
 
 	# Add preprocessing before each augmentation (shape : [32, 32, 3])
 	preprocess_fn = lambda img: np.array(img)
+	postprocess_fn = lambda img: img.transpose()
 
 	# Prepare data
-	dataset_train = CIFAR10(args.dataset_path, train=True, download=True, transform=preprocess_fn)
-	dataset_val = CIFAR10(args.dataset_path, train=False, download=True, transform=preprocess_fn)
+	dataset_train = CIFAR10(args.dataset_path, train=True, download=True, transform=Compose([preprocess_fn, postprocess_fn]))
+	dataset_val = CIFAR10(args.dataset_path, train=False, download=True, transform=Compose([preprocess_fn, postprocess_fn]))
 
 	dataset_train_augm_weak = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([preprocess_fn, augm_weak_fn]))
+		args.dataset_path, train=True, download=True, transform=Compose([preprocess_fn, augm_weak_fn, postprocess_fn]))
 	dataset_train_augm_strong = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([preprocess_fn, augm_strong_fn]))
+		args.dataset_path, train=True, download=True, transform=Compose([preprocess_fn, augm_strong_fn, postprocess_fn]))
 	dataset_train_augm = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([preprocess_fn, augm_fn]))
+		args.dataset_path, train=True, download=True, transform=Compose([preprocess_fn, augm_fn, postprocess_fn]))
 
 	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
 
