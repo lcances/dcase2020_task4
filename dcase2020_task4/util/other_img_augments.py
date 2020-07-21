@@ -433,7 +433,7 @@ def _filter(x, op, level):
 	return Image.blend(x, x.filter(op), level)
 
 
-class RandAugment(ImgAugmentation):
+class RandAugment(ImgRGBAugmentation):
 	def __init__(self, ratio: float = 1.0, magnitude: float = 0.5):
 		super().__init__(ratio)
 		sub_ratio = 1.0

@@ -493,8 +493,8 @@ def get_cifar10_augms(args: Namespace) -> (Callable, Callable, Callable):
 def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
 	augm_weak_fn, augm_strong_fn, augm_fn = get_cifar10_augms(args)
 
-	# Add preprocessing before each augmentation
-	preprocess_fn = lambda img: np.array(img).transpose()  # Transpose img [3, 32, 32] to [32, 32, 3]
+	# Add preprocessing before each augmentation (shape : [32, 32, 3])
+	preprocess_fn = lambda img: np.array(img)
 
 	# Prepare data
 	dataset_train = CIFAR10(args.dataset_path, train=True, download=True, transform=preprocess_fn)
