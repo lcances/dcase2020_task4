@@ -363,8 +363,10 @@ def main():
 					loader_train_s_strong.batch_size, loader_train_u_augms_weak_strongs.batch_size))
 
 			criterion = ReMixMatchLossOneHot.from_edict(args)
-			rampup_lambda_u1.set_obj(criterion)
-			rampup_lambda_r.set_obj(criterion)
+			if rampup_lambda_u1 is not None:
+				rampup_lambda_u1.set_obj(criterion)
+			if rampup_lambda_r is not None:
+				rampup_lambda_r.set_obj(criterion)
 
 			mixup_mixer = MixUpMixerTag.from_edict(args)
 			mixer = ReMixMatchMixer(mixup_mixer, args.shuffle_s_with_u)
@@ -413,7 +415,8 @@ def main():
 		else:
 			raise RuntimeError("Unknown run %s" % args.run)
 
-		rampup_lambda_u.set_obj(criterion)
+		if rampup_lambda_u is not None:
+			rampup_lambda_u.set_obj(criterion)
 
 		if args.experimental == "V8":
 			if args.use_rampup:

@@ -354,7 +354,8 @@ def main():
 	else:
 		raise RuntimeError("Unknown run %s" % args.run)
 
-	rampup_lambda_u.set_obj(criterion)
+	if rampup_lambda_u is not None:
+		rampup_lambda_u.set_obj(criterion)
 
 	if args.write_results:
 		filename = "%s_%s_%s.torch" % (args.model, args.train_name, args.suffix)
