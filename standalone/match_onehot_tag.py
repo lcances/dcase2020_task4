@@ -81,11 +81,11 @@ def create_args() -> Namespace:
 						help="Suffix to Tensorboard log dir.")
 
 	parser.add_argument("--mode", type=str, default="onehot", choices=["onehot"])
-	parser.add_argument("--dataset_path", type=str, default="../dataset/CIFAR10/", required=True)
+	parser.add_argument("--dataset_path", type=str, default=osp.join("..", "dataset", "CIFAR10"), required=True)
 	parser.add_argument("--dataset_name", type=str, default="CIFAR10", choices=["CIFAR10", "UBS8K"])
 	parser.add_argument("--nb_classes", type=int, default=10)
 
-	parser.add_argument("--logdir", type=str, default="../../tensorboard")
+	parser.add_argument("--logdir", type=str, default=osp.join("..", "..", "tensorboard"))
 	parser.add_argument("--model", type=str, default="VGG11Rot",
 						choices=["VGG11Rot", "ResNet18Rot", "WideResNet28Rot", "UBS8KBaselineRot", "CNN03Rot"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
@@ -106,7 +106,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--scheduler", type=str_to_optional_str, default="Cosine",
 						choices=[None, "CosineLRScheduler", "Cosine"],
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
-	parser.add_argument("--lr", type=float, default=1e-3,
+	parser.add_argument("--lr", "--learning_rate", type=float, default=1e-3,
 						help="Learning rate used.")
 	parser.add_argument("--weight_decay", type=float, default=0.0,
 						help="Weight decay used.")
@@ -122,7 +122,7 @@ def create_args() -> Namespace:
 						help="Write results in a tensorboard SummaryWriter.")
 	parser.add_argument("--args_file", type=str_to_optional_str, default=None,
 						help="Filepath to args file. Values in this JSON will overwrite other options in terminal.")
-	parser.add_argument("--checkpoint_path", type=str, default="../models/",
+	parser.add_argument("--checkpoint_path", type=str, default=osp.join("..", "models"),
 						help="Directory path where checkpoint models will be saved.")
 	parser.add_argument("--checkpoint_metric_name", type=str, default="acc",
 						choices=["acc"],
@@ -268,8 +268,8 @@ def main():
 			batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
 		model = model_factory(args)
-		optimizer = optim_factory(args, model)
-		scheduler = sched_factory(args, optimizer)
+		optim = optim_factory(args, model)
+		sched = sched_factory(args, optim)
 		print("Model selected : %s (%d parameters)." % (args.model, get_nb_parameters(model)))
 
 		if args.write_results:
@@ -277,10 +277,14 @@ def main():
 		else:
 			writer = None
 
-		nb_rampup_steps = args.nb_rampup_epochs if args.use_rampup else 0
-		rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u, obj=None, attr_name="lambda_u")
-		rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_u1")
-		rampup_lambda_r = RampUp(nb_rampup_steps, args.lambda_r, obj=None, attr_name="lambda_r")
+		if args.use_rampup:
+			rampup_lambda_u = RampUp(args.nb_rampup_epochs, args.lambda_u, obj=None, attr_name="lambda_u")
+			rampup_lambda_u1 = RampUp(args.nb_rampup_epochs, args.lambda_u1, obj=None, attr_name="lambda_u1")
+			rampup_lambda_r = RampUp(args.nb_rampup_epochs, args.lambda_r, obj=None, attr_name="lambda_r")
+		else:
+			rampup_lambda_u = None
+			rampup_lambda_u1 = None
+			rampup_lambda_r = None
 
 		if "fm" == args.run or "fixmatch" == args.run:
 			dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
@@ -299,7 +303,7 @@ def main():
 			guesser = GuesserModelOneHot(model, acti_fn)
 
 			trainer = FixMatchTrainer(
-				model, acti_fn, optimizer, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
+				model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
 				criterion, writer, guesser
 			)
 
@@ -331,12 +335,12 @@ def main():
 
 			if args.experimental != "V3":
 				trainer = MixMatchTrainer(
-					model, acti_fn, optimizer, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
+					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
 					criterion, writer, mixer, guesser
 				)
 			else:
 				trainer = MixMatchTrainerV3(
-					model, acti_fn, optimizer, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
+					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
 					criterion, writer, mixer, guesser
 				)
 
@@ -381,7 +385,7 @@ def main():
 				))
 
 			trainer = ReMixMatchTrainer(
-				model, acti_fn, acti_rot_fn, optimizer, loader_train_s_strong, loader_train_u_augms_weak_strongs,
+				model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs,
 				metrics_s, metrics_u, metrics_u1, metrics_r,
 				criterion, writer, mixer, distributions, guesser, ss_transform
 			)
@@ -393,7 +397,7 @@ def main():
 			criterion = cross_entropy
 
 			trainer = SupervisedTrainer(
-				model, acti_fn, optimizer, loader_train_full, metrics_s, criterion, writer
+				model, acti_fn, optim, loader_train_full, metrics_s, criterion, writer
 			)
 
 		elif "sp" == args.run or "supervised_part" == args.run:
@@ -403,7 +407,7 @@ def main():
 			criterion = cross_entropy
 
 			trainer = SupervisedTrainer(
-				model, acti_fn, optimizer, loader_train_part, metrics_s, criterion, writer
+				model, acti_fn, optim, loader_train_part, metrics_s, criterion, writer
 			)
 
 		else:
@@ -435,14 +439,14 @@ def main():
 		if args.write_results:
 			filename = "%s_%s_%s.torch" % (args.model, args.train_name, args.suffix)
 			filepath = osp.join(args.checkpoint_path, filename)
-			checkpoint = CheckPoint(model, optimizer, name=filepath)
+			checkpoint = CheckPoint(model, optim, name=filepath)
 		else:
 			checkpoint = None
 
 		validator = ValidatorTag(
 			model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 		)
-		steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r, scheduler, uni_loss]
+		steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r, sched, uni_loss]
 		steppables = [steppable for steppable in steppables if steppable is not None]
 
 		learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables)

@@ -366,9 +366,9 @@ def main():
 	validator = ValidatorLoc(
 		model, acti_fn, loader_val, metrics_val_weak, metrics_val_strong, writer, checkpoint, args.checkpoint_metric_name
 	)
-	steppables = [rampup_lambda_u]
-	if sched is not None:
-		steppables.append(sched)
+	steppables = [rampup_lambda_u, sched]
+	steppables = [steppable for steppable in steppables if steppable is not None]
+
 	learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables)
 	learner.start()
 

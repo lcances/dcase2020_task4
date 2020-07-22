@@ -260,10 +260,14 @@ def main():
 	else:
 		writer = None
 
-	nb_rampup_steps = args.nb_rampup_epochs if args.use_rampup else 0
-	rampup_lambda_u = RampUp(nb_rampup_steps, args.lambda_u, obj=None, attr_name="lambda_u")
-	rampup_lambda_u1 = RampUp(nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_u1")
-	rampup_lambda_r = RampUp(nb_rampup_steps, args.lambda_r, obj=None, attr_name="lambda_r")
+	if args.use_rampup:
+		rampup_lambda_u = RampUp(args.nb_rampup_epochs, args.lambda_u, obj=None, attr_name="lambda_u")
+		rampup_lambda_u1 = RampUp(args.nb_rampup_epochs, args.lambda_u1, obj=None, attr_name="lambda_u1")
+		rampup_lambda_r = RampUp(args.nb_rampup_epochs, args.lambda_r, obj=None, attr_name="lambda_r")
+	else:
+		rampup_lambda_u = None
+		rampup_lambda_u1 = None
+		rampup_lambda_r = None
 
 	if "fm" == args.run or "fixmatch" == args.run:
 		dataset_train_s_augm_weak = DESEDDataset(augments=[augm_weak_fn], **args_dataset_train_s_augm)
@@ -410,9 +414,9 @@ def main():
 	validator = ValidatorTag(
 		model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 	)
-	steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
-	if sched is not None:
-		steppables.append(sched)
+	steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r, sched]
+	steppables = [steppable for steppable in steppables if steppable is not None]
+
 	learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables)
 	learner.start()
 

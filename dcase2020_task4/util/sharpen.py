@@ -1,7 +1,25 @@
 import torch
 
 from torch import Tensor
+from typing import Callable
 from dcase2020_task4.util.utils_match import normalized
+
+
+class Sharpen(Callable):
+	def __init__(self, temperature: float):
+		self.temperature = temperature
+
+	def __call__(self, batch: Tensor, dim: int) -> Tensor:
+		return sharpen(batch, self.temperature, dim)
+
+
+class SharpenMulti(Callable):
+	def __init__(self, temperature: float, threshold: float):
+		self.temperature = temperature
+		self.threshold = threshold
+
+	def __call__(self, batch: Tensor, dim: int) -> Tensor:
+		return sharpen_multi(batch, self.temperature, self.threshold)
 
 
 def sharpen(batch: Tensor, temperature: float, dim: int) -> Tensor:
@@ -82,20 +100,3 @@ def _sharpen_multi_2(distribution: Tensor, temperature: float, threshold: float)
 	result[mask_nums] = distribution_expanded.max(dim=1)[0]
 
 	return result
-
-
-class Sharpen:
-	def __init__(self, temperature: float):
-		self.temperature = temperature
-
-	def __call__(self, batch: Tensor, dim: int) -> Tensor:
-		return sharpen(batch, self.temperature, dim)
-
-
-class SharpenMulti:
-	def __init__(self, temperature: float, threshold: float):
-		self.temperature = temperature
-		self.threshold = threshold
-
-	def __call__(self, batch: Tensor, dim: int) -> Tensor:
-		return sharpen_multi(batch, self.temperature, self.threshold)
