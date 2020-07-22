@@ -20,6 +20,7 @@ from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose
 from typing import Callable
 
+from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2
 from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, Noise, RandomTimeDropout, RandomFreqDropout
 
@@ -39,7 +40,7 @@ from dcase2020_task4.mixup.mixers.tag import MixUpMixerTag
 
 from dcase2020_task4.remixmatch.losses.tag.onehot import ReMixMatchLossOneHot
 from dcase2020_task4.remixmatch.mixers.tag import ReMixMatchMixer
-from dcase2020_task4.remixmatch.self_label import SelfSupervisedFlips, SelfSupervisedRotation
+from dcase2020_task4.remixmatch.self_label import SelfSupervisedFlips
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
@@ -56,7 +57,7 @@ from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMet
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.rand_augment import RandAugment
 from dcase2020_task4.util.sharpen import Sharpen
-from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
+from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int, str_to_optional_int
 from dcase2020_task4.util.uniloss import UniLoss
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, \
@@ -174,6 +175,12 @@ def create_args() -> Namespace:
 	parser.add_argument("--fold_val", type=int, default=10,
 						help="Fold used for validation in UBS8K dataset.")
 
+	parser.add_argument("--ra_magnitude", type=str_to_optional_int, default=2,
+						help="Magnitude used in RandAugment. Use \"None\" for generate a random "
+							 "magnitude each time the augmentation is called.")
+	parser.add_argument("--ra_nb_choices", type=int, default=1,
+						help="Nb augmentations composed for RandAugment. ")
+
 	parser.add_argument("--experimental", type=str_to_optional_str, default=None,
 						choices=[None, "V3", "V8"])
 
@@ -261,8 +268,8 @@ def main():
 			batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
 		model = model_factory(args)
-		optim = optim_factory(args, model)
-		sched = sched_factory(args, optim)
+		optimizer = optim_factory(args, model)
+		scheduler = sched_factory(args, optimizer)
 		print("Model selected : %s (%d parameters)." % (args.model, get_nb_parameters(model)))
 
 		if args.write_results:
@@ -292,7 +299,7 @@ def main():
 			guesser = GuesserModelOneHot(model, acti_fn)
 
 			trainer = FixMatchTrainer(
-				model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
+				model, acti_fn, optimizer, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
 				criterion, writer, guesser
 			)
 
@@ -324,12 +331,12 @@ def main():
 
 			if args.experimental != "V3":
 				trainer = MixMatchTrainer(
-					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
+					model, acti_fn, optimizer, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
 					criterion, writer, mixer, guesser
 				)
 			else:
 				trainer = MixMatchTrainerV3(
-					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
+					model, acti_fn, optimizer, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
 					criterion, writer, mixer, guesser
 				)
 
@@ -374,7 +381,7 @@ def main():
 				))
 
 			trainer = ReMixMatchTrainer(
-				model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs,
+				model, acti_fn, acti_rot_fn, optimizer, loader_train_s_strong, loader_train_u_augms_weak_strongs,
 				metrics_s, metrics_u, metrics_u1, metrics_r,
 				criterion, writer, mixer, distributions, guesser, ss_transform
 			)
@@ -386,7 +393,7 @@ def main():
 			criterion = cross_entropy
 
 			trainer = SupervisedTrainer(
-				model, acti_fn, optim, loader_train_full, metrics_s, criterion, writer
+				model, acti_fn, optimizer, loader_train_full, metrics_s, criterion, writer
 			)
 
 		elif "sp" == args.run or "supervised_part" == args.run:
@@ -396,7 +403,7 @@ def main():
 			criterion = cross_entropy
 
 			trainer = SupervisedTrainer(
-				model, acti_fn, optim, loader_train_part, metrics_s, criterion, writer
+				model, acti_fn, optimizer, loader_train_part, metrics_s, criterion, writer
 			)
 
 		else:
@@ -428,15 +435,16 @@ def main():
 		if args.write_results:
 			filename = "%s_%s_%s.torch" % (args.model, args.train_name, args.suffix)
 			filepath = osp.join(args.checkpoint_path, filename)
-			checkpoint = CheckPoint(model, optim, name=filepath)
+			checkpoint = CheckPoint(model, optimizer, name=filepath)
 		else:
 			checkpoint = None
 
 		validator = ValidatorTag(
 			model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 		)
-		steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r, sched, uni_loss]
+		steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r, scheduler, uni_loss]
 		steppables = [steppable for steppable in steppables if steppable is not None]
+
 		learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables)
 		learner.start()
 
@@ -473,19 +481,9 @@ def get_cifar10_augms(args: Namespace) -> (Callable, Callable, Callable):
 	])
 	augm_strong_fn = RandomChoice([
 		# CutOut(args.ratio_augm_strong),
-		RandAugment(ratio=args.ratio_augm_strong, magnitude_m=0.5),
+		RandAugment(ratio=args.ratio_augm_strong, magnitude_m=args.ra_magnitude, nb_choices_n=args.ra_nb_choices),
 	])
 	# Augmentation used by MixMatch
-	augm_fn = RandomChoice([
-		HorizontalFlip(args.ratio_augm),
-		VerticalFlip(args.ratio_augm),
-		Transform(args.ratio_augm, scale=(0.75, 1.25)),
-		Transform(args.ratio_augm, rotation=(-np.pi, np.pi)),
-		Gray(args.ratio_augm),
-		CutOut(args.ratio_augm, rect_height_scale_range=(0.2, 0.2)),
-		UniColor(args.ratio_augm),
-		Inversion(args.ratio_augm),
-	])
 	augm_fn = augm_weak_fn
 
 	return augm_weak_fn, augm_strong_fn, augm_fn
@@ -495,19 +493,19 @@ def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset
 	augm_weak_fn, augm_strong_fn, augm_fn = get_cifar10_augms(args)
 
 	# Add preprocessing before each augmentation (shape : [32, 32, 3])
-	preprocess_fn = lambda img: np.array(img)
-	postprocess_fn = lambda img: img.transpose()
+	pre_process_fn = lambda img: np.array(img)
+	post_process_fn = lambda img: img.transpose()
 
 	# Prepare data
-	dataset_train = CIFAR10(args.dataset_path, train=True, download=True, transform=Compose([preprocess_fn, postprocess_fn]))
-	dataset_val = CIFAR10(args.dataset_path, train=False, download=True, transform=Compose([preprocess_fn, postprocess_fn]))
+	dataset_train = CIFAR10(args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, post_process_fn]))
+	dataset_val = CIFAR10(args.dataset_path, train=False, download=True, transform=Compose([pre_process_fn, post_process_fn]))
 
 	dataset_train_augm_weak = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([preprocess_fn, augm_weak_fn, postprocess_fn]))
+		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_weak_fn, post_process_fn]))
 	dataset_train_augm_strong = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([preprocess_fn, augm_strong_fn, postprocess_fn]))
+		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_strong_fn, post_process_fn]))
 	dataset_train_augm = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([preprocess_fn, augm_fn, postprocess_fn]))
+		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_fn, post_process_fn]))
 
 	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
 

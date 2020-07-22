@@ -19,6 +19,14 @@ def str_to_optional_str(x: str) -> Optional[str]:
 		return x
 
 
+def str_to_optional_int(x: str) -> Optional[int]:
+	x = str(x)
+	if x.lower() == "none":
+		return None
+	else:
+		return int(x)
+
+
 def str_to_union_str_int(x: str) -> Union[str, int]:
 	x = str(x)
 	if x.isdigit():
