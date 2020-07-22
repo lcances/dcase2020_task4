@@ -5,7 +5,8 @@ import torch
 
 from argparse import ArgumentParser, Namespace
 from torch.nn.functional import one_hot
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
+from typing import Callable, List
 
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, Noise, Noise2, Occlusion, PitchShiftRandom
@@ -21,7 +22,7 @@ from dcase2020_task4.util.fn_dataset import FnDataset
 from dcase2020_task4.util.other_spec_augments import CutOutSpec, InversionSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.utils_match import cross_entropy
-from dcase2020_task4.util.utils_standalone import model_factory, optim_factory, sched_factory
+from dcase2020_task4.util.utils_standalone import model_factory, optim_factory, sched_factory, get_to_onehot_label_fn
 from dcase2020_task4.learner import Learner
 
 from ubs8k.datasets import Dataset as UBS8KDataset
@@ -55,8 +56,11 @@ def create_args() -> Namespace:
 	parser.add_argument("--model", type=str, default="CNN03Rot", choices=["UBS8KBaselineRot", "CNN03Rot"])
 	parser.add_argument("--optimizer", type=str, default="Adam")
 	parser.add_argument("--scheduler", type=str, default=None)
-	parser.add_argument("--lr", type=float, default=1e-3)
+	parser.add_argument("--lr", "--learning_rate", type=float, default=1e-3)
 	parser.add_argument("--weight_decay", type=float, default=0.0)
+
+	parser.add_argument("--fold_val", type=int, default=10)
+
 	return parser.parse_args()
 
 
@@ -67,6 +71,35 @@ def get_augm_with_args_name(augm, augm_kwargs: dict) -> str:
 		.replace(" ", "_").replace(",", "_c_")
 	kwargs_suffix = "_".join([("%s_%s" % (key, filter_(value))) for key, value in sorted(augm_kwargs.items())])
 	return "%s_%s" % (augm.__name__, kwargs_suffix)
+
+
+def get_cifar10_datasets(
+	args: Namespace, augm_train_fn: Callable, augms_val_fn: List[Callable]
+) -> (Dataset, Dataset, List[Dataset]):
+	metadata_root = osp.join(args.dataset_path, "metadata")
+	audio_root = osp.join(args.dataset_path, "audio")
+
+	folds_train = list(range(1, 11))
+	folds_train.remove(args.fold_val)
+	folds_train = tuple(folds_train)
+	folds_val = (args.fold_val,)
+
+	label_onehot = get_to_onehot_label_fn(args.nb_classes)
+	manager = UBS8KDatasetManager(metadata_root, audio_root)
+
+	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
+	dataset_train = FnDataset(dataset_train, label_onehot)
+
+	dataset_val_origin = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
+	dataset_val_origin = FnDataset(dataset_val_origin, label_onehot)
+
+	datasets_val = []
+	for augm_val_fn in augms_val_fn:
+		dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(augm_val_fn,), cached=False)
+		dataset_val = FnDataset(dataset_val, label_onehot)
+		datasets_val.append(dataset_val)
+
+	return dataset_train, dataset_val_origin, datasets_val
 
 
 def main():
@@ -97,17 +130,9 @@ def main():
 		(VerticalFlip, dict(ratio=ratio)),
 	]
 
-	augms = [cls for cls, _ in augms_data]
+	augms_cls = [cls for cls, _ in augms_data]
 	augms_kwargs = [kwargs for _, kwargs in augms_data]
-
-	metadata_root = osp.join(args.dataset_path, "metadata")
-	audio_root = osp.join(args.dataset_path, "audio")
-
-	fold_val = 10
-	folds_train = list(range(1, 11))
-	folds_train.remove(fold_val)
-	folds_train = tuple(folds_train)
-	folds_val = (fold_val,)
+	augms_fn = [cls(**kwargs) for cls, kwargs in augms_data]
 
 	metrics_s = {
 		"s_acc": CategoricalAccuracyOnehot(dim=1),
@@ -120,19 +145,13 @@ def main():
 	}
 	results = {}
 
-	manager = UBS8KDatasetManager(metadata_root, audio_root)
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
-	label_one_hot = lambda item: (item[0], one_hot(torch.as_tensor(item[1]), args.nb_classes).numpy())
 
-	dataset_val_origin = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
-	dataset_val_origin = FnDataset(dataset_val_origin, label_one_hot)
-	loader_val_origin = DataLoader(dataset_val_origin, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
-
-	augm_train = Identity
+	augm_train_cls = Identity
 	augm_train_kwargs = {}
 
-	augm_train_name = get_augm_with_args_name(augm_train, augm_train_kwargs)
-	augm_train_fn = augm_train()
+	augm_train_name = get_augm_with_args_name(augm_train_cls, augm_train_kwargs)
+	augm_train_fn = augm_train_cls()
 
 	filename = "%s_%d_%d_%s_%s.torch" % (
 		args.model, args.nb_epochs, args.batch_size_s, args.checkpoint_metric_name, augm_train_name)
@@ -141,11 +160,13 @@ def main():
 	filepath = osp.join(args.checkpoint_path, filename)
 	filepath_tmp = osp.join(args.checkpoint_path, filename_tmp)
 
+	dataset_train, dataset_val_origin, datasets_val = get_cifar10_datasets(args, augm_train_fn, augms_fn)
+
 	if not osp.isfile(filepath):
-		dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
-		dataset_train = FnDataset(dataset_train, label_one_hot)
 		loader_train = DataLoader(
 			dataset_train, batch_size=args.batch_size_s, shuffle=True, num_workers=args.num_workers_s, drop_last=True)
+		loader_val_origin = DataLoader(
+			dataset_val_origin, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
 
 		model = model_factory(args)
 		optim = optim_factory(args, model)
@@ -180,24 +201,21 @@ def main():
 	if augm_train_name not in results.keys():
 		results[augm_train_name] = {}
 
-	for augm_val, augm_val_kwargs in zip(augms, augms_kwargs):
+	for augm_val, augm_val_kwargs, dataset_val in zip(augms_cls, augms_kwargs, datasets_val):
 		augm_val_name = get_augm_with_args_name(augm_val, augm_val_kwargs)
-		augm_val_fn = augm_val(**augm_val_kwargs)
 
-		dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(augm_val_fn,), cached=False)
-		dataset_val = FnDataset(dataset_val, label_one_hot)
 		loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
 		validator = ValidatorTag(
 			model, acti_fn, loader_val, metrics_val, None, None, args.checkpoint_metric_name
 		)
 		validator.val(0)
 
-		_mins, maxs = validator.get_metrics_recorder().get_mins_maxs()
+		_, maxs = validator.get_metrics_recorder().get_mins_maxs()
 		acc_max = maxs["acc"]
 		print("[%s][%s] Acc max = %f" % (augm_train_name, augm_val_name, acc_max))
 		results[augm_train_name][augm_val_name] = acc_max
 
-		augm_dic = {get_augm_with_args_name(augm, augm_kwargs): augm_kwargs for augm, augm_kwargs in zip(augms, augms_kwargs)}
+		augm_dic = {get_augm_with_args_name(augm, augm_kwargs): augm_kwargs for augm, augm_kwargs in zip(augms_cls, augms_kwargs)}
 		data = {"results": results, "augments": augm_dic, "args": args.__dict__}
 
 		filepath = "results_%s.json" % start_date
