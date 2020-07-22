@@ -9,7 +9,6 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
-import numpy as np
 import os.path as osp
 import torch
 
@@ -21,7 +20,6 @@ from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose
 from typing import Callable
 
-from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2
 from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, Noise, RandomTimeDropout, RandomFreqDropout
 
@@ -56,11 +54,13 @@ from dcase2020_task4.util.other_img_augments import *
 from dcase2020_task4.util.other_spec_augments import CutOutSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.ramp_up import RampUp
+from dcase2020_task4.util.rand_augment import RandAugment
 from dcase2020_task4.util.sharpen import Sharpen
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.uniloss import UniLoss
 from dcase2020_task4.util.utils_match import cross_entropy
-from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, sched_factory, post_process_args, check_args, get_hparams_ordered
+from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, \
+	optim_factory, sched_factory, post_process_args, check_args, get_hparams_ordered
 
 from dcase2020_task4.learner import Learner
 from dcase2020_task4.validator import ValidatorTag
@@ -243,7 +243,9 @@ def main():
 
 		idx_val = list(range(int(len(dataset_val) * args.dataset_ratio)))
 
-		convert_label_fn = lambda item: (item[0], one_hot(torch.as_tensor(item[1]), args.nb_classes).numpy())
+		to_onehot = lambda label: one_hot(torch.as_tensor(label), args.nb_classes).numpy()
+		convert_label_fn = lambda item: (item[0], to_onehot(item[1]))
+
 		dataset_train = FnDataset(dataset_train, convert_label_fn)
 		dataset_val = FnDataset(dataset_val, convert_label_fn)
 		dataset_train_augm_weak = FnDataset(dataset_train_augm_weak, convert_label_fn)
@@ -471,7 +473,7 @@ def get_cifar10_augms(args: Namespace) -> (Callable, Callable, Callable):
 	])
 	augm_strong_fn = RandomChoice([
 		# CutOut(args.ratio_augm_strong),
-		RandAugment(args.ratio_augm_strong, 0.75),
+		RandAugment(ratio=args.ratio_augm_strong, magnitude_m=0.5),
 	])
 	# Augmentation used by MixMatch
 	augm_fn = RandomChoice([

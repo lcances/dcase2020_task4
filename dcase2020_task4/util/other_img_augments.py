@@ -2,11 +2,9 @@ import numpy as np
 
 from abc import ABC
 from PIL import Image, ImageOps, ImageEnhance, ImageFilter
-from torchvision.transforms import RandomChoice
 from typing import Optional, Tuple
 
 from augmentation_utils.augmentations import ImgAugmentation
-from augmentation_utils.img_augmentations import Transform
 from dcase2020_task4.util.utils_match import random_rect
 
 
@@ -84,10 +82,13 @@ class Inversion(ImgRGBAugmentation):
 		return self.value_range[1] - data
 
 
+# The following code of PIL augments is based on :
+# https://github.com/google-research/fixmatch/blob/master/libml/ctaugment.py
+
 class ImgPILAugmentation(ABC, ImgAugmentation):
 	"""
-		Abstract class that convert numpy array to PIL image for apply PIL augmentations.
-		Image must have the size (width, height, 3)
+		Abstract class that convert numpy array to PIL image for apply PIL augmentations internally.
+		Image must have the size (width, height, 3).
 	"""
 	def __init__(self, ratio: float = 1.0, mode: str = "RGB"):
 		ImgAugmentation.__init__(self, ratio)
@@ -206,13 +207,8 @@ class Posterize(ImgPILAugmentation):
 		self.nbs_bits = nbs_bits
 
 	def apply_helper(self, data: Image.Image) -> Image.Image:
-		nb_bits = np.random.randint(*self.nbs_bits)
+		nb_bits = np.random.randint(*self.nbs_bits) if self.nbs_bits[0] != self.nbs_bits[1] else self.nbs_bits[0]
 		return ImageOps.posterize(data, nb_bits)
-
-
-class RescaleOld(Transform):
-	def __init__(self, ratio: float = 1.0, scales: Tuple[float, float] = (1.0, 1.0)):
-		super().__init__(ratio=ratio, scale=scales)
 
 
 class Rescale(ImgPILAugmentation):
@@ -292,7 +288,7 @@ class Solarize(ImgPILAugmentation):
 		self.thresholds = thresholds
 
 	def apply_helper(self, data: Image.Image) -> Image.Image:
-		threshold = np.random.randint(*self.thresholds)
+		threshold = np.random.randint(*self.thresholds) if self.thresholds[0] != self.thresholds[1] else self.thresholds[0]
 		return ImageOps.solarize(data, threshold)
 
 
@@ -316,158 +312,3 @@ class TranslateY(ImgPILAugmentation):
 		delta = np.random.uniform(*self.deltas)
 		delta *= data.size[1]
 		return data.transform(data.size, Image.AFFINE, (1, 0, 0, 0, 1, delta))
-
-
-# Note: AUGMENTS IMPORT FROM
-# https://github.com/google-research/fixmatch/blob/master/libml/ctaugment.py
-
-
-def autocontrast(x, level):
-	return _imageop(x, ImageOps.autocontrast, level)
-
-
-def blur(x, level):
-	return _filter(x, ImageFilter.BLUR, level)
-
-
-def brightness(x, brightness):
-	return _enhance(x, ImageEnhance.Brightness, brightness)
-
-
-def color(x, color):
-	return _enhance(x, ImageEnhance.Color, color)
-
-
-def contrast(x, contrast):
-	return _enhance(x, ImageEnhance.Contrast, contrast)
-
-
-def cutout(x, level):
-	"""Apply cutout to pil_img at the specified level."""
-	size = 1 + int(level * min(x.size) * 0.499)
-	img_height, img_width = x.size
-	height_loc = np.random.randint(low=0, high=img_height)
-	width_loc = np.random.randint(low=0, high=img_width)
-	upper_coord = (max(0, height_loc - size // 2), max(0, width_loc - size // 2))
-	lower_coord = (min(img_height, height_loc + size // 2), min(img_width, width_loc + size // 2))
-	pixels = x.load()  # create the pixel map
-	for i in range(upper_coord[0], lower_coord[0]):  # for every col:
-		for j in range(upper_coord[1], lower_coord[1]):  # For every row
-			pixels[i, j] = (127, 127, 127)  # set the color accordingly
-	return x
-
-
-def equalize(x, level):
-	return _imageop(x, ImageOps.equalize, level)
-
-
-def invert(x, level):
-	return _imageop(x, ImageOps.invert, level)
-
-
-def identity(x):
-	return x
-
-
-def posterize(x, level):
-	level = 1 + int(level * 7.999)
-	return ImageOps.posterize(x, level)
-
-
-def rescale(x, scale, method):
-	s = x.size
-	scale *= 0.25
-	crop = (scale * s[0], scale * s[1], s[0] * (1 - scale), s[1] * (1 - scale))
-	methods = (Image.ANTIALIAS, Image.BICUBIC, Image.BILINEAR, Image.BOX, Image.HAMMING, Image.NEAREST)
-	method = methods[int(method * 5.99)]
-	return x.crop(crop).resize(x.size, method)
-
-
-def rotate(x, angle):
-	angle = int(np.round((2 * angle - 1) * 45))
-	return x.rotate(angle)
-
-
-def sharpness(x, sharpness):
-	return _enhance(x, ImageEnhance.Sharpness, sharpness)
-
-
-def shear_x(x, shear):
-	shear = (2 * shear - 1) * 0.3
-	return x.transform(x.size, Image.AFFINE, (1, shear, 0, 0, 1, 0))
-
-
-def shear_y(x, shear):
-	shear = (2 * shear - 1) * 0.3
-	return x.transform(x.size, Image.AFFINE, (1, 0, 0, shear, 1, 0))
-
-
-def smooth(x, level):
-	return _filter(x, ImageFilter.SMOOTH, level)
-
-
-def solarize(x, th):
-	th = int(th * 255.999)
-	return ImageOps.solarize(x, th)
-
-
-def translate_x(x, delta):
-	delta = (2 * delta - 1) * 0.3
-	return x.transform(x.size, Image.AFFINE, (1, 0, delta, 0, 1, 0))
-
-
-def translate_y(x, delta):
-	delta = (2 * delta - 1) * 0.3
-	return x.transform(x.size, Image.AFFINE, (1, 0, 0, 0, 1, delta))
-
-
-def _enhance(x, op, level):
-	return op(x).enhance(0.1 + 1.9 * level)
-
-
-def _imageop(x, op, level):
-	return Image.blend(x, op(x), level)
-
-
-def _filter(x, op, level):
-	return Image.blend(x, x.filter(op), level)
-
-
-class RandAugment(ImgRGBAugmentation):
-	def __init__(self, ratio: float = 1.0, magnitude: float = 0.5):
-		super().__init__(ratio)
-		sub_ratio = 1.0
-
-		enhance_range = (0.05, 0.95)
-		transforms_range = (-0.3, 0.3)
-		posterize_range = (4, 8)
-		angles_range = (-30, 30)
-		thresholds_range = (0, 256)
-
-		self.magnitude = magnitude
-		self.augment_fn = RandomChoice([
-			AutoContrast(ratio=sub_ratio),
-			Brightness(ratio=sub_ratio, levels=enhance_range),
-			Color(ratio=sub_ratio, levels=enhance_range),
-			Contrast(ratio=sub_ratio, levels=enhance_range),
-			Equalize(ratio=sub_ratio),
-			Posterize(ratio=sub_ratio, nbs_bits=posterize_range),
-			Rotation(ratio=sub_ratio, angles=angles_range),
-			Sharpness(ratio=sub_ratio, levels=enhance_range),
-			ShearX(ratio=sub_ratio, shears=transforms_range),
-			ShearY(ratio=sub_ratio, shears=transforms_range),
-			Solarize(ratio=sub_ratio, thresholds=thresholds_range),
-			TranslateX(ratio=sub_ratio, deltas=transforms_range),
-			TranslateY(ratio=sub_ratio, deltas=transforms_range),
-		])
-
-	def apply_helper(self, data):
-		return self.augment_fn(data)
-
-
-def to_range(value, min_, max_):
-	return value * (max_ - min_) + min_
-
-
-def duplicate(value) -> tuple:
-	return value, value
