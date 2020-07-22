@@ -14,10 +14,10 @@ class CutOutSpec(SpecAugmentation):
 		fill_value: Optional[int] = None
 	):
 		super().__init__(ratio)
+		self.value_range = (-80.0, 0.0)
 		self.rect_width_scale_range = rect_width_scale_range
 		self.rect_height_scale_range = rect_height_scale_range
 		self.fill_value = fill_value if fill_value is not None else int((self.value_range[1] + self.value_range[0]) / 2.0)
-		self.value_range = (-80.0, 0.0)
 
 	def apply_helper(self, data):
 		width, height = data.shape[0], data.shape[1]
