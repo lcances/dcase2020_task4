@@ -1,11 +1,13 @@
 import json
+import numpy as np
 import os
 import os.path as osp
 import torch
 
 from argparse import ArgumentParser, Namespace
-from torch.nn.functional import one_hot
 from torch.utils.data import DataLoader, Dataset
+from torchvision.datasets import CIFAR10
+from torchvision.transforms import Compose
 from typing import Callable, List
 
 from augmentation_utils.img_augmentations import Transform
@@ -19,6 +21,7 @@ from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.validator import ValidatorTag
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.fn_dataset import FnDataset
+from dcase2020_task4.util.other_img_augments import *
 from dcase2020_task4.util.other_spec_augments import CutOutSpec, InversionSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.utils_match import cross_entropy
@@ -41,7 +44,7 @@ class Identity:
 
 def create_args() -> Namespace:
 	parser = ArgumentParser()
-	parser.add_argument("--dataset_name", type=str, default="UBS8K")
+	parser.add_argument("--dataset_name", type=str, default="UBS8K", choices=["UBS8K", "CIFAR10"])
 	parser.add_argument("--dataset_path", type=str, default="/projets/samova/leocances/UrbanSound8K/")
 	parser.add_argument("--nb_classes", type=int, default=10)
 	parser.add_argument("--seed", type=int, default=123)
@@ -53,7 +56,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--checkpoint_metric_name", type=str, default="acc")
 	parser.add_argument("--confidence", type=float, default=0.5)
 
-	parser.add_argument("--model", type=str, default="CNN03Rot", choices=["UBS8KBaselineRot", "CNN03Rot"])
+	parser.add_argument("--model", type=str, default="CNN03Rot", choices=["WideResNet28Rot", "CNN03Rot"])
 	parser.add_argument("--optimizer", type=str, default="Adam")
 	parser.add_argument("--scheduler", type=str, default=None)
 	parser.add_argument("--lr", "--learning_rate", type=float, default=1e-3)
@@ -73,62 +76,63 @@ def get_augm_with_args_name(augm, augm_kwargs: dict) -> str:
 	return "%s_%s" % (augm.__name__, kwargs_suffix)
 
 
-def get_cifar10_datasets(
-	args: Namespace, augm_train_fn: Callable, augms_val_fn: List[Callable]
-) -> (Dataset, Dataset, List[Dataset]):
-	metadata_root = osp.join(args.dataset_path, "metadata")
-	audio_root = osp.join(args.dataset_path, "audio")
-
-	folds_train = list(range(1, 11))
-	folds_train.remove(args.fold_val)
-	folds_train = tuple(folds_train)
-	folds_val = (args.fold_val,)
-
-	label_onehot = get_to_onehot_label_fn(args.nb_classes)
-	manager = UBS8KDatasetManager(metadata_root, audio_root)
-
-	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
-	dataset_train = FnDataset(dataset_train, label_onehot)
-
-	dataset_val_origin = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
-	dataset_val_origin = FnDataset(dataset_val_origin, label_onehot)
-
-	datasets_val = []
-	for augm_val_fn in augms_val_fn:
-		dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(augm_val_fn,), cached=False)
-		dataset_val = FnDataset(dataset_val, label_onehot)
-		datasets_val.append(dataset_val)
-
-	return dataset_train, dataset_val_origin, datasets_val
-
-
 def main():
 	start_date = get_datetime()
 	args = create_args()
 	reset_seed(args.seed)
 
 	ratio = 1.0
-	augms_data = [
-		(Identity, dict()),
-		(Noise, dict(ratio=ratio, target_snr=15.0)),
-		(InversionSpec, dict(ratio=ratio)),
-		(Noise2, dict(ratio=ratio, noise_factor=(10.0, 10.0))),
-		(NoiseSpec, dict(ratio=ratio, snr=15.0)),
-		(Occlusion, dict(ratio=ratio, max_size=1.0)),
-		(PitchShiftRandom, dict(ratio=ratio, steps=(-1, 1))),
-		(CutOutSpec, dict(ratio=ratio, fill_value=-80)),
-		(RandomTimeDropout, dict(ratio=ratio, dropout=0.5)),
-		(RandomTimeDropout, dict(ratio=ratio, dropout=0.1)),
-		(RandomFreqDropout, dict(ratio=ratio, dropout=0.5)),
-		(RandomFreqDropout, dict(ratio=ratio, dropout=0.1)),
-		(TimeStretch, dict(ratio=ratio)),
-		(Transform, dict(ratio=ratio, scale=(0.9, 1.1))),
-		(Transform, dict(ratio=ratio, translation=(-10, 10))),
-		(Transform, dict(ratio=ratio, scale=(0.5, 1.5))),
-		(Transform, dict(ratio=ratio, translation=(-100, 100))),
-		(HorizontalFlip, dict(ratio=ratio)),
-		(VerticalFlip, dict(ratio=ratio)),
-	]
+	if args.dataset_name == "UBS8K":
+		augms_data = [
+			(Identity, dict()),
+			(Noise, dict(ratio=ratio, target_snr=15.0)),
+			(InversionSpec, dict(ratio=ratio)),
+			(Noise2, dict(ratio=ratio, noise_factor=(10.0, 10.0))),
+			(NoiseSpec, dict(ratio=ratio, snr=15.0)),
+			(Occlusion, dict(ratio=ratio, max_size=1.0)),
+			(PitchShiftRandom, dict(ratio=ratio, steps=(-1, 1))),
+			(CutOutSpec, dict(ratio=ratio, fill_value=-80)),
+			(RandomTimeDropout, dict(ratio=ratio, dropout=0.5)),
+			(RandomTimeDropout, dict(ratio=ratio, dropout=0.1)),
+			(RandomFreqDropout, dict(ratio=ratio, dropout=0.5)),
+			(RandomFreqDropout, dict(ratio=ratio, dropout=0.1)),
+			(TimeStretch, dict(ratio=ratio)),
+			(Transform, dict(ratio=ratio, scale=(0.9, 1.1))),
+			(Transform, dict(ratio=ratio, translation=(-10, 10))),
+			(Transform, dict(ratio=ratio, scale=(0.5, 1.5))),
+			(Transform, dict(ratio=ratio, translation=(-100, 100))),
+			(HorizontalFlip, dict(ratio=ratio)),
+			(VerticalFlip, dict(ratio=ratio)),
+		]
+	elif args.dataset_name == "CIFAR10":
+		ratio = 1.0
+
+		enhance_range = (0.05, 0.95)
+		transforms_range = (-0.3, 0.3)
+		posterize_range = (4, 8)
+		angles_range = (-30, 30)
+		thresholds_range = (0, 256)
+
+		augms_data = [
+			(AutoContrast, dict(ratio=ratio)),
+			(Brightness, dict(ratio=ratio, levels=enhance_range)),
+			(Color, dict(ratio=ratio, levels=enhance_range)),
+			(Contrast, dict(ratio=ratio, levels=enhance_range)),
+			(Equalize, dict(ratio=ratio)),
+			(Posterize, dict(ratio=ratio, nbs_bits=posterize_range)),
+			(Rotation, dict(ratio=ratio, angles=angles_range)),
+			(Sharpness, dict(ratio=ratio, levels=enhance_range)),
+			(ShearX, dict(ratio=ratio, shears=transforms_range)),
+			(ShearY, dict(ratio=ratio, shears=transforms_range)),
+			(Solarize, dict(ratio=ratio, thresholds=thresholds_range)),
+			(TranslateX, dict(ratio=ratio, deltas=transforms_range)),
+			(TranslateY, dict(ratio=ratio, deltas=transforms_range)),
+			(Invert, dict(ratio=ratio)),
+			(Rescale, dict(ratio=ratio)),
+			(Smooth, dict(ratio=ratio)),
+		]
+	else:
+		raise RuntimeError("Unknown dataset %s" % args.dataset_name)
 
 	augms_cls = [cls for cls, _ in augms_data]
 	augms_kwargs = [kwargs for _, kwargs in augms_data]
@@ -160,7 +164,12 @@ def main():
 	filepath = osp.join(args.checkpoint_path, filename)
 	filepath_tmp = osp.join(args.checkpoint_path, filename_tmp)
 
-	dataset_train, dataset_val_origin, datasets_val = get_cifar10_datasets(args, augm_train_fn, augms_fn)
+	if args.dataset_name == "UBS8K":
+		dataset_train, dataset_val_origin, datasets_val = get_ubs8k_datasets(args, augm_train_fn, augms_fn)
+	elif args.dataset_name == "CIFAR10":
+		dataset_train, dataset_val_origin, datasets_val = get_cifar10_datasets(args, augm_train_fn, augms_fn)
+	else:
+		raise RuntimeError("Unknown dataset %s" % args.dataset_name)
 
 	if not osp.isfile(filepath):
 		loader_train = DataLoader(
@@ -221,6 +230,62 @@ def main():
 		filepath = "results_%s.json" % start_date
 		with open(filepath, "w") as file:
 			json.dump(data, file, indent="\t")
+
+
+def get_cifar10_datasets(
+	args: Namespace, augm_train_fn: Callable, augms_val_fn: List[Callable]
+):
+	pre_process_fn = lambda img: np.array(img)
+	post_process_fn = lambda img: img.transpose()
+
+	label_onehot = get_to_onehot_label_fn(args.nb_classes)
+
+	# Prepare data
+	dataset_train = CIFAR10(
+		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_train_fn, post_process_fn]))
+	dataset_train = FnDataset(dataset_train, label_onehot)
+
+	dataset_val_origin = CIFAR10(
+		args.dataset_path, train=False, download=True, transform=Compose([pre_process_fn, post_process_fn]))
+	dataset_val_origin = FnDataset(dataset_val_origin, label_onehot)
+
+	datasets_val = []
+	for augm_val_fn in augms_val_fn:
+		dataset_val = CIFAR10(
+			args.dataset_path, train=False, download=True, transform=Compose([pre_process_fn, augm_val_fn, post_process_fn]))
+		dataset_val = FnDataset(dataset_val, label_onehot)
+		datasets_val.append(dataset_val)
+
+	return dataset_train, dataset_val_origin, datasets_val
+
+
+def get_ubs8k_datasets(
+	args: Namespace, augm_train_fn: Callable, augms_val_fn: List[Callable]
+) -> (Dataset, Dataset, List[Dataset]):
+	metadata_root = osp.join(args.dataset_path, "metadata")
+	audio_root = osp.join(args.dataset_path, "audio")
+
+	folds_train = list(range(1, 11))
+	folds_train.remove(args.fold_val)
+	folds_train = tuple(folds_train)
+	folds_val = (args.fold_val,)
+
+	label_onehot = get_to_onehot_label_fn(args.nb_classes)
+	manager = UBS8KDatasetManager(metadata_root, audio_root)
+
+	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
+	dataset_train = FnDataset(dataset_train, label_onehot)
+
+	dataset_val_origin = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
+	dataset_val_origin = FnDataset(dataset_val_origin, label_onehot)
+
+	datasets_val = []
+	for augm_val_fn in augms_val_fn:
+		dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(augm_val_fn,), cached=False)
+		dataset_val = FnDataset(dataset_val, label_onehot)
+		datasets_val.append(dataset_val)
+
+	return dataset_train, dataset_val_origin, datasets_val
 
 
 if __name__ == "__main__":

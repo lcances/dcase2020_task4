@@ -8,6 +8,7 @@ from dcase2020_task4.util.other_img_augments import *
 
 ratio = 1.0
 enhance_range = (1.0, 1.0)  # (0.05, 0.95)
+# 14 augments
 ra_augments_set = [
 	AutoContrast(ratio=ratio),
 	Brightness(ratio=ratio, levels=enhance_range),
@@ -24,6 +25,7 @@ ra_augments_set = [
 	TranslateX(ratio=ratio, deltas=(-0.3, 0.3)),
 	TranslateY(ratio=ratio, deltas=(-0.3, 0.3)),
 ]
+# 17 augments
 cta_augments_set = [
 	Blend(AutoContrast(ratio=ratio), levels=(0, 1)),
 	Brightness(ratio=ratio, levels=(0, 1)),
