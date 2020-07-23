@@ -129,7 +129,7 @@ def main():
 			(TranslateX, dict(ratio=ratio, deltas=transforms_range)),
 			(TranslateY, dict(ratio=ratio, deltas=transforms_range)),
 			(Invert, dict(ratio=ratio)),
-			(Rescale, dict(ratio=ratio)),
+			(Rescale, dict(ratio=ratio, scales=(0.5, 2.0))),
 			(Smooth, dict(ratio=ratio)),
 		]
 	else:
