@@ -8,7 +8,7 @@ from typing import Callable, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 
-from dcase2020_task4.guessers import GuesserABC
+from dcase2020_task4.guessers import GuesserModelABC
 from dcase2020_task4.metrics_recorder import MetricsRecorder
 from dcase2020_task4.mixmatch.losses.abc import MixMatchLossTagABC
 from dcase2020_task4.trainer_abc import SSTrainerABC
@@ -29,7 +29,7 @@ class MixMatchTrainerV3(SSTrainerABC):
 		criterion: MixMatchLossTagABC,
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
-		guesser: GuesserABC,
+		guesser: GuesserModelABC,
 	):
 		self.model = model
 		self.acti_fn = acti_fn

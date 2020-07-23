@@ -17,6 +17,10 @@ class GuesserABC(ABC, Callable):
 
 
 class GuesserModelABC(GuesserABC):
+	"""
+		Use model to make prediction for guessing label.
+		Also store the last prediction computed.
+	"""
 	def __call__(self, x: Tensor, dim: int) -> Tensor:
 		raise NotImplementedError("Abstract method")
 
@@ -56,6 +60,14 @@ class GuesserOneHot(GuesserABC):
 		return binarize_onehot_labels(pred)
 
 
+class GuesserThreshold(GuesserABC):
+	def __init__(self, threshold: float):
+		self.threshold = threshold
+
+	def __call__(self, batch: Tensor, dim: int) -> Tensor:
+		return (batch > self.threshold).float()
+
+
 class GuesserModelOneHot(GuesserModelABC):
 	def __init__(self, model: Module, acti_fn: Callable):
 		self.guesser_compose = GuesserCompose(
@@ -70,19 +82,25 @@ class GuesserModelOneHot(GuesserModelABC):
 		return self.guesser_compose.guessers[0].get_last_pred()
 
 
-class GuesserThreshold(GuesserABC):
-	def __init__(self, threshold: float):
-		self.threshold = threshold
-
-	def __call__(self, batch: Tensor, dim: int) -> Tensor:
-		return (batch > self.threshold).float()
-
-
 class GuesserModelThreshold(GuesserModelABC):
 	def __init__(self, model: Module, acti_fn: Callable, threshold: float):
 		self.guesser_compose = GuesserCompose(
 			GuesserModel(model, acti_fn),
 			GuesserThreshold(threshold)
+		)
+
+	def __call__(self, batch: Tensor, dim: int) -> Tensor:
+		return self.guesser_compose(batch, dim)
+
+	def get_last_pred(self) -> Optional[Tensor]:
+		return self.guesser_compose.guessers[0].get_last_pred()
+
+
+class GuesserModelSharpen(GuesserModelABC):
+	def __init__(self, model: Module, acti_fn: Callable, sharpen_fn: Callable):
+		self.guesser_compose = GuesserCompose(
+			GuesserModel(model, acti_fn),
+			sharpen_fn,
 		)
 
 	def __call__(self, batch: Tensor, dim: int) -> Tensor:

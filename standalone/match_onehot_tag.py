@@ -59,7 +59,7 @@ from dcase2020_task4.util.rand_augment import RandAugment
 from dcase2020_task4.util.sharpen import Sharpen
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int, str_to_optional_int
 from dcase2020_task4.util.uniloss import UniLoss
-from dcase2020_task4.util.utils_match import cross_entropy
+from dcase2020_task4.util.utils_match import cross_entropy, nums_to_smooth_onehot
 from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, \
 	optim_factory, sched_factory, post_process_args, check_args, get_hparams_ordered
 
@@ -184,6 +184,9 @@ def create_args() -> Namespace:
 	parser.add_argument("--experimental", type=str_to_optional_str, default=None,
 						choices=[None, "V3", "V8"])
 
+	parser.add_argument("--label_smooth", type=float, default=0.0,
+						help="Label smoothing value for supervised trainings. Use 0.0 for not using label smoothing.")
+
 	return parser.parse_args()
 
 
@@ -250,8 +253,11 @@ def main():
 
 		idx_val = list(range(int(len(dataset_val) * args.dataset_ratio)))
 
-		to_onehot = lambda label: one_hot(torch.as_tensor(label), args.nb_classes).numpy()
-		convert_label_fn = lambda item: (item[0], to_onehot(item[1]))
+		if args.label_smooth == 0.0:
+			to_onehot = lambda label: one_hot(torch.as_tensor(label), args.nb_classes).numpy()
+			convert_label_fn = lambda item: (item[0], to_onehot(item[1]))
+		else:
+			convert_label_fn = lambda item: (item[0], nums_to_smooth_onehot(torch.as_tensor(item[1]), args.nb_classes, args.label_smooth).numpy())
 
 		dataset_train = FnDataset(dataset_train, convert_label_fn)
 		dataset_val = FnDataset(dataset_val, convert_label_fn)
