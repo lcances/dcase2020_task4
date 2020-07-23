@@ -213,24 +213,7 @@ def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> Summ
 	return writer
 
 
-def save_writer(writer: SummaryWriter, args: Namespace, validator: ValidatorABC):
-	filepath = osp.join(writer.log_dir, "args.json")
-	save_args(filepath, args)
-
-	"""
-	TODO : rem this and validator arg ?
-	keys = []
-	metrics_recorder = validator.get_metrics_recorder()
-	for metrics in validator.get_all_metrics():
-		keys += list(metrics.keys())
-
-	metric_dict = {}
-	metric_dict.update(
-		{"val_max/%s" % name: metrics_recorder.get_max(name) for name in keys})
-	metric_dict.update(
-		{"val_min/%s" % name: metrics_recorder.get_min(name) for name in keys})
-	"""
-
+def save_writer(writer: SummaryWriter, args: Namespace):
 	writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
 	writer.close()
 	print("Data will saved in tensorboard writer \"%s\"." % writer.log_dir)

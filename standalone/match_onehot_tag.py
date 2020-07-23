@@ -61,7 +61,7 @@ from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_
 from dcase2020_task4.util.uniloss import UniLoss
 from dcase2020_task4.util.utils_match import cross_entropy, nums_to_smooth_onehot
 from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, \
-	optim_factory, sched_factory, post_process_args, check_args, get_hparams_ordered
+	optim_factory, sched_factory, post_process_args, check_args, get_hparams_ordered, save_args
 
 from dcase2020_task4.learner import Learner
 from dcase2020_task4.validator import ValidatorTag
@@ -462,7 +462,9 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			save_writer(writer, args, validator)
+			save_writer(writer, args)
+			filepath = osp.join(writer.log_dir, "args.json")
+			save_args(filepath, args)
 		validator.get_metrics_recorder().print_min_max()
 
 		_, maxs = validator.get_metrics_recorder().get_mins_maxs()
@@ -527,28 +529,19 @@ def get_ubs8k_augms(args: Namespace) -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	augm_weak_fn = RandomChoice([
 		HorizontalFlip(args.ratio_augm_weak),
+	])
+	augm_strong_fn = RandomChoice([
 		TimeStretch(args.ratio_augm_weak),
 		PitchShiftRandom(args.ratio_augm_weak, steps=(-1, 1)),
 		Noise(ratio=args.ratio_augm_weak, snr=5.0),
 		Noise2(args.ratio_augm_weak, noise_factor=(5.0, 5.0)),
-	])
-	augm_strong_fn = RandomChoice([
 		Occlusion(args.ratio_augm_strong, max_size=1.0),
-		RandomFreqDropout(args.ratio_augm_strong, dropout=0.5),
+		RandomFreqDropout(args.ratio_augm_strong, dropout=0.1),
 		RandomTimeDropout(args.ratio_augm_strong, dropout=0.5),
 		CutOutSpec(args.ratio_augm_strong),
 	])
 
-	augm_fn = RandomChoice([
-		TimeStretch(args.ratio_augm),
-		PitchShiftRandom(args.ratio_augm),
-		Occlusion(args.ratio_augm, max_size=1.0),
-		Noise(ratio=args.ratio_augm, snr=5.0),
-		Noise2(args.ratio_augm, noise_factor=(5.0, 5.0)),
-		RandomFreqDropout(args.ratio_augm, dropout=0.5),
-		RandomTimeDropout(args.ratio_augm, dropout=0.5),
-		CutOutSpec(args.ratio_augm),
-	])
+	augm_fn = augm_weak_fn
 
 	return augm_weak_fn, augm_strong_fn, augm_fn
 

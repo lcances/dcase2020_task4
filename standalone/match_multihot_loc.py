@@ -50,7 +50,8 @@ from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import SharpenMulti
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils import reset_seed, get_datetime
-from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, optim_factory, sched_factory, post_process_args, check_args
+from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, \
+	optim_factory, sched_factory, post_process_args, check_args, save_args
 
 from dcase2020_task4.validator_loc import ValidatorLoc
 
@@ -374,7 +375,9 @@ def main():
 	learner.start()
 
 	if writer is not None:
-		save_writer(writer, args, validator)
+		save_writer(writer, args)
+		filepath = osp.join(writer.log_dir, "args.json")
+		save_args(filepath, args)
 
 	validator.get_metrics_recorder().print_min_max()
 

@@ -5,6 +5,14 @@ from augmentation_utils.augmentations import SpecAugmentation
 from dcase2020_task4.util.utils_match import random_rect
 
 
+class Identity(SpecAugmentation):
+	def __init__(self):
+		super().__init__(1.0)
+
+	def apply_helper(self, data):
+		return data
+
+
 class CutOutSpec(SpecAugmentation):
 	def __init__(
 		self,

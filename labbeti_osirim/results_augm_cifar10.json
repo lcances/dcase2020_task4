@@ -16,7 +16,7 @@
 			"TranslateX_deltas__op_-0.3_c__0.3_cp__ratio_1.0": 0.8413461538461539,
 			"TranslateY_deltas__op_-0.3_c__0.3_cp__ratio_1.0": 0.7895633012820513,
 			"Invert_ratio_1.0": 0.5430689102564102,
-			"Rescale_ratio_1.0": 0.9013421474358975,
+			"Rescale_ratio_1.0_scales__op_0.5_c__2.0_cp_": 0.5715144230769231,
 			"Smooth_ratio_1.0": 0.6967147435897436
 		}
 	},
@@ -108,8 +108,12 @@
 		"Invert_ratio_1.0": {
 			"ratio": 1.0
 		},
-		"Rescale_ratio_1.0": {
-			"ratio": 1.0
+		"Rescale_ratio_1.0_scales__op_0.5_c__2.0_cp_": {
+			"ratio": 1.0,
+			"scales": [
+				0.5,
+				2.0
+			]
 		},
 		"Smooth_ratio_1.0": {
 			"ratio": 1.0

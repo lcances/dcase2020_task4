@@ -6,6 +6,7 @@ from torchvision.transforms import RandomChoice, Compose
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2
 from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, Noise, RandomTimeDropout, RandomFreqDropout
+from dcase2020_task4.util.other_spec_augments import Identity, CutOutSpec, InversionSpec
 
 
 def get_spec():
@@ -20,7 +21,8 @@ def test():
 
 	ratio = 1.0
 	augms = [
-		# Transform(ratio, scale=(0.9, 1.1)),
+		Identity(),
+		Transform(ratio, scale=(1.1, 1.1)),
 		# Transform(ratio, rotation=(0.2, 0.2)),
 		# Transform(ratio, rotation=(0.6, 0.6)),
 		# Transform(ratio, rotation=(-np.pi / 4.0, np.pi / 4.0)),
@@ -36,13 +38,14 @@ def test():
 		# RandomFreqDropout(ratio, dropout=0.25),
 		# RandomTimeDropout(ratio, dropout=0.25),
 		# RandCropSpec(ratio, fill_value=-80),
+		# VerticalFlip(ratio),
+		# Compose([HorizontalFlip(ratio), VerticalFlip(ratio)]),
 		HorizontalFlip(ratio),
-		VerticalFlip(ratio),
-		# Compose([HorizontalFlip(ratio), VerticalFlip(ratio)])
+		CutOutSpec(ratio),
+		InversionSpec(ratio),
 	]
 	print(spec.shape)
 
-	plt.imshow(spec)
 	for augm in augms:
 		spec_a = augm(spec.copy())
 
