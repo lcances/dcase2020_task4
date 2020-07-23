@@ -110,8 +110,22 @@ class GuesserModelSharpen(GuesserModelABC):
 		return self.guesser_compose.guessers[0].get_last_pred()
 
 
+class GuesserMeanModelOneHot(GuesserModelABC):
+	def __init__(self, model: Module, acti_fn: Callable):
+		self.guesser_compose = GuesserCompose(
+			GuesserMeanModel(model, acti_fn),
+			GuesserOneHot(),
+		)
+
+	def __call__(self, batch: Tensor, dim: int) -> Tensor:
+		return self.guesser_compose(batch, dim)
+
+	def get_last_pred(self) -> Optional[Tensor]:
+		return self.guesser_compose.guessers[0].get_last_pred()
+
+
 # MixMatch guessers
-class GuesserMeanModel(GuesserABC):
+class GuesserMeanModel(GuesserModelABC):
 	def __init__(self, model: Module, acti_fn: Callable):
 		self.model = model
 		self.acti_fn = acti_fn

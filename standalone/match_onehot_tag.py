@@ -29,8 +29,9 @@ from dcase2020.util.utils import get_datetime, reset_seed
 
 from dcase2020_task4.fixmatch.losses.tag.onehot import FixMatchLossOneHot
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
+from dcase2020_task4.fixmatch.trainer_v11 import FixMatchTrainerV11
 
-from dcase2020_task4.guessers import GuesserModelOneHot, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen
+from dcase2020_task4.guessers import GuesserModelOneHot, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen, GuesserMeanModelOneHot
 
 from dcase2020_task4.mixmatch.losses.tag.onehot import MixMatchLossOneHot
 from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
@@ -301,18 +302,28 @@ def main():
 			dataset_train_u_augm_weak = NoLabelDataset(dataset_train_u_augm_weak)
 			dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
 
+			if args.experimental == "V11":
+				dataset_train_u_augm_weak = MultipleDataset([dataset_train_u_augm_weak] * args.nb_augms)
+
 			dataset_train_u_augms_weak_strong = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augm_strong])
 
 			loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 			loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
 			criterion = FixMatchLossOneHot.from_edict(args)
-			guesser = GuesserModelOneHot(model, acti_fn)
 
-			trainer = FixMatchTrainer(
-				model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-				criterion, writer, guesser
-			)
+			if args.experimental != "V11":
+				guesser = GuesserModelOneHot(model, acti_fn)
+				trainer = FixMatchTrainer(
+					model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
+					criterion, writer, guesser
+				)
+			else:
+				guesser = GuesserMeanModelOneHot(model, acti_fn)
+				trainer = FixMatchTrainerV11(
+					model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
+					criterion, writer, guesser
+				)
 
 		elif "mm" == args.run or "mixmatch" == args.run:
 			dataset_train_s_augm = Subset(dataset_train_augm, idx_train_s)
