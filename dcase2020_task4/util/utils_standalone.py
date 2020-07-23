@@ -14,7 +14,8 @@ from torch.nn.functional import one_hot
 from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, List, Optional, Tuple, Union
+from torchvision.transforms import Compose, RandomChoice
+from typing import Callable, List, Optional, Tuple
 
 from dcase2020_task4.other_models import cnn03
 from dcase2020_task4.other_models import resnet
@@ -23,8 +24,7 @@ from dcase2020_task4.other_models import vgg
 from dcase2020_task4.other_models import weak_baseline_rot
 from dcase2020_task4.other_models import wide_resnet
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
-from dcase2020_task4.util.other_img_augments import ImgPILAugmentation
-from dcase2020_task4.validator_abc import ValidatorABC
+from dcase2020_task4.util.rand_augment import RandAugment
 
 
 FLOAT_FORMAT = "%.3f"
@@ -220,8 +220,9 @@ def save_writer(writer: SummaryWriter, args: Namespace):
 
 
 def save_args(filepath: str, args: Namespace):
+	content = args.__dict__
 	with open(filepath, "w") as file:
-		json.dump(args.__dict__, file, indent="\t")
+		json.dump(content, file, indent="\t")
 	print("Arguments saved in file \"%s\"." % filepath)
 
 
@@ -243,32 +244,37 @@ def get_to_onehot_label_fn(nb_classes: int) -> Callable:
 	return lambda item: tuple(item[:-1]) + (one_hot(torch.as_tensor(item[-1]), nb_classes).numpy(),)
 
 
-def augm_fn_to_dict(augm_fn: Callable) -> Union[str, dict]:
-	# TODO : rem
+def augm_fn_to_dict(augm_fn: Callable) -> dict:
 	if inspect.isfunction(augm_fn):
 		name = augm_fn.__name__
-		dic = {}
+		content = {}
 	else:
 		name = augm_fn.__class__.__name__
 
-		if name == "RandomChoice" or name == "Compose":
-			transforms_dic = []
+		if isinstance(augm_fn, Compose) or isinstance(augm_fn, RandomChoice):
+			sub_augms = []
 			for transform in augm_fn.transforms:
 				transform_dic = augm_fn_to_dict(transform)
-				transforms_dic.append(transform_dic)
-			dic = {"transforms": transforms_dic}
-		elif name == "RandAugment":
-			dic = augm_fn.__dict__
-			augments_list = dic["augments_list"]
-			for i, sub_augm_fn in enumerate(augments_list):
-				dic["augments_list"][i] = augm_fn_to_dict(sub_augm_fn)
-		elif hasattr(augm_fn, "enhance"):
-			dic = augm_fn.__dict__
-			dic["enhance"] = dic["enhance"].__dict__
-		elif hasattr(augm_fn, "method"):
-			dic = augm_fn.__dict__
-			dic["method"] = str(dic["method"])
+				sub_augms.append(transform_dic)
+			content = {"transforms": sub_augms}
+		elif isinstance(augm_fn, RandAugment):
+			sub_augms = []
+			for transform in augm_fn.augments_list:
+				transform_dic = augm_fn_to_dict(transform)
+				sub_augms.append(transform_dic)
+			content = {"augments_list": sub_augms}
 		else:
-			dic = augm_fn.__dict__
+			content = {}
 
-	return {name: dic}
+	return {name: content}
+
+
+def save_augms(filepath: str, augm_weak_fn: Callable, augm_strong_fn: Callable, augm_fn: Callable):
+	content = {
+		"augm_weak_fn": augm_fn_to_dict(augm_weak_fn),
+		"augm_strong_fn": augm_fn_to_dict(augm_strong_fn),
+		"augm_fn": augm_fn_to_dict(augm_fn),
+	}
+	with open(filepath, "w") as file:
+		json.dump(content, file, indent="\t")
+	print("Augments names saved in file \"%s\"." % filepath)

@@ -62,8 +62,7 @@ from dcase2020_task4.util.sharpen import Sharpen
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int, str_to_optional_int
 from dcase2020_task4.util.uniloss import UniLoss
 from dcase2020_task4.util.utils_match import cross_entropy, nums_to_smooth_onehot
-from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, \
-	optim_factory, sched_factory, post_process_args, check_args, get_hparams_ordered, save_args
+from dcase2020_task4.util.utils_standalone import *
 
 from dcase2020_task4.learner import Learner
 from dcase2020_task4.validator import ValidatorTag
@@ -237,11 +236,13 @@ def main():
 
 	def run(fold_val_ubs8k: int):
 		if args.dataset_name.lower() == "cifar10":
+			augm_weak_fn, augm_strong_fn, augm_fn = get_cifar10_augms(args)
 			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = \
-				get_cifar10_datasets(args)
+				get_cifar10_datasets(args, augm_weak_fn, augm_strong_fn, augm_fn)
 		elif args.dataset_name.lower() == "ubs8k":
+			augm_weak_fn, augm_strong_fn, augm_fn = get_ubs8k_augms(args)
 			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = \
-				get_ubs8k_datasets(args, fold_val_ubs8k)
+				get_ubs8k_datasets(args, fold_val_ubs8k, augm_weak_fn, augm_strong_fn, augm_fn)
 		else:
 			raise RuntimeError("Unknown dataset %s" % args.dataset_name)
 
@@ -475,8 +476,13 @@ def main():
 
 		if writer is not None:
 			save_writer(writer, args)
+
 			filepath = osp.join(writer.log_dir, "args.json")
 			save_args(filepath, args)
+
+			filepath = osp.join(writer.log_dir, "augments.json")
+			save_augms(filepath, augm_weak_fn, augm_strong_fn, augm_fn)
+
 		validator.get_metrics_recorder().print_min_max()
 
 		_, maxs = validator.get_metrics_recorder().get_mins_maxs()
@@ -516,27 +522,6 @@ def get_cifar10_augms(args: Namespace) -> (Callable, Callable, Callable):
 	return augm_weak_fn, augm_strong_fn, augm_fn
 
 
-def get_cifar10_datasets(args: Namespace) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
-	augm_weak_fn, augm_strong_fn, augm_fn = get_cifar10_augms(args)
-
-	# Add preprocessing before each augmentation (shape : [32, 32, 3])
-	pre_process_fn = lambda img: np.array(img)
-	post_process_fn = lambda img: img.transpose()
-
-	# Prepare data
-	dataset_train = CIFAR10(args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, post_process_fn]))
-	dataset_val = CIFAR10(args.dataset_path, train=False, download=True, transform=Compose([pre_process_fn, post_process_fn]))
-
-	dataset_train_augm_weak = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_weak_fn, post_process_fn]))
-	dataset_train_augm_strong = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_strong_fn, post_process_fn]))
-	dataset_train_augm = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_fn, post_process_fn]))
-
-	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
-
-
 def get_ubs8k_augms(args: Namespace) -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	augm_weak_fn = RandomChoice([
@@ -559,8 +544,26 @@ def get_ubs8k_augms(args: Namespace) -> (Callable, Callable, Callable):
 	return augm_weak_fn, augm_strong_fn, augm_fn
 
 
-def get_ubs8k_datasets(args: Namespace, fold_val: int) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
-	augm_weak_fn, augm_strong_fn, augm_fn = get_ubs8k_augms(args)
+def get_cifar10_datasets(args: Namespace, augm_weak_fn: Callable, augm_strong_fn: Callable, augm_fn: Callable) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
+	# Add preprocessing before each augmentation (shape : [32, 32, 3])
+	pre_process_fn = lambda img: np.array(img)
+	post_process_fn = lambda img: img.transpose()
+
+	# Prepare data
+	dataset_train = CIFAR10(args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, post_process_fn]))
+	dataset_val = CIFAR10(args.dataset_path, train=False, download=True, transform=Compose([pre_process_fn, post_process_fn]))
+
+	dataset_train_augm_weak = CIFAR10(
+		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_weak_fn, post_process_fn]))
+	dataset_train_augm_strong = CIFAR10(
+		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_strong_fn, post_process_fn]))
+	dataset_train_augm = CIFAR10(
+		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_fn, post_process_fn]))
+
+	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
+
+
+def get_ubs8k_datasets(args: Namespace, fold_val: int, augm_weak_fn: Callable, augm_strong_fn: Callable, augm_fn: Callable) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
 	metadata_root = osp.join(args.dataset_path, "metadata")
 	audio_root = osp.join(args.dataset_path, "audio")
 
