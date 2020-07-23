@@ -184,7 +184,7 @@ def create_args() -> Namespace:
 						help="Nb augmentations composed for RandAugment. ")
 
 	parser.add_argument("--experimental", type=str_to_optional_str, default=None,
-						choices=[None, "V3", "V8"])
+						choices=[None, "V3", "V8", "V11"])
 
 	parser.add_argument("--label_smooth", type=float, default=0.0,
 						help="Label smoothing value for supervised trainings. Use 0.0 for not using label smoothing.")
