@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 def create_args() -> Namespace:
 	parser = ArgumentParser()
 	# results_augm_ubs8k, results_augm_cifar10
-	parser.add_argument("--filepath", type=str, default="../labbeti_osirim/results_augm_cifar10.json")
+	parser.add_argument("--filepath", type=str, default="../labbeti_osirim/results_augm_ubs8k.json")
 	return parser.parse_args()
 
 

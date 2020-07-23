@@ -85,7 +85,7 @@ def main():
 	if args.dataset_name == "UBS8K":
 		augms_data = [
 			(Identity, dict()),
-			(Noise, dict(ratio=ratio, target_snr=15.0)),
+			(Noise, dict(ratio=ratio, target_snr=15)),
 			(InversionSpec, dict(ratio=ratio)),
 			(Noise2, dict(ratio=ratio, noise_factor=(10.0, 10.0))),
 			(NoiseSpec, dict(ratio=ratio, snr=15.0)),

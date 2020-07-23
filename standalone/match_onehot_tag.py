@@ -21,8 +21,9 @@ from torchvision.transforms import RandomChoice, Compose
 from typing import Callable
 
 from augmentation_utils.img_augmentations import Transform
-from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2
-from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, Noise, RandomTimeDropout, RandomFreqDropout
+from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2, Noise
+from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, RandomTimeDropout, RandomFreqDropout
+from augmentation_utils.spec_augmentations import Noise as NoiseSpec
 
 from dcase2020.util.utils import get_datetime, reset_seed
 
@@ -529,16 +530,17 @@ def get_ubs8k_augms(args: Namespace) -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
 	augm_weak_fn = RandomChoice([
 		HorizontalFlip(args.ratio_augm_weak),
+		Occlusion(args.ratio_augm_strong, max_size=1.0),
 	])
 	augm_strong_fn = RandomChoice([
 		TimeStretch(args.ratio_augm_weak),
 		PitchShiftRandom(args.ratio_augm_weak, steps=(-1, 1)),
-		Noise(ratio=args.ratio_augm_weak, snr=5.0),
-		Noise2(args.ratio_augm_weak, noise_factor=(5.0, 5.0)),
-		Occlusion(args.ratio_augm_strong, max_size=1.0),
+		Noise(ratio=args.ratio_augm_weak, target_snr=15),
 		RandomFreqDropout(args.ratio_augm_strong, dropout=0.1),
 		RandomTimeDropout(args.ratio_augm_strong, dropout=0.5),
 		CutOutSpec(args.ratio_augm_strong),
+		# NoiseSpec(ratio=args.ratio_augm_weak, snr=5.0),
+		# Noise2(args.ratio_augm_weak, noise_factor=(5.0, 5.0)),
 	])
 
 	augm_fn = augm_weak_fn
