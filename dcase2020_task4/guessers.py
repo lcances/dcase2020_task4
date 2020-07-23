@@ -138,8 +138,8 @@ class GuesserMeanModel(GuesserModelABC):
 			logits = self.model(batches[k])
 			preds[k] = self.acti_fn(logits, dim=dim)
 		preds = torch.stack(preds).cuda()
-		self.last_pred = preds
 		label_guessed = preds.mean(dim=0)
+		self.last_pred = label_guessed
 		return label_guessed
 
 	def get_last_pred(self) -> Optional[Tensor]:

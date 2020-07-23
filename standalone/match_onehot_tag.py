@@ -547,9 +547,9 @@ def get_ubs8k_augms(args: Namespace) -> (Callable, Callable, Callable):
 		TimeStretch(args.ratio_augm_weak),
 		PitchShiftRandom(args.ratio_augm_weak, steps=(-1, 1)),
 		Noise(ratio=args.ratio_augm_weak, target_snr=15),
-		RandomFreqDropout(args.ratio_augm_strong, dropout=0.1),
-		RandomTimeDropout(args.ratio_augm_strong, dropout=0.5),
 		CutOutSpec(args.ratio_augm_strong),
+		RandomTimeDropout(args.ratio_augm_strong, dropout=0.01),
+		# RandomFreqDropout(args.ratio_augm_strong, dropout=0.1),
 		# NoiseSpec(ratio=args.ratio_augm_weak, snr=5.0),
 		# Noise2(args.ratio_augm_weak, noise_factor=(5.0, 5.0)),
 	])
