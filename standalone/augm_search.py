@@ -114,6 +114,7 @@ def main():
 		thresholds_range = (0, 256)
 
 		augms_data = [
+			(Identity, dict()),
 			(AutoContrast, dict(ratio=ratio)),
 			(Brightness, dict(ratio=ratio, levels=enhance_range)),
 			(Color, dict(ratio=ratio, levels=enhance_range)),

@@ -1,11 +1,20 @@
 import json
 import numpy as np
+
+from argparse import ArgumentParser, Namespace
 from matplotlib import pyplot as plt
 
 
+def create_args() -> Namespace:
+	parser = ArgumentParser()
+	# results_augm_ubs8k, results_augm_cifar10
+	parser.add_argument("--filepath", type=str, default="../labbeti_osirim/results_augm_cifar10.json")
+	return parser.parse_args()
+
+
 def main():
-	filepath = "../osirim_labbeti/results_augm.json"
-	with open(filepath, "r") as file:
+	args = create_args()
+	with open(args.filepath, "r") as file:
 		data = json.load(file)
 
 	results = data["results"]

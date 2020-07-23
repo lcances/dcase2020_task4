@@ -14,7 +14,7 @@ from torch.nn.functional import one_hot
 from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple, Union
 
 from dcase2020_task4.other_models import cnn03
 from dcase2020_task4.other_models import resnet
@@ -23,6 +23,7 @@ from dcase2020_task4.other_models import vgg
 from dcase2020_task4.other_models import weak_baseline_rot
 from dcase2020_task4.other_models import wide_resnet
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
+from dcase2020_task4.util.other_img_augments import ImgPILAugmentation
 from dcase2020_task4.validator_abc import ValidatorABC
 
 
@@ -257,3 +258,34 @@ def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namesp
 
 def get_to_onehot_label_fn(nb_classes: int) -> Callable:
 	return lambda item: tuple(item[:-1]) + (one_hot(torch.as_tensor(item[-1]), nb_classes).numpy(),)
+
+
+def augm_fn_to_dict(augm_fn: Callable) -> Union[str, dict]:
+	# TODO : rem
+	if inspect.isfunction(augm_fn):
+		name = augm_fn.__name__
+		dic = {}
+	else:
+		name = augm_fn.__class__.__name__
+
+		if name == "RandomChoice" or name == "Compose":
+			transforms_dic = []
+			for transform in augm_fn.transforms:
+				transform_dic = augm_fn_to_dict(transform)
+				transforms_dic.append(transform_dic)
+			dic = {"transforms": transforms_dic}
+		elif name == "RandAugment":
+			dic = augm_fn.__dict__
+			augments_list = dic["augments_list"]
+			for i, sub_augm_fn in enumerate(augments_list):
+				dic["augments_list"][i] = augm_fn_to_dict(sub_augm_fn)
+		elif hasattr(augm_fn, "enhance"):
+			dic = augm_fn.__dict__
+			dic["enhance"] = dic["enhance"].__dict__
+		elif hasattr(augm_fn, "method"):
+			dic = augm_fn.__dict__
+			dic["method"] = str(dic["method"])
+		else:
+			dic = augm_fn.__dict__
+
+	return {name: dic}

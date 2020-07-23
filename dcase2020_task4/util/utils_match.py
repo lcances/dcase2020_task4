@@ -105,3 +105,18 @@ def random_rect(
 	r_right = r_left + r_width
 	r_down = r_top + r_height
 	return r_left, r_right, r_top, r_down
+
+
+def nums_to_smooth_onehot(classes_nums: Tensor, nb_classes: int, smooth: float) -> Tensor:
+	onehots = one_hot(classes_nums, nb_classes)
+	return onehot_to_smooth_onehot(onehots, nb_classes, smooth)
+
+
+def onehot_to_smooth_onehot(onehots: Tensor, nb_classes: int, smooth: float) -> Tensor:
+	classes_smoothed = (-onehots + 1.0) * (smooth * (nb_classes - 1)) + (1.0 - smooth) * onehots
+	return classes_smoothed
+
+
+def multihot_to_smooth_multihot(multihots: Tensor, nb_classes: int, smooth: float) -> Tensor:
+	classes_smoothed = (1.0 - smooth) * multihots
+	return classes_smoothed
