@@ -131,6 +131,9 @@ def main():
 			(Invert, dict(ratio=ratio)),
 			(Rescale, dict(ratio=ratio, scales=(0.5, 2.0))),
 			(Smooth, dict(ratio=ratio)),
+			(HorizontalFlip, dict(ratio=ratio)),
+			(VerticalFlip, dict(ratio=ratio)),
+			(CutOut, dict(ratio=ratio, rect_width_scale_range=(0.1, 0.5), rect_height_scale_range=(0.1, 0.5))),
 		]
 	else:
 		raise RuntimeError("Unknown dataset %s" % args.dataset_name)
