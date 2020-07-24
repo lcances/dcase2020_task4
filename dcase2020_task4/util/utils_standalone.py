@@ -238,7 +238,7 @@ def save_writer(writer: SummaryWriter, args: Namespace):
 
 
 def save_args(filepath: str, args: Namespace):
-	content = args.__dict__
+	content = {"args": args.__dict__}
 	with open(filepath, "w") as file:
 		json.dump(content, file, indent="\t")
 	print("Arguments saved in file \"%s\"." % filepath)
@@ -246,7 +246,11 @@ def save_args(filepath: str, args: Namespace):
 
 def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namespace:
 	with open(filepath, "r") as file:
-		args_file_dict = json.load(file)
+		file_dict = json.load(file)
+		if "args" not in file_dict.keys():
+			raise RuntimeError("Invalid args file or too old args file version.")
+
+		args_file_dict = file_dict["args"]
 
 		if check_keys:
 			differences = set(args_file_dict.keys()).difference(args.__dict__.keys())
