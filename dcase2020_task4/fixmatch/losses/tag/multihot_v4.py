@@ -4,7 +4,7 @@ from torch import Tensor
 from torch.nn import BCELoss
 from typing import Callable, Optional
 
-from dcase2020_task4.util.utils_match import cross_entropy, binarize_onehot_labels
+from dcase2020_task4.util.utils_match import cross_entropy, binarize_pred_to_onehot
 
 
 class FixMatchLossMultiHotV4(Callable):
@@ -54,7 +54,7 @@ class FixMatchLossMultiHotV4(Callable):
 		loss_u *= mask
 		loss_u = loss_u.mean()
 
-		loss_uc = self.criterion_count(u_pred_count_augm_strong, binarize_onehot_labels(u_pred_count_augm_weak))
+		loss_uc = self.criterion_count(u_pred_count_augm_strong, binarize_pred_to_onehot(u_pred_count_augm_weak))
 		loss_uc *= mask
 		loss_uc = loss_uc.mean()
 

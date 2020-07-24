@@ -13,6 +13,9 @@ class SelfSupervisedABC(ABC):
 	def create_batch_label(self, batch: Tensor) -> (Tensor, Tensor):
 		raise NotImplementedError("Abstract method")
 
+	def get_nb_classes(self) -> int:
+		raise NotImplementedError("Abstract method")
+
 
 class SelfSupervisedRotation(SelfSupervisedABC):
 	def __init__(self):
@@ -32,22 +35,25 @@ class SelfSupervisedRotation(SelfSupervisedABC):
 
 		return batch_rotated, labels
 
+	def get_nb_classes(self) -> int:
+		return len(self.angles)
+
 
 class SelfSupervisedFlips(SelfSupervisedABC):
 	def __init__(self):
-		self.flip_fn = lambda x, idx: {
-			0: x,
-			1: HorizontalFlip(1.0)(x),
-			2: VerticalFlip(1.0)(x),
-			3: HorizontalFlip(1.0)(VerticalFlip(1.0)(x)),
-		}[idx]
+		self.transforms = [
+			lambda x: x,
+			lambda x: HorizontalFlip(1.0)(x),
+			lambda x: VerticalFlip(1.0)(x),
+			lambda x: HorizontalFlip(1.0)(VerticalFlip(1.0)(x)),
+		]
 
 	def create_batch_label(self, batch: Tensor) -> (Tensor, Tensor):
-		labels = np.random.randint(0, 4, len(batch))
+		labels = np.random.randint(0, self.get_nb_classes(), len(batch))
 
 		batch = batch.cpu().numpy()
 		batch_flipped = torch.as_tensor([
-			self.flip_fn(x, idx) for x, idx in zip(batch, labels)
+			self.transforms[idx](x) for x, idx in zip(batch, labels)
 		]).cuda()
 
 		labels = torch.from_numpy(labels)
@@ -55,15 +61,8 @@ class SelfSupervisedFlips(SelfSupervisedABC):
 
 		return batch_flipped, labels
 
-
-def apply_random_rotation(batch: Tensor, angles_allowed) -> (Tensor, Tensor):
-	# TODO : rem
-	indexes = np.random.randint(0, len(angles_allowed), len(batch))
-	angles = angles_allowed[indexes]
-	res = torch.stack([
-		Transform(1.0, rotation=(ang, ang))(x) for x, ang in zip(batch, angles)
-	]).cuda()
-	return res, torch.from_numpy(indexes)
+	def get_nb_classes(self) -> int:
+		return len(self.transforms)
 
 
 def test():

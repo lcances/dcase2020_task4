@@ -9,16 +9,13 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
-import os.path as osp
 import torch
 
-from argparse import ArgumentParser, Namespace
+from argparse import ArgumentParser
 from time import time
-from torch.nn.functional import one_hot
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose
-from typing import Callable
 
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2, Noise
@@ -53,15 +50,17 @@ from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_id
 from dcase2020_task4.util.fn_dataset import FnDataset
 from dcase2020_task4.util.multiple_dataset import MultipleDataset
 from dcase2020_task4.util.no_label_dataset import NoLabelDataset
+from dcase2020_task4.util.onehot_dataset import OneHotDataset
 from dcase2020_task4.util.other_img_augments import *
 from dcase2020_task4.util.other_spec_augments import CutOutSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.rand_augment import RandAugment
 from dcase2020_task4.util.sharpen import Sharpen
+from dcase2020_task4.util.smooth_dataset import SmoothOneHotDataset
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int, str_to_optional_int
 from dcase2020_task4.util.uniloss import UniLoss
-from dcase2020_task4.util.utils_match import cross_entropy, nums_to_smooth_onehot
+from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import *
 
 from dcase2020_task4.learner import Learner
@@ -187,6 +186,8 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--label_smooth", type=float, default=0.0,
 						help="Label smoothing value for supervised trainings. Use 0.0 for not using label smoothing.")
+	parser.add_argument("--nb_classes_self_supervised", type=int, default=4,
+						help="Nb classes in rotation loss (Self-Supervised part) of ReMixMatch.")
 
 	return parser.parse_args()
 
@@ -256,17 +257,18 @@ def main():
 
 		idx_val = list(range(int(len(dataset_val) * args.dataset_ratio)))
 
-		if args.label_smooth == 0.0:
-			to_onehot = lambda label: one_hot(torch.as_tensor(label), args.nb_classes).numpy()
-			convert_label_fn = lambda item: (item[0], to_onehot(item[1]))
-		else:
-			convert_label_fn = lambda item: (item[0], nums_to_smooth_onehot(torch.as_tensor(item[1]), args.nb_classes, args.label_smooth).numpy())
+		dataset_train = OneHotDataset(dataset_train, args.nb_classes)
+		dataset_val = OneHotDataset(dataset_val, args.nb_classes)
+		dataset_train_augm_weak = OneHotDataset(dataset_train_augm_weak, args.nb_classes)
+		dataset_train_augm_strong = OneHotDataset(dataset_train_augm_strong, args.nb_classes)
+		dataset_train_augm = OneHotDataset(dataset_train_augm, args.nb_classes)
 
-		dataset_train = FnDataset(dataset_train, convert_label_fn)
-		dataset_val = FnDataset(dataset_val, convert_label_fn)
-		dataset_train_augm_weak = FnDataset(dataset_train_augm_weak, convert_label_fn)
-		dataset_train_augm_strong = FnDataset(dataset_train_augm_strong, convert_label_fn)
-		dataset_train_augm = FnDataset(dataset_train_augm, convert_label_fn)
+		if args.label_smooth > 0.0:
+			dataset_train = SmoothOneHotDataset(dataset_train, args.nb_classes, args.label_smooth)
+			dataset_val = SmoothOneHotDataset(dataset_val, args.nb_classes, args.label_smooth)
+			dataset_train_augm_weak = SmoothOneHotDataset(dataset_train_augm_weak, args.nb_classes, args.label_smooth)
+			dataset_train_augm_strong = SmoothOneHotDataset(dataset_train_augm_strong, args.nb_classes, args.label_smooth)
+			dataset_train_augm = SmoothOneHotDataset(dataset_train_augm, args.nb_classes, args.label_smooth)
 
 		dataset_val = Subset(dataset_val, idx_val)
 		loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
@@ -276,9 +278,9 @@ def main():
 		args_loader_train_u = dict(
 			batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
-		model = model_factory(args)
-		optim = optim_factory(args, model)
-		sched = sched_factory(args, optim)
+		model = get_model_from_args(args)
+		optim = get_optim_from_args(args, model)
+		sched = get_sched_from_args(args, optim)
 		print("Model selected : %s (%d parameters)." % (args.model, get_nb_parameters(model)))
 
 		if args.write_results:
@@ -404,6 +406,9 @@ def main():
 				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (
 					args.dataset_name, " or ".join(("CIFAR10", "UBS8K"))
 				))
+
+			if ss_transform.get_nb_classes() != args.nb_classes_self_supervised:
+				raise RuntimeError("Invalid self supervised transform.")
 
 			trainer = ReMixMatchTrainer(
 				model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs,

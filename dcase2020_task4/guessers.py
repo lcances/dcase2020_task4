@@ -5,7 +5,7 @@ from torch import Tensor
 from torch.nn import Module
 from typing import Callable, Optional
 
-from dcase2020_task4.util.utils_match import binarize_onehot_labels
+from dcase2020_task4.util.utils_labels import binarize_pred_to_onehot
 
 
 class GuesserABC(ABC, Callable):
@@ -57,7 +57,7 @@ class GuesserCompose(GuesserABC):
 # FixMatch guessers
 class GuesserOneHot(GuesserABC):
 	def __call__(self, pred: Tensor, dim: int) -> Tensor:
-		return binarize_onehot_labels(pred)
+		return binarize_pred_to_onehot(pred)
 
 
 class GuesserThreshold(GuesserABC):

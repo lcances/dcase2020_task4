@@ -165,12 +165,3 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
 		return [self.metrics_s, self.metrics_u, self.metrics_u1, self.metrics_r]
-
-
-def apply_random_rotation(batch: Tensor, angles_allowed) -> (Tensor, Tensor):
-	indexes = np.random.randint(0, len(angles_allowed), len(batch))
-	angles = angles_allowed[indexes]
-	res = torch.stack([
-		Transform(1.0, rotation=(ang, ang))(x) for x, ang in zip(batch, angles)
-	]).cuda()
-	return res, torch.from_numpy(indexes)

@@ -50,8 +50,8 @@ from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import SharpenMulti
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils import reset_seed, get_datetime
-from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, model_factory, \
-	optim_factory, sched_factory, post_process_args, check_args, save_args
+from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, get_model_from_args, \
+	get_optim_from_args, get_sched_from_args, post_process_args, check_args, save_args
 
 from dcase2020_task4.validator_loc import ValidatorLoc
 
@@ -257,9 +257,9 @@ def main():
 	args_loader_train_u = dict(
 		batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
-	model = model_factory(args)
-	optim = optim_factory(args, model)
-	sched = sched_factory(args, optim)
+	model = get_model_from_args(args)
+	optim = get_optim_from_args(args, model)
+	sched = get_sched_from_args(args, optim)
 	print("Model selected : %s (%d parameters)." % (args.model, get_nb_parameters(model)))
 
 	if args.write_results:

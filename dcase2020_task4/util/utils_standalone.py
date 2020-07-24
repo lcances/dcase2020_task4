@@ -6,17 +6,14 @@ import inspect
 import json
 import os.path as osp
 import subprocess
-import torch
 
 from argparse import Namespace
 
 from torch.nn import Module
-from torch.nn.functional import one_hot
 from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
-from torchvision.transforms import Compose, RandomChoice
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Callable, List, Optional, Tuple, Union
 
 from dcase2020_task4.other_models import cnn03
 from dcase2020_task4.other_models import resnet
@@ -25,7 +22,6 @@ from dcase2020_task4.other_models import vgg
 from dcase2020_task4.other_models import weak_baseline_rot
 from dcase2020_task4.other_models import wide_resnet
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
-from dcase2020_task4.util.rand_augment import RandAugment
 
 
 FLOAT_FORMAT = "%.3f"
@@ -65,7 +61,7 @@ def post_process_args(args: Namespace) -> Namespace:
 	if args.nb_rampup_epochs == "nb_epochs":
 		args.nb_rampup_epochs = args.nb_epochs
 
-	args.train_name = run_to_train_name(args.run)
+	args.train_name = get_train_name(args.run)
 	args.git_hash = get_current_git_hash()
 	args.args_file = args_file
 
@@ -81,7 +77,7 @@ def get_current_git_hash() -> str:
 		return "UNKNOWN"
 
 
-def get_model_from_name(model_name: str, case_sensitive: bool = False, modules: list = None):
+def get_model_from_name(model_name: str, case_sensitive: bool = False, modules: list = None) -> Callable:
 	if modules is None:
 		modules = []
 
@@ -98,7 +94,7 @@ def get_model_from_name(model_name: str, case_sensitive: bool = False, modules: 
 	raise AttributeError("This model does not exist: %s " % model_name)
 
 
-def model_factory(args: Namespace, case_sensitive: bool = False, modules: list = None) -> Module:
+def get_model_from_args(args: Namespace, case_sensitive: bool = False, modules: list = None) -> Module:
 	"""
 		Instantiate CUDA model from args. Args must be an Namespace containing the attribute "model".
 		Models available are in files : cnn03, resnet, ubs8k_baseline, vgg, weak_baseline_rot
@@ -114,7 +110,7 @@ def model_factory(args: Namespace, case_sensitive: bool = False, modules: list =
 	return model
 
 
-def optim_factory(args: Namespace, model: Module) -> Optimizer:
+def get_optim_from_args(args: Namespace, model: Module) -> Optimizer:
 	"""
 		Instantiate optimizer from args and model.
 		Args must be an Namespace containing the attributes "optimizer", "lr" and "weight_decay".
@@ -134,7 +130,7 @@ def optim_factory(args: Namespace, model: Module) -> Optimizer:
 	return optim
 
 
-def sched_factory(args: Namespace, optim: Optimizer) -> Optional[object]:
+def get_sched_from_args(args: Namespace, optim: Optimizer) -> Optional[object]:
 	"""
 		Instantiate scheduler from args and optimizer.
 		Args must be an Namespace containing the attributes "scheduler", "nb_epochs" and "lr".
@@ -152,7 +148,7 @@ def sched_factory(args: Namespace, optim: Optimizer) -> Optional[object]:
 	return scheduler
 
 
-def run_to_train_name(run: str) -> str:
+def get_train_name(run: str) -> str:
 	if run in ["fixmatch", "fm"]:
 		return "FixMatch"
 	elif run in ["mixmatch", "mm"]:
@@ -167,22 +163,6 @@ def run_to_train_name(run: str) -> str:
 		return "Supervised"
 	else:
 		return ""
-
-
-def filter_hparams(args: Namespace) -> dict:
-	""" Modify hparams values for storing them in SummaryWriter. """
-	def filter_item(v):
-		if v is None:
-			return str(v)
-		elif isinstance(v, list):
-			return " ".join(v)
-		else:
-			return v
-
-	hparams = args.__dict__
-	for key_, val_ in hparams.items():
-		hparams[key_] = filter_item(val_)
-	return hparams
 
 
 def get_nb_parameters(model: Module) -> int:
@@ -232,7 +212,7 @@ def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> Summ
 
 
 def save_writer(writer: SummaryWriter, args: Namespace):
-	writer.add_hparams(hparam_dict=filter_hparams(args), metric_dict={})
+	writer.add_hparams(hparam_dict=_filter_hparams(args), metric_dict={})
 	writer.close()
 	print("Data will saved in tensorboard writer \"%s\"." % writer.log_dir)
 
@@ -262,33 +242,8 @@ def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namesp
 	return args
 
 
-def get_to_onehot_label_fn(nb_classes: int) -> Callable:
-	return lambda item: tuple(item[:-1]) + (one_hot(torch.as_tensor(item[-1]), nb_classes).numpy(),)
-
-
-def augm_fn_to_dict(augm_fn: Callable) -> dict:
-	if inspect.isfunction(augm_fn):
-		name = augm_fn.__name__
-		content = {}
-	else:
-		name = augm_fn.__class__.__name__
-
-		if isinstance(augm_fn, Compose) or isinstance(augm_fn, RandomChoice):
-			sub_augms = []
-			for transform in augm_fn.transforms:
-				transform_dic = augm_fn_to_dict(transform)
-				sub_augms.append(transform_dic)
-			content = {"transforms": sub_augms}
-		elif isinstance(augm_fn, RandAugment):
-			sub_augms = []
-			for transform in augm_fn.augments_list:
-				transform_dic = augm_fn_to_dict(transform)
-				sub_augms.append(transform_dic)
-			content = {"augments_list": sub_augms}
-		else:
-			content = {}
-
-	return {name: content}
+def augm_fn_to_dict(augm_fn: Callable) -> Union[dict, list]:
+	return to_dict_rec(augm_fn, "__class__")
 
 
 def save_augms(filepath: str, augm_weak_fn: Callable, augm_strong_fn: Callable, augm_fn: Callable):
@@ -300,3 +255,47 @@ def save_augms(filepath: str, augm_weak_fn: Callable, augm_strong_fn: Callable, 
 	with open(filepath, "w") as file:
 		json.dump(content, file, indent="\t")
 	print("Augments names saved in file \"%s\"." % filepath)
+
+
+def to_dict_rec(obj: Any, class_name_key: Optional[str] = None) -> Union[dict, list]:
+	# Code imported from (with small changes) :
+	# https://stackoverflow.com/questions/1036409/recursively-convert-python-object-graph-to-dictionary
+
+	if isinstance(obj, dict):
+		data = {}
+		for key, value in obj.items():
+			data[key] = to_dict_rec(value, class_name_key)
+		return data
+	elif hasattr(obj, "_ast"):
+		return to_dict_rec(obj._ast())
+	elif hasattr(obj, "__iter__") and not isinstance(obj, str):
+		return [to_dict_rec(v, class_name_key) for v in obj]
+	elif hasattr(obj, "__dict__"):
+		data = {}
+		if class_name_key is not None and hasattr(obj, "__class__"):
+			data[class_name_key] = obj.__class__.__name__
+		data.update(dict([
+			(key, to_dict_rec(value, class_name_key))
+			for key, value in obj.__dict__.items()
+			if not callable(value) and not key.startswith('_')
+		]))
+		return data
+	else:
+		return obj
+
+
+def _filter_hparams(args: Namespace) -> dict:
+	""" Modify hparams values for storing them in SummaryWriter. """
+
+	def filter_item(v):
+		if v is None:
+			return str(v)
+		elif isinstance(v, list):
+			return " ".join(v)
+		else:
+			return v
+
+	hparams = args.__dict__
+	for key_, val_ in hparams.items():
+		hparams[key_] = filter_item(val_)
+	return hparams
