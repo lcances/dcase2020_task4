@@ -180,6 +180,11 @@ def main():
 	else:
 		raise RuntimeError("Unknown dataset %s" % args.dataset_name)
 
+	dataset_train = OneHotDataset(dataset_train, args.nb_classes)
+	dataset_val_origin = OneHotDataset(dataset_val_origin, args.nb_classes)
+	for i, _ in enumerate(datasets_val):
+		datasets_val[i] = OneHotDataset(datasets_val[i], args.nb_classes)
+
 	if not osp.isfile(filepath):
 		loader_train = DataLoader(
 			dataset_train, batch_size=args.batch_size_s, shuffle=True, num_workers=args.num_workers_s, drop_last=True)
@@ -250,17 +255,14 @@ def get_cifar10_datasets(
 	# Prepare data
 	dataset_train = CIFAR10(
 		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_train_fn, post_process_fn]))
-	dataset_train = OneHotDataset(dataset_train, args.nb_classes)
 
 	dataset_val_origin = CIFAR10(
 		args.dataset_path, train=False, download=True, transform=Compose([pre_process_fn, post_process_fn]))
-	dataset_val_origin = OneHotDataset(dataset_val_origin, args.nb_classes)
 
 	datasets_val = []
 	for augm_val_fn in augms_val_fn:
 		dataset_val = CIFAR10(
 			args.dataset_path, train=False, download=True, transform=Compose([pre_process_fn, augm_val_fn, post_process_fn]))
-		dataset_val = OneHotDataset(dataset_val, args.nb_classes)
 		datasets_val.append(dataset_val)
 
 	return dataset_train, dataset_val_origin, datasets_val
@@ -280,15 +282,11 @@ def get_ubs8k_datasets(
 	manager = UBS8KDatasetManager(metadata_root, audio_root)
 
 	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
-	dataset_train = OneHotDataset(dataset_train, args.nb_classes)
-
 	dataset_val_origin = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
-	dataset_val_origin = OneHotDataset(dataset_val_origin, args.nb_classes)
 
 	datasets_val = []
 	for augm_val_fn in augms_val_fn:
 		dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(augm_val_fn,), cached=False)
-		dataset_val = OneHotDataset(dataset_val, args.nb_classes)
 		datasets_val.append(dataset_val)
 
 	return dataset_train, dataset_val_origin, datasets_val

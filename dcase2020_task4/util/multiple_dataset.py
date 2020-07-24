@@ -4,7 +4,9 @@ from typing import List
 
 
 class MultipleDataset(Dataset):
-	""" Concatenate items of datasets of the same size. """
+	"""
+		Concatenate items of datasets of the same size.
+	"""
 	def __init__(self, datasets: List[Dataset]):
 		super(MultipleDataset, self).__init__()
 		self.datasets = datasets
