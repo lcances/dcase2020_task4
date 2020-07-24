@@ -19,6 +19,7 @@ from dcase2020.util.utils import get_datetime, reset_seed
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.validator import ValidatorTag
 from dcase2020_task4.util.checkpoint import CheckPoint
+from dcase2020_task4.util.fn_dataset import FnDataset
 from dcase2020_task4.util.onehot_dataset import OneHotDataset
 from dcase2020_task4.util.other_img_augments import *
 from dcase2020_task4.util.other_spec_augments import CutOutSpec, InversionSpec
@@ -286,12 +287,18 @@ def get_ubs8k_datasets(
 
 	manager = UBS8KDatasetManager(metadata_root, audio_root)
 
-	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(Compose([augm_train_fn]),), cached=False)
+	to_tensor = lambda item: (torch.from_numpy(item[0]), torch.from_numpy(item[1]))
+
+	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
+	dataset_train = FnDataset(dataset_train, to_tensor)
+
 	dataset_val_origin = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
+	dataset_val_origin = FnDataset(dataset_val_origin, to_tensor)
 
 	datasets_val = []
 	for augm_val_fn in augms_val_fn:
-		dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(Compose([augm_val_fn]),), cached=False)
+		dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(augm_val_fn,), cached=False)
+		dataset_val = FnDataset(dataset_val, to_tensor)
 		datasets_val.append(dataset_val)
 
 	return dataset_train, dataset_val_origin, datasets_val

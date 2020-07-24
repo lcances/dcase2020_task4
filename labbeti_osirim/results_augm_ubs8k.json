@@ -2,32 +2,36 @@
 	"results": {
 		"Identity_": {
 			"Identity_": 0.828125,
-			"Noise_ratio_1.0_target_snr_15": 0.6658653846153846,
-			"Noise_ratio_1.0_target_snr_20": 0.703125,
-			"InversionSpec_ratio_1.0": 0.17668269230769232,
-			"Noise2_noise_factor__op_10.0_c__10.0_cp__ratio_1.0": 0.1201923076923077,
-			"Noise2_noise_factor__op_5.0_c__5.0_cp__ratio_1.0": 0.1201923076923077,
-			"Noise2_noise_factor__op_2.0_c__2.0_cp__ratio_1.0": 0.1201923076923077,
-			"NoiseSpec_ratio_1.0_snr_15.0": 0.4651442307692308,
-			"Occlusion_max_size_1.0_ratio_1.0": 0.8052884615384616,
-			"PitchShiftRandom_ratio_1.0_steps__op_-1_c__1_cp_": 0.7247596153846154,
-			"CutOutSpec_fill_value_-80_ratio_1.0_rect_height_scale_range__op_0.1_c__0.5_cp__rect_width_scale_range__op_0.1_c__0.5_cp_": 0.6394230769230769,
-			"CutOutSpec_fill_value_-80_ratio_1.0_rect_height_scale_range__op_0.1_c__0.25_cp__rect_width_scale_range__op_0.1_c__0.25_cp_": 0.7451923076923077,
-			"RandomTimeDropout_dropout_0.5_ratio_1.0": 0.17307692307692307,
-			"RandomTimeDropout_dropout_0.1_ratio_1.0": 0.28966346153846156,
-			"RandomTimeDropout_dropout_0.01_ratio_1.0": 0.7644230769230769,
-			"RandomFreqDropout_dropout_0.5_ratio_1.0": 0.10336538461538461,
-			"RandomFreqDropout_dropout_0.1_ratio_1.0": 0.17307692307692307,
-			"RandomFreqDropout_dropout_0.01_ratio_1.0": 0.609375,
-			"TimeStretch_ratio_1.0": 0.7716346153846154,
-			"Transform_ratio_1.0_scale__op_0.9_c__1.1_cp_": 0.828125,
-			"Transform_ratio_1.0_translation__op_-10_c__10_cp_": 0.828125,
-			"Transform_ratio_1.0_scale__op_0.5_c__1.5_cp_": 0.828125,
-			"Transform_ratio_1.0_translation__op_-100_c__100_cp_": 0.828125
+			"HorizontalFlip_ratio_1.0": 0.828125,
+			"VerticalFlip_ratio_1.0": 0.828125,
+			"Noise_ratio_1.0_target_snr_15": 0.828125,
+			"Noise_ratio_1.0_target_snr_20": 0.828125,
+			"InversionSpec_ratio_1.0": 0.828125,
+			"Noise2_noise_factor__op_1.0_c__1.0_cp__ratio_1.0": 0.828125,
+			"Noise2_noise_factor__op_0.5_c__0.5_cp__ratio_1.0": 0.828125,
+			"Noise2_noise_factor__op_0.1_c__0.1_cp__ratio_1.0": 0.828125,
+			"NoiseSpec_ratio_1.0_snr_15.0": 0.828125,
+			"NoiseSpec_ratio_1.0_snr_20.0": 0.828125,
+			"Occlusion_max_size_1.0_ratio_1.0": 0.828125,
+			"PitchShiftRandom_ratio_1.0_steps__op_-1_c__1_cp_": 0.828125,
+			"PitchShiftRandom_ratio_1.0_steps__op_-3_c__3_cp_": 0.828125,
+			"CutOutSpec_fill_value_-80_ratio_1.0_rect_height_scale_range__op_0.1_c__0.5_cp__rect_width_scale_range__op_0.1_c__0.5_cp_": 0.828125,
+			"CutOutSpec_fill_value_-80_ratio_1.0_rect_height_scale_range__op_0.1_c__0.25_cp__rect_width_scale_range__op_0.1_c__0.25_cp_": 0.828125,
+			"RandomTimeDropout_dropout_0.5_ratio_1.0": 0.828125,
+			"RandomTimeDropout_dropout_0.01_ratio_1.0": 0.828125,
+			"RandomFreqDropout_dropout_0.5_ratio_1.0": 0.828125,
+			"RandomFreqDropout_dropout_0.01_ratio_1.0": 0.828125,
+			"TimeStretch_ratio_1.0": 0.828125
 		}
 	},
 	"augments": {
 		"Identity_": {},
+		"HorizontalFlip_ratio_1.0": {
+			"ratio": 1.0
+		},
+		"VerticalFlip_ratio_1.0": {
+			"ratio": 1.0
+		},
 		"Noise_ratio_1.0_target_snr_15": {
 			"ratio": 1.0,
 			"target_snr": 15
@@ -39,30 +43,34 @@
 		"InversionSpec_ratio_1.0": {
 			"ratio": 1.0
 		},
-		"Noise2_noise_factor__op_10.0_c__10.0_cp__ratio_1.0": {
+		"Noise2_noise_factor__op_1.0_c__1.0_cp__ratio_1.0": {
 			"ratio": 1.0,
 			"noise_factor": [
-				10.0,
-				10.0
+				1.0,
+				1.0
 			]
 		},
-		"Noise2_noise_factor__op_5.0_c__5.0_cp__ratio_1.0": {
+		"Noise2_noise_factor__op_0.5_c__0.5_cp__ratio_1.0": {
 			"ratio": 1.0,
 			"noise_factor": [
-				5.0,
-				5.0
+				0.5,
+				0.5
 			]
 		},
-		"Noise2_noise_factor__op_2.0_c__2.0_cp__ratio_1.0": {
+		"Noise2_noise_factor__op_0.1_c__0.1_cp__ratio_1.0": {
 			"ratio": 1.0,
 			"noise_factor": [
-				2.0,
-				2.0
+				0.1,
+				0.1
 			]
 		},
 		"NoiseSpec_ratio_1.0_snr_15.0": {
 			"ratio": 1.0,
 			"snr": 15.0
+		},
+		"NoiseSpec_ratio_1.0_snr_20.0": {
+			"ratio": 1.0,
+			"snr": 20.0
 		},
 		"Occlusion_max_size_1.0_ratio_1.0": {
 			"ratio": 1.0,
@@ -73,6 +81,13 @@
 			"steps": [
 				-1,
 				1
+			]
+		},
+		"PitchShiftRandom_ratio_1.0_steps__op_-3_c__3_cp_": {
+			"ratio": 1.0,
+			"steps": [
+				-3,
+				3
 			]
 		},
 		"CutOutSpec_fill_value_-80_ratio_1.0_rect_height_scale_range__op_0.1_c__0.5_cp__rect_width_scale_range__op_0.1_c__0.5_cp_": {
@@ -103,10 +118,6 @@
 			"ratio": 1.0,
 			"dropout": 0.5
 		},
-		"RandomTimeDropout_dropout_0.1_ratio_1.0": {
-			"ratio": 1.0,
-			"dropout": 0.1
-		},
 		"RandomTimeDropout_dropout_0.01_ratio_1.0": {
 			"ratio": 1.0,
 			"dropout": 0.01
@@ -115,49 +126,11 @@
 			"ratio": 1.0,
 			"dropout": 0.5
 		},
-		"RandomFreqDropout_dropout_0.1_ratio_1.0": {
-			"ratio": 1.0,
-			"dropout": 0.1
-		},
 		"RandomFreqDropout_dropout_0.01_ratio_1.0": {
 			"ratio": 1.0,
 			"dropout": 0.01
 		},
 		"TimeStretch_ratio_1.0": {
-			"ratio": 1.0
-		},
-		"Transform_ratio_1.0_scale__op_0.9_c__1.1_cp_": {
-			"ratio": 1.0,
-			"scale": [
-				0.9,
-				1.1
-			]
-		},
-		"Transform_ratio_1.0_translation__op_-10_c__10_cp_": {
-			"ratio": 1.0,
-			"translation": [
-				-10,
-				10
-			]
-		},
-		"Transform_ratio_1.0_scale__op_0.5_c__1.5_cp_": {
-			"ratio": 1.0,
-			"scale": [
-				0.5,
-				1.5
-			]
-		},
-		"Transform_ratio_1.0_translation__op_-100_c__100_cp_": {
-			"ratio": 1.0,
-			"translation": [
-				-100,
-				100
-			]
-		},
-		"HorizontalFlip_ratio_1.0": {
-			"ratio": 1.0
-		},
-		"VerticalFlip_ratio_1.0": {
 			"ratio": 1.0
 		}
 	},
@@ -174,7 +147,7 @@
 		"confidence": 0.5,
 		"model": "CNN03Rot",
 		"optimizer": "Adam",
-		"scheduler": null,
+		"scheduler": "None",
 		"lr": 0.001,
 		"weight_decay": 0.0,
 		"fold_val": 10
