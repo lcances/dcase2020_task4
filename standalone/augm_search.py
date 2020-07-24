@@ -287,7 +287,7 @@ def get_ubs8k_datasets(
 
 	manager = UBS8KDatasetManager(metadata_root, audio_root)
 
-	to_tensor = lambda item: (torch.from_numpy(item[0]), torch.from_numpy(item[1]))
+	to_tensor = lambda item: (torch.as_tensor(item[0].tolist()), torch.as_tensor(item[1]))
 
 	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
 	dataset_train = FnDataset(dataset_train, to_tensor)
