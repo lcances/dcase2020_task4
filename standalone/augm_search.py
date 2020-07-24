@@ -1,5 +1,4 @@
 import json
-import numpy as np
 import os
 import os.path as osp
 import torch
@@ -20,12 +19,12 @@ from dcase2020.util.utils import get_datetime, reset_seed
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.validator import ValidatorTag
 from dcase2020_task4.util.checkpoint import CheckPoint
-from dcase2020_task4.util.fn_dataset import FnDataset
+from dcase2020_task4.util.onehot_dataset import OneHotDataset
 from dcase2020_task4.util.other_img_augments import *
 from dcase2020_task4.util.other_spec_augments import CutOutSpec, InversionSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.utils_match import cross_entropy
-from dcase2020_task4.util.utils_standalone import get_model_from_args, get_optim_from_args, get_sched_from_args, get_to_onehot_label_fn
+from dcase2020_task4.util.utils_standalone import get_model_from_args, get_optim_from_args, get_sched_from_args
 from dcase2020_task4.learner import Learner
 
 from ubs8k.datasets import Dataset as UBS8KDataset
@@ -248,22 +247,20 @@ def get_cifar10_datasets(
 	pre_process_fn = lambda img: np.array(img)
 	post_process_fn = lambda img: img.transpose()
 
-	label_onehot = get_to_onehot_label_fn(args.nb_classes)
-
 	# Prepare data
 	dataset_train = CIFAR10(
 		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_train_fn, post_process_fn]))
-	dataset_train = FnDataset(dataset_train, label_onehot)
+	dataset_train = OneHotDataset(dataset_train, args.nb_classes)
 
 	dataset_val_origin = CIFAR10(
 		args.dataset_path, train=False, download=True, transform=Compose([pre_process_fn, post_process_fn]))
-	dataset_val_origin = FnDataset(dataset_val_origin, label_onehot)
+	dataset_val_origin = OneHotDataset(dataset_val_origin, args.nb_classes)
 
 	datasets_val = []
 	for augm_val_fn in augms_val_fn:
 		dataset_val = CIFAR10(
 			args.dataset_path, train=False, download=True, transform=Compose([pre_process_fn, augm_val_fn, post_process_fn]))
-		dataset_val = FnDataset(dataset_val, label_onehot)
+		dataset_val = OneHotDataset(dataset_val, args.nb_classes)
 		datasets_val.append(dataset_val)
 
 	return dataset_train, dataset_val_origin, datasets_val
@@ -280,19 +277,18 @@ def get_ubs8k_datasets(
 	folds_train = tuple(folds_train)
 	folds_val = (args.fold_val,)
 
-	label_onehot = get_to_onehot_label_fn(args.nb_classes)
 	manager = UBS8KDatasetManager(metadata_root, audio_root)
 
 	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
-	dataset_train = FnDataset(dataset_train, label_onehot)
+	dataset_train = OneHotDataset(dataset_train, args.nb_classes)
 
 	dataset_val_origin = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
-	dataset_val_origin = FnDataset(dataset_val_origin, label_onehot)
+	dataset_val_origin = OneHotDataset(dataset_val_origin, args.nb_classes)
 
 	datasets_val = []
 	for augm_val_fn in augms_val_fn:
 		dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(augm_val_fn,), cached=False)
-		dataset_val = FnDataset(dataset_val, label_onehot)
+		dataset_val = OneHotDataset(dataset_val, args.nb_classes)
 		datasets_val.append(dataset_val)
 
 	return dataset_train, dataset_val_origin, datasets_val
