@@ -35,14 +35,14 @@ def test():
 		# Noise2(ratio, noise_factor=(10.0, 10.0)),
 		# Noise2(ratio, noise_factor=(5.0, 5.0)),
 		# Occlusion(ratio, max_size=1.0),
-		# RandomFreqDropout(ratio, dropout=0.25),
+		RandomFreqDropout(ratio, dropout=0.01),
 		# RandomTimeDropout(ratio, dropout=0.25),
 		# RandCropSpec(ratio, fill_value=-80),
 		# VerticalFlip(ratio),
 		# Compose([HorizontalFlip(ratio), VerticalFlip(ratio)]),
 		HorizontalFlip(ratio),
-		CutOutSpec(ratio),
-		InversionSpec(ratio),
+		# CutOutSpec(ratio),
+		# InversionSpec(ratio),
 	]
 	print(spec.shape)
 

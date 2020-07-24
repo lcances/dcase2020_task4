@@ -25,31 +25,36 @@ def main():
 
 	positions = np.arange(len(main_results))
 	values = list(main_results.values())
-	labels = [k.split("_")[0] for k in main_results.keys()]
 
-	labels = [("\n" * (i % 3)) + label for i, label in enumerate(labels)]
+	nb_labels_lines = 5
+	kwargs = {full_name: ",".join([str(v) for v in params.values()]) for full_name, params in augments.items()}
+	labels = [full_name.split("_")[0] + "\n(" + kwargs[full_name] + ")" for full_name in main_results.keys()]
+	labels = [label for i, label in enumerate(labels)]
 
 	augms_str = ["{} : {}".format(name, str(kwargs)) for name, kwargs in augments.items()]
 	print("Augmentations : ", "\n".join(augms_str), "\n")
 	print("Values : ", values)
 
 	fig, ax = plt.subplots()
-	rects = ax.bar(positions, values, label="Identity")
+	rects = ax.barh(positions, values, label="Identity")
 
-	ax.set_ylabel("Categorical Accuracy")
 	ax.set_title("Validation accuracies")
-	ax.set_xticks(positions)
-	ax.set_xticklabels(labels)
+	ax.set_xlabel("Categorical Accuracy")
+	ax.set_yticks(positions)
+	ax.set_yticklabels(labels)
 	ax.legend()
 
 	# Set values above bars
 	for rect in rects:
-		bar_height = rect.get_height()
-		ax.annotate('{:.2f}'.format(bar_height),
-					xy=(rect.get_x() + rect.get_width() / 2, bar_height),
-					xytext=(0, 3),  # 3 points vertical offset
-					textcoords="offset points",
-					ha='center', va='bottom')
+		value = rect.get_width()
+		ax.annotate(
+			"{:.3f}".format(value),
+			xy=(rect.get_width(), rect.get_y() + rect.get_height() / 4),
+			xytext=(15, 0),  # horizontal offset
+			textcoords="offset points",
+			ha="center",
+			va="bottom"
+		)
 
 	plt.show()
 

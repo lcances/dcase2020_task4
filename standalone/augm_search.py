@@ -87,28 +87,30 @@ def main():
 			(Noise, dict(ratio=ratio, target_snr=15)),
 			(Noise, dict(ratio=ratio, target_snr=20)),
 			(InversionSpec, dict(ratio=ratio)),
-			(Noise2, dict(ratio=ratio, noise_factor=(10.0, 10.0))),
-			(Noise2, dict(ratio=ratio, noise_factor=(5.0, 5.0))),
-			(Noise2, dict(ratio=ratio, noise_factor=(2.0, 2.0))),
+			(Noise2, dict(ratio=ratio, noise_factor=(1.0, 1.0))),
+			(Noise2, dict(ratio=ratio, noise_factor=(0.5, 0.5))),
+			(Noise2, dict(ratio=ratio, noise_factor=(0.1, 0.1))),
 			(NoiseSpec, dict(ratio=ratio, snr=15.0)),
+			(NoiseSpec, dict(ratio=ratio, snr=20.0)),
 			(Occlusion, dict(ratio=ratio, max_size=1.0)),
 			(PitchShiftRandom, dict(ratio=ratio, steps=(-1, 1))),
+			(PitchShiftRandom, dict(ratio=ratio, steps=(-3, 3))),
 			(CutOutSpec, dict(ratio=ratio, fill_value=-80, rect_width_scale_range=(0.1, 0.5), rect_height_scale_range=(0.1, 0.5))),
 			(CutOutSpec, dict(ratio=ratio, fill_value=-80, rect_width_scale_range=(0.1, 0.25), rect_height_scale_range=(0.1, 0.25))),
 			(RandomTimeDropout, dict(ratio=ratio, dropout=0.5)),
-			(RandomTimeDropout, dict(ratio=ratio, dropout=0.1)),
 			(RandomTimeDropout, dict(ratio=ratio, dropout=0.01)),
 			(RandomFreqDropout, dict(ratio=ratio, dropout=0.5)),
-			(RandomFreqDropout, dict(ratio=ratio, dropout=0.1)),
 			(RandomFreqDropout, dict(ratio=ratio, dropout=0.01)),
 			(TimeStretch, dict(ratio=ratio)),
+			(HorizontalFlip, dict(ratio=ratio)),
+			(VerticalFlip, dict(ratio=ratio)),
+		]
+		"""
 			(Transform, dict(ratio=ratio, scale=(0.9, 1.1))),
 			(Transform, dict(ratio=ratio, translation=(-10, 10))),
 			(Transform, dict(ratio=ratio, scale=(0.5, 1.5))),
 			(Transform, dict(ratio=ratio, translation=(-100, 100))),
-			(HorizontalFlip, dict(ratio=ratio)),
-			(VerticalFlip, dict(ratio=ratio)),
-		]
+		"""
 	elif args.dataset_name == "CIFAR10":
 		ratio = 1.0
 
