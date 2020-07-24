@@ -5,6 +5,7 @@
 import inspect
 import json
 import os.path as osp
+import subprocess
 import torch
 
 from argparse import Namespace
@@ -54,13 +55,30 @@ def check_args(args: Namespace):
 
 
 def post_process_args(args: Namespace) -> Namespace:
+	args.train_name = None
+	args.git_hash = None
+	args_file = args.args_file
+
 	if args.args_file is not None:
 		args = load_args(args.args_file, args)
 
 	if args.nb_rampup_epochs == "nb_epochs":
 		args.nb_rampup_epochs = args.nb_epochs
+
 	args.train_name = run_to_train_name(args.run)
+	args.git_hash = get_current_git_hash()
+	args.args_file = args_file
+
 	return args
+
+
+def get_current_git_hash() -> str:
+	try:
+		git_hash = subprocess.check_output(["git", "describe", "--always"])
+		git_hash = git_hash.decode("UTF-8").replace("\n", "")
+		return git_hash
+	except subprocess.CalledProcessError:
+		return "UNKNOWN"
 
 
 def get_model_from_name(model_name: str, case_sensitive: bool = False, modules: list = None):
@@ -228,14 +246,14 @@ def save_args(filepath: str, args: Namespace):
 
 def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namespace:
 	with open(filepath, "r") as file:
-		args_dict = json.load(file)
+		args_file_dict = json.load(file)
 
 		if check_keys:
-			differences = set(args_dict.keys()).difference(args.__dict__.keys())
+			differences = set(args_file_dict.keys()).difference(args.__dict__.keys())
 			if len(differences) > 0:
 				raise RuntimeError("Found unknown(s) key(s) in JSON file : \"%s\"." % ", ".join(differences))
 
-		args.__dict__.update(args_dict)
+		args.__dict__.update(args_file_dict)
 
 	return args
 
