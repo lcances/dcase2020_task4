@@ -84,6 +84,8 @@ def main():
 	if args.dataset_name == "UBS8K":
 		augms_data = [
 			(Identity, dict()),
+			(HorizontalFlip, dict(ratio=ratio)),
+			(VerticalFlip, dict(ratio=ratio)),
 			(Noise, dict(ratio=ratio, target_snr=15)),
 			(Noise, dict(ratio=ratio, target_snr=20)),
 			(InversionSpec, dict(ratio=ratio)),
@@ -102,8 +104,6 @@ def main():
 			(RandomFreqDropout, dict(ratio=ratio, dropout=0.5)),
 			(RandomFreqDropout, dict(ratio=ratio, dropout=0.01)),
 			(TimeStretch, dict(ratio=ratio)),
-			(HorizontalFlip, dict(ratio=ratio)),
-			(VerticalFlip, dict(ratio=ratio)),
 		]
 		"""
 			(Transform, dict(ratio=ratio, scale=(0.9, 1.1))),
@@ -235,12 +235,15 @@ def main():
 		)
 		validator.val(0)
 
-		_, maxs = validator.get_metrics_recorder().get_mins_maxs()
+		recorder = validator.get_metrics_recorder()
+		_, maxs = recorder.get_mins_maxs()
 		acc_max = maxs["acc"]
 		print("[%s][%s] Acc max = %f" % (augm_train_name, augm_val_name, acc_max))
 		results[augm_train_name][augm_val_name] = acc_max
 
-		augm_dic = {get_augm_with_args_name(augm, augm_kwargs): augm_kwargs for augm, augm_kwargs in zip(augms_cls, augms_kwargs)}
+		augm_dic = {
+			get_augm_with_args_name(augm, augm_kwargs): augm_kwargs for augm, augm_kwargs in zip(augms_cls, augms_kwargs)
+		}
 		data = {"results": results, "augments": augm_dic, "args": args.__dict__}
 
 		filepath = "results_%s.json" % start_date
@@ -283,12 +286,12 @@ def get_ubs8k_datasets(
 
 	manager = UBS8KDatasetManager(metadata_root, audio_root)
 
-	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(augm_train_fn,), cached=False)
+	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(Compose([augm_train_fn]),), cached=False)
 	dataset_val_origin = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
 
 	datasets_val = []
 	for augm_val_fn in augms_val_fn:
-		dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(augm_val_fn,), cached=False)
+		dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(Compose([augm_val_fn]),), cached=False)
 		datasets_val.append(dataset_val)
 
 	return dataset_train, dataset_val_origin, datasets_val

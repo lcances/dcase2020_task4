@@ -381,7 +381,8 @@ def main():
 
 			if loader_train_s_strong.batch_size != loader_train_u_augms_weak_strongs.batch_size:
 				raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
-					loader_train_s_strong.batch_size, loader_train_u_augms_weak_strongs.batch_size))
+					loader_train_s_strong.batch_size, loader_train_u_augms_weak_strongs.batch_size)
+				)
 
 			criterion = ReMixMatchLossOneHot.from_edict(args)
 			if rampup_lambda_u1 is not None:
@@ -488,9 +489,10 @@ def main():
 			filepath = osp.join(writer.log_dir, "augments.json")
 			save_augms(filepath, augm_weak_fn, augm_strong_fn, augm_fn)
 
-		validator.get_metrics_recorder().print_min_max()
+		recorder = validator.get_metrics_recorder()
+		recorder.print_min_max()
 
-		_, maxs = validator.get_metrics_recorder().get_mins_maxs()
+		_, maxs = recorder.get_mins_maxs()
 		cross_validation_results[fold_val_ubs8k] = maxs["acc"]
 
 	if args.cross_validation:
