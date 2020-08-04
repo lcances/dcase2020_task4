@@ -47,7 +47,6 @@ from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
-from dcase2020_task4.util.fn_dataset import FnDataset
 from dcase2020_task4.util.multiple_dataset import MultipleDataset
 from dcase2020_task4.util.no_label_dataset import NoLabelDataset
 from dcase2020_task4.util.onehot_dataset import OneHotDataset
@@ -80,9 +79,11 @@ def create_args() -> Namespace:
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
 
-	parser.add_argument("--mode", type=str, default="onehot", choices=["onehot"])
+	parser.add_argument("--mode", type=str, default="onehot",
+						choices=["onehot"])
 	parser.add_argument("--dataset_path", type=str, default=osp.join("..", "dataset", "CIFAR10"), required=True)
-	parser.add_argument("--dataset_name", type=str, default="CIFAR10", choices=["CIFAR10", "UBS8K"])
+	parser.add_argument("--dataset_name", type=str, default="CIFAR10",
+						choices=["CIFAR10", "UBS8K"])
 	parser.add_argument("--nb_classes", type=int, default=10)
 
 	parser.add_argument("--logdir", type=str, default=osp.join("..", "..", "tensorboard"))
@@ -101,7 +102,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--num_workers_u", type=int, default=1,
 						help="Number of workers created by unsupervised loader.")
 
-	parser.add_argument("--optimizer", type=str, default="Adam", choices=["Adam", "SGD"],
+	parser.add_argument("--optimizer", type=str, default="Adam",
+						choices=["Adam", "SGD", "RAdam", "PlainRAdam", "AdamW"],
 						help="Optimizer used.")
 	parser.add_argument("--scheduler", type=str_to_optional_str, default="Cosine",
 						choices=[None, "CosineLRScheduler", "Cosine"],
@@ -152,7 +154,8 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--threshold_confidence", type=float, default=0.95,
 						help="FixMatch threshold for compute confidence mask in loss.")
-	parser.add_argument("--criterion_name_u", type=str, default="ce", choices=["sq_diff", "cross_entropy", "ce"],
+	parser.add_argument("--criterion_name_u", type=str, default="ce",
+						choices=["sq_diff", "cross_entropy", "ce"],
 						help="MixMatch unsupervised loss component.")
 
 	parser.add_argument("--sharpen_temperature", "--temperature", type=float, default=0.5,
@@ -448,6 +451,7 @@ def main():
 				raise RuntimeError("Experimental MMV8 cannot be used with RampUp.")
 			if args.nb_epochs < 10:
 				raise RuntimeError("Cannot train with V8 with less than %d epochs." % 10)
+
 			begin_s = 0
 			begin_unif = int(args.nb_epochs * 0.1)
 			begin_u = int(args.nb_epochs * 0.9)

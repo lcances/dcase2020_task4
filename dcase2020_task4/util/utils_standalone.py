@@ -22,6 +22,7 @@ from dcase2020_task4.other_models import vgg
 from dcase2020_task4.other_models import weak_baseline_rot
 from dcase2020_task4.other_models import wide_resnet
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
+from dcase2020_task4.util.radam import RAdam, PlainRAdam, AdamW
 
 
 FLOAT_FORMAT = "%.3f"
@@ -120,10 +121,17 @@ def get_optim_from_args(args: Namespace, model: Module) -> Optimizer:
 	"""
 	name = args.optimizer.lower()
 
+	kwargs = dict(params=model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 	if name == "adam":
-		optim = Adam(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+		optim = Adam(**kwargs)
 	elif name == "sgd":
-		optim = SGD(model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+		optim = SGD(**kwargs)
+	elif name == "radam":
+		optim = RAdam(**kwargs)
+	elif name == "plainradam":
+		optim = PlainRAdam(**kwargs)
+	elif name == "adamw":
+		optim = AdamW(**kwargs)
 	else:
 		raise RuntimeError("Unknown optimizer \"%s\"" % str(args.optimizer))
 
