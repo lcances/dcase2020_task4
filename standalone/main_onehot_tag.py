@@ -535,19 +535,21 @@ def get_cifar10_augms(args: Namespace) -> (Callable, Callable, Callable):
 
 def get_ubs8k_augms(args: Namespace) -> (Callable, Callable, Callable):
 	# Weak and strong augmentations used by FixMatch and ReMixMatch
+	ratio_augm_weak = 0.5
 	augm_weak_fn = RandomChoice([
-		HorizontalFlip(args.ratio_augm_weak),
-		Occlusion(args.ratio_augm_strong, max_size=1.0),
+		HorizontalFlip(ratio_augm_weak),
+		Occlusion(ratio_augm_weak, max_size=1.0),
 	])
+	ratio_augm_strong = 1.0
 	augm_strong_fn = RandomChoice([
-		TimeStretch(args.ratio_augm_weak),
-		PitchShiftRandom(args.ratio_augm_weak, steps=(-1, 1)),
-		Noise(ratio=args.ratio_augm_weak, target_snr=15),
-		CutOutSpec(args.ratio_augm_strong, rect_width_scale_range=(0.1, 0.25), rect_height_scale_range=(0.1, 0.25)),
-		RandomTimeDropout(args.ratio_augm_strong, dropout=0.01),
-		RandomFreqDropout(args.ratio_augm_strong, dropout=0.01),
-		# NoiseSpec(ratio=args.ratio_augm_weak, snr=5.0),
-		# Noise2(args.ratio_augm_weak, noise_factor=(5.0, 5.0)),
+		TimeStretch(ratio_augm_strong),
+		PitchShiftRandom(ratio_augm_strong, steps=(-1, 1)),
+		Noise(ratio_augm_strong, target_snr=15),
+		CutOutSpec(ratio_augm_strong, rect_width_scale_range=(0.1, 0.25), rect_height_scale_range=(0.1, 0.25)),
+		RandomTimeDropout(ratio_augm_strong, dropout=0.01),
+		RandomFreqDropout(ratio_augm_strong, dropout=0.01),
+		# NoiseSpec(ratio_augm_strong, snr=5.0),
+		# Noise2(ratio_augm_strong, noise_factor=(5.0, 5.0)),
 	])
 
 	augm_fn = augm_weak_fn

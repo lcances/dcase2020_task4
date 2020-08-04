@@ -11,7 +11,8 @@ class MultipleDataset(Dataset):
 		super(MultipleDataset, self).__init__()
 		self.datasets = datasets
 
-		assert len(datasets) > 0, 'Datasets should not be an empty iterable'
+	def _check
+		assert len(self.datasets) > 0, 'Datasets should not be an empty iterable'
 
 		len_ = len(self.datasets[0])
 		for d in self.datasets[1:]:
