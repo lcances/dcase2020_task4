@@ -17,8 +17,9 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose
 
-from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise
+from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise, Noise2
 from augmentation_utils.spec_augmentations import HorizontalFlip, RandomTimeDropout, RandomFreqDropout
+from augmentation_utils.spec_augmentations import Noise as NoiseSpec
 
 from dcase2020.util.utils import get_datetime, reset_seed
 
@@ -48,14 +49,15 @@ from dcase2020_task4.util.datasets.dataset_idx import get_classes_idx, shuffle_c
 from dcase2020_task4.util.datasets.multiple_dataset import MultipleDataset
 from dcase2020_task4.util.datasets.no_label_dataset import NoLabelDataset
 from dcase2020_task4.util.datasets.onehot_dataset import OneHotDataset
+from dcase2020_task4.util.datasets.random_choice_dataset import RandomChoiceDataset
+from dcase2020_task4.util.datasets.smooth_dataset import SmoothOneHotDataset
+from dcase2020_task4.util.datasets.to_tensor_dataset import ToTensorDataset
 from dcase2020_task4.util.other_img_augments import *
 from dcase2020_task4.util.other_spec_augments import CutOutSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.rand_augment import RandAugment
-from dcase2020_task4.util.datasets.random_choice_dataset import RandomChoiceDataset
 from dcase2020_task4.util.sharpen import Sharpen
-from dcase2020_task4.util.datasets.smooth_dataset import SmoothOneHotDataset
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int, str_to_optional_int
 from dcase2020_task4.util.uniloss import UniLoss
 from dcase2020_task4.util.utils_match import cross_entropy
@@ -555,8 +557,8 @@ def get_ubs8k_augms(args: Namespace) -> (List[Callable], List[Callable]):
 		CutOutSpec(ratio_augm_strong, rect_width_scale_range=(0.1, 0.25), rect_height_scale_range=(0.1, 0.25)),
 		RandomTimeDropout(ratio_augm_strong, dropout=0.01),
 		RandomFreqDropout(ratio_augm_strong, dropout=0.01),
-		# NoiseSpec(ratio_augm_strong, snr=5.0),
-		# Noise2(ratio_augm_strong, noise_factor=(0.1, 0.1)),
+		NoiseSpec(ratio_augm_strong, snr=5.0),
+		Noise2(ratio_augm_strong, noise_factor=(0.005, 0.005)),
 	]
 
 	return augm_weak_fn, augm_strong_fn
@@ -605,9 +607,11 @@ def get_ubs8k_datasets(
 
 	datasets = [UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False) for augm_fn in augms_weak]
 	dataset_train_augm_weak = RandomChoiceDataset(datasets)
+	dataset_train_augm_weak = ToTensorDataset(dataset_train_augm_weak)
 
 	datasets = [UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False) for augm_fn in augms_strong]
 	dataset_train_augm_strong = RandomChoiceDataset(datasets)
+	dataset_train_augm_strong = ToTensorDataset(dataset_train_augm_strong)
 
 	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong
 
