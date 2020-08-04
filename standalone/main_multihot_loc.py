@@ -42,9 +42,9 @@ from dcase2020_task4.supervised.trainer_loc import SupervisedTrainerLoc
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.util.checkpoint import CheckPoint
-from dcase2020_task4.util.fn_dataset import FnDataset
-from dcase2020_task4.util.multiple_dataset import MultipleDataset
-from dcase2020_task4.util.no_label_dataset import NoLabelDataset
+from dcase2020_task4.util.datasets.fn_dataset import FnDataset
+from dcase2020_task4.util.datasets.multiple_dataset import MultipleDataset
+from dcase2020_task4.util.datasets.no_label_dataset import NoLabelDataset
 from dcase2020_task4.util.other_metrics import BinaryConfidenceAccuracy, EqConfidenceMetric, FnMetric, MaxMetric, MeanMetric
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import SharpenMulti
@@ -97,13 +97,6 @@ def create_args() -> Namespace:
 						help="Learning rate used.")
 	parser.add_argument("--weight_decay", type=float, default=0.0,
 						help="Weight decay used.")
-
-	parser.add_argument("--ratio_augm_weak", type=float, default=0.5,
-						help="Probability to apply weak augmentation for ReMixMatch and FixMatch.")
-	parser.add_argument("--ratio_augm_strong", type=float, default=1.0,
-						help="Probability to apply strong augmentation for ReMixMatch and FixMatch.")
-	parser.add_argument("--ratio_augm", type=float, default=0.25,
-						help="Probability to apply augmentation for MixMatch.")
 
 	parser.add_argument("--write_results", type=str_to_bool, default=True,
 						help="Write results in a tensorboard SummaryWriter.")

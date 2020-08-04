@@ -17,10 +17,8 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose
 
-from augmentation_utils.img_augmentations import Transform
-from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2, Noise
-from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, RandomTimeDropout, RandomFreqDropout
-from augmentation_utils.spec_augmentations import Noise as NoiseSpec
+from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise
+from augmentation_utils.spec_augmentations import HorizontalFlip, RandomTimeDropout, RandomFreqDropout
 
 from dcase2020.util.utils import get_datetime, reset_seed
 
@@ -46,17 +44,18 @@ from dcase2020_task4.supervised.trainer import SupervisedTrainer
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.util.checkpoint import CheckPoint
-from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
-from dcase2020_task4.util.multiple_dataset import MultipleDataset
-from dcase2020_task4.util.no_label_dataset import NoLabelDataset
-from dcase2020_task4.util.onehot_dataset import OneHotDataset
+from dcase2020_task4.util.datasets.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
+from dcase2020_task4.util.datasets.multiple_dataset import MultipleDataset
+from dcase2020_task4.util.datasets.no_label_dataset import NoLabelDataset
+from dcase2020_task4.util.datasets.onehot_dataset import OneHotDataset
 from dcase2020_task4.util.other_img_augments import *
 from dcase2020_task4.util.other_spec_augments import CutOutSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.rand_augment import RandAugment
+from dcase2020_task4.util.datasets.random_choice_dataset import RandomChoiceDataset
 from dcase2020_task4.util.sharpen import Sharpen
-from dcase2020_task4.util.smooth_dataset import SmoothOneHotDataset
+from dcase2020_task4.util.datasets.smooth_dataset import SmoothOneHotDataset
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int, str_to_optional_int
 from dcase2020_task4.util.uniloss import UniLoss
 from dcase2020_task4.util.utils_match import cross_entropy
@@ -112,13 +111,6 @@ def create_args() -> Namespace:
 						help="Learning rate used.")
 	parser.add_argument("--weight_decay", type=float, default=0.0,
 						help="Weight decay used.")
-
-	parser.add_argument("--ratio_augm_weak", type=float, default=0.5,
-						help="Probability to apply weak augmentation for ReMixMatch and FixMatch.")
-	parser.add_argument("--ratio_augm_strong", type=float, default=1.0,
-						help="Probability to apply strong augmentation for ReMixMatch and FixMatch.")
-	parser.add_argument("--ratio_augm", type=float, default=0.5,
-						help="Probability to apply augmentation for MixMatch.")
 
 	parser.add_argument("--write_results", type=str_to_bool, default=True,
 						help="Write results in a tensorboard SummaryWriter.")
@@ -240,13 +232,13 @@ def main():
 
 	def run(fold_val_ubs8k: int):
 		if args.dataset_name.lower() == "cifar10":
-			augm_weak_fn, augm_strong_fn, augm_fn = get_cifar10_augms(args)
-			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = \
-				get_cifar10_datasets(args, augm_weak_fn, augm_strong_fn, augm_fn)
+			augm_weak_fn, augm_strong_fn = get_cifar10_augms(args)
+			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong = \
+				get_cifar10_datasets(args, augm_weak_fn, augm_strong_fn)
 		elif args.dataset_name.lower() == "ubs8k":
-			augm_weak_fn, augm_strong_fn, augm_fn = get_ubs8k_augms(args)
-			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm = \
-				get_ubs8k_datasets(args, fold_val_ubs8k, augm_weak_fn, augm_strong_fn, augm_fn)
+			augm_weak_fn, augm_strong_fn = get_ubs8k_augms(args)
+			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong = \
+				get_ubs8k_datasets(args, fold_val_ubs8k, augm_weak_fn, augm_strong_fn)
 		else:
 			raise RuntimeError("Unknown dataset %s" % args.dataset_name)
 
@@ -264,14 +256,12 @@ def main():
 		dataset_val = OneHotDataset(dataset_val, args.nb_classes)
 		dataset_train_augm_weak = OneHotDataset(dataset_train_augm_weak, args.nb_classes)
 		dataset_train_augm_strong = OneHotDataset(dataset_train_augm_strong, args.nb_classes)
-		dataset_train_augm = OneHotDataset(dataset_train_augm, args.nb_classes)
 
 		if args.label_smooth > 0.0:
 			dataset_train = SmoothOneHotDataset(dataset_train, args.nb_classes, args.label_smooth)
 			dataset_val = SmoothOneHotDataset(dataset_val, args.nb_classes, args.label_smooth)
 			dataset_train_augm_weak = SmoothOneHotDataset(dataset_train_augm_weak, args.nb_classes, args.label_smooth)
 			dataset_train_augm_strong = SmoothOneHotDataset(dataset_train_augm_strong, args.nb_classes, args.label_smooth)
-			dataset_train_augm = SmoothOneHotDataset(dataset_train_augm, args.nb_classes, args.label_smooth)
 
 		dataset_val = Subset(dataset_val, idx_val)
 		loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
@@ -332,10 +322,10 @@ def main():
 				)
 
 		elif "mm" == args.run or "mixmatch" == args.run:
-			dataset_train_s_augm = Subset(dataset_train_augm, idx_train_s)
-			dataset_train_u_augm = Subset(dataset_train_augm, idx_train_u)
+			dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
+			dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
 
-			dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm)
+			dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm_weak)
 			dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * args.nb_augms)
 
 			if args.experimental == "V3":
@@ -343,7 +333,7 @@ def main():
 				dataset_train_u = NoLabelDataset(dataset_train_u)
 				dataset_train_u_augms = MultipleDataset([dataset_train_u_augms, dataset_train_u])
 
-			loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm, **args_loader_train_s)
+			loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 			loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
 
 			if loader_train_s_augm.batch_size != loader_train_u_augms.batch_size:
@@ -491,7 +481,7 @@ def main():
 			save_args(filepath, args)
 
 			filepath = osp.join(writer.log_dir, "augments.json")
-			save_augms(filepath, augm_weak_fn, augm_strong_fn, augm_fn)
+			save_augms(filepath, {"augm_weak": augm_weak_fn, "augm_strong": augm_strong_fn})
 
 		recorder = validator.get_metrics_recorder()
 		recorder.print_min_max()
@@ -499,7 +489,9 @@ def main():
 		_, maxs = recorder.get_mins_maxs()
 		cross_validation_results[fold_val_ubs8k] = maxs["acc"]
 
-	if args.cross_validation:
+	if not args.cross_validation:
+		run(args.fold_val)
+	else:
 		for fold_val_ubs8k_ in range(1, 11):
 			run(fold_val_ubs8k_)
 
@@ -507,8 +499,6 @@ def main():
 		print("\n")
 		print("Cross-validation results : \n", "\n".join(content))
 		print("Cross-validation mean : ", np.mean(list(cross_validation_results.values())))
-	else:
-		run(args.fold_val)
 
 	exec_time = time() - start_time
 	print("")
@@ -516,32 +506,49 @@ def main():
 	print("Total execution time: %.2fs" % exec_time)
 
 
-def get_cifar10_augms(args: Namespace) -> (Callable, Callable, Callable):
-	# Weak and strong augmentations used by FixMatch and ReMixMatch
-	augm_weak_fn = RandomChoice([
-		HorizontalFlip(args.ratio_augm_weak),
-		# VerticalFlip(args.ratio_augm_weak),
-		# Transform(args.ratio_augm_weak, scale=(0.75, 1.25)),
-	])
-	augm_strong_fn = RandomChoice([
-		# CutOut(args.ratio_augm_strong),
-		RandAugment(ratio=args.ratio_augm_strong, magnitude_m=args.ra_magnitude, nb_choices_n=args.ra_nb_choices),
-	])
-	# Augmentation used by MixMatch
-	augm_fn = augm_weak_fn
-
-	return augm_weak_fn, augm_strong_fn, augm_fn
-
-
-def get_ubs8k_augms(args: Namespace) -> (Callable, Callable, Callable):
-	# Weak and strong augmentations used by FixMatch and ReMixMatch
+def get_cifar10_augms(args: Namespace) -> (Callable, Callable):
 	ratio_augm_weak = 0.5
 	augm_weak_fn = RandomChoice([
 		HorizontalFlip(ratio_augm_weak),
-		Occlusion(ratio_augm_weak, max_size=1.0),
+		# VerticalFlip(ratio_augm_weak),
+		# Transform(ratio_augm_weak, scale=(0.75, 1.25)),
 	])
 	ratio_augm_strong = 1.0
 	augm_strong_fn = RandomChoice([
+		# CutOut(ratio_augm_strong),
+		RandAugment(ratio=ratio_augm_strong, magnitude_m=args.ra_magnitude, nb_choices_n=args.ra_nb_choices),
+	])
+
+	return augm_weak_fn, augm_strong_fn
+
+
+def get_cifar10_datasets(args: Namespace, augm_weak_fn: Callable, augm_strong_fn: Callable) -> (Dataset, Dataset, Dataset, Dataset):
+	# Add preprocessing before each augmentation (shape : [32, 32, 3])
+	pre_process_fn = lambda img: np.array(img)
+	post_process_fn = lambda img: img.transpose()
+
+	# Prepare data
+	dataset_train = CIFAR10(
+		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, post_process_fn]))
+	dataset_val = CIFAR10(
+		args.dataset_path, train=False, download=True, transform=Compose([pre_process_fn, post_process_fn]))
+
+	dataset_train_augm_weak = CIFAR10(
+		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_weak_fn, post_process_fn]))
+	dataset_train_augm_strong = CIFAR10(
+		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_strong_fn, post_process_fn]))
+
+	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong
+
+
+def get_ubs8k_augms(args: Namespace) -> (List[Callable], List[Callable]):
+	ratio_augm_weak = 0.5
+	augm_weak_fn = [
+		HorizontalFlip(ratio_augm_weak),
+		Occlusion(ratio_augm_weak, max_size=1.0),
+	]
+	ratio_augm_strong = 1.0
+	augm_strong_fn = [
 		TimeStretch(ratio_augm_strong),
 		PitchShiftRandom(ratio_augm_strong, steps=(-1, 1)),
 		Noise(ratio_augm_strong, target_snr=15),
@@ -549,34 +556,15 @@ def get_ubs8k_augms(args: Namespace) -> (Callable, Callable, Callable):
 		RandomTimeDropout(ratio_augm_strong, dropout=0.01),
 		RandomFreqDropout(ratio_augm_strong, dropout=0.01),
 		# NoiseSpec(ratio_augm_strong, snr=5.0),
-		# Noise2(ratio_augm_strong, noise_factor=(5.0, 5.0)),
-	])
+		# Noise2(ratio_augm_strong, noise_factor=(0.1, 0.1)),
+	]
 
-	augm_fn = augm_weak_fn
-
-	return augm_weak_fn, augm_strong_fn, augm_fn
+	return augm_weak_fn, augm_strong_fn
 
 
-def get_cifar10_datasets(args: Namespace, augm_weak_fn: Callable, augm_strong_fn: Callable, augm_fn: Callable) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
-	# Add preprocessing before each augmentation (shape : [32, 32, 3])
-	pre_process_fn = lambda img: np.array(img)
-	post_process_fn = lambda img: img.transpose()
-
-	# Prepare data
-	dataset_train = CIFAR10(args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, post_process_fn]))
-	dataset_val = CIFAR10(args.dataset_path, train=False, download=True, transform=Compose([pre_process_fn, post_process_fn]))
-
-	dataset_train_augm_weak = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_weak_fn, post_process_fn]))
-	dataset_train_augm_strong = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_strong_fn, post_process_fn]))
-	dataset_train_augm = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_fn, post_process_fn]))
-
-	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
-
-
-def get_ubs8k_datasets(args: Namespace, fold_val: int, augm_weak_fn: Callable, augm_strong_fn: Callable, augm_fn: Callable) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
+def get_ubs8k_datasets_OLD(
+	args: Namespace, fold_val: int, augm_weak_fn: Callable, augm_strong_fn: Callable, augm_fn: Callable
+) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
 	metadata_root = osp.join(args.dataset_path, "metadata")
 	audio_root = osp.join(args.dataset_path, "audio")
 
@@ -595,7 +583,33 @@ def get_ubs8k_datasets(args: Namespace, fold_val: int, augm_weak_fn: Callable, a
 	dataset_train_augm_strong = UBS8KDataset(manager, folds=folds_train, augments=(augm_strong_fn,), cached=False)
 	dataset_train_augm = UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False)
 
-	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
+	raise RuntimeError("OLD FUNCTION. TODO: TO REM")
+	# return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
+
+
+def get_ubs8k_datasets(
+	args: Namespace, fold_val: int, augms_weak: List[Callable], augms_strong: List[Callable]
+) -> (Dataset, Dataset, Dataset, Dataset):
+	metadata_root = osp.join(args.dataset_path, "metadata")
+	audio_root = osp.join(args.dataset_path, "audio")
+
+	folds_train = list(range(1, 11))
+	folds_train.remove(fold_val)
+	folds_train = tuple(folds_train)
+	folds_val = (fold_val,)
+
+	manager = UBS8KDatasetManager(metadata_root, audio_root)
+
+	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(), cached=False)
+	dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
+
+	datasets = [UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False) for augm_fn in augms_weak]
+	dataset_train_augm_weak = RandomChoiceDataset(datasets)
+
+	datasets = [UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False) for augm_fn in augms_strong]
+	dataset_train_augm_strong = RandomChoiceDataset(datasets)
+
+	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong
 
 
 if __name__ == "__main__":

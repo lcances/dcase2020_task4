@@ -11,12 +11,14 @@ class MultipleDataset(Dataset):
 		super(MultipleDataset, self).__init__()
 		self.datasets = datasets
 
-	def _check
-		assert len(self.datasets) > 0, 'Datasets should not be an empty iterable'
+		self._check_attributes()
+
+	def _check_attributes(self):
+		assert len(self.datasets) > 0, "Datasets should not be an empty iterable"
 
 		len_ = len(self.datasets[0])
 		for d in self.datasets[1:]:
-			assert len(d) == len_, 'Datasets must have the same size'
+			assert len(d) == len_, "Datasets must have the same size"
 
 	def __len__(self) -> int:
 		return len(self.datasets[0])

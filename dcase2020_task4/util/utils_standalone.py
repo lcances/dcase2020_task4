@@ -13,14 +13,9 @@ from torch.nn import Module
 from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
-from dcase2020_task4.other_models import cnn03
-from dcase2020_task4.other_models import resnet
-from dcase2020_task4.other_models import ubs8k_baseline
-from dcase2020_task4.other_models import vgg
-from dcase2020_task4.other_models import weak_baseline_rot
-from dcase2020_task4.other_models import wide_resnet
+from dcase2020_task4.other_models import cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wide_resnet
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.util.radam import RAdam, PlainRAdam, AdamW
 
@@ -103,7 +98,7 @@ def get_model_from_args(args: Namespace, case_sensitive: bool = False, modules: 
 	"""
 	if modules is None:
 		modules = []
-	modules += [cnn03, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wide_resnet]
+	modules += [cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wide_resnet]
 
 	model_class = get_model_from_name(args.model, case_sensitive, modules)
 	model = model_class().cuda()
@@ -254,11 +249,9 @@ def augm_fn_to_dict(augm_fn: Callable) -> Union[dict, list]:
 	return to_dict_rec(augm_fn, "__class__")
 
 
-def save_augms(filepath: str, augm_weak_fn: Callable, augm_strong_fn: Callable, augm_fn: Callable):
+def save_augms(filepath: str, augms: Dict[str, Callable]):
 	content = {
-		"augm_weak_fn": augm_fn_to_dict(augm_weak_fn),
-		"augm_strong_fn": augm_fn_to_dict(augm_strong_fn),
-		"augm_fn": augm_fn_to_dict(augm_fn),
+		name: augm_fn_to_dict(augm_fn) for name, augm_fn in augms.items()
 	}
 	with open(filepath, "w") as file:
 		json.dump(content, file, indent="\t")

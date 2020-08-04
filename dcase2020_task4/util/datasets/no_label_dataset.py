@@ -1,6 +1,6 @@
 
 from torch.utils.data import Dataset
-from dcase2020_task4.util.fn_dataset import FnDataset
+from dcase2020_task4.util.datasets.fn_dataset import FnDataset
 
 
 class NoLabelDataset(FnDataset):

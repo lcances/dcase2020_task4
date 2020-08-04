@@ -1,8 +1,8 @@
 from torch.utils.data import Dataset, DataLoader, SubsetRandomSampler
 
-from dcase2020_task4.util.dataset_idx import get_classes_idx, shuffle_classes_idx, split_classes_idx
+from dcase2020_task4.util.datasets.dataset_idx import get_classes_idx, shuffle_classes_idx, split_classes_idx
 from dcase2020_task4.util.zip_cycle import ZipCycle
-from dcase2020_task4.util.multiple_dataset import MultipleDataset
+from dcase2020_task4.util.datasets.multiple_dataset import MultipleDataset
 
 
 class DummyDataset(Dataset):

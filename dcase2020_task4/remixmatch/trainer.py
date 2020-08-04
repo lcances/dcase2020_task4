@@ -1,14 +1,11 @@
-import numpy as np
 import torch
 
-from torch import Tensor
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from typing import Callable, Dict, List, Optional
 
-from augmentation_utils.img_augmentations import Transform
 from metric_utils.metrics import Metrics
 
 from dcase2020_task4.guessers import GuesserModelABC
@@ -70,6 +67,9 @@ class ReMixMatchTrainer(SSTrainerABC):
 			list(self.metrics_r.keys()) +
 			["loss", "loss_s", "loss_u", "loss_u1", "loss_r"]
 		)
+
+		if not hasattr(model, "forward_rot"):
+			raise RuntimeError("Model must implements a method \"forward_rot\" for compute rotation loss.")
 
 	def train(self, epoch: int):
 		self.reset_all_metrics()

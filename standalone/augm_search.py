@@ -9,7 +9,6 @@ from torchvision.datasets import CIFAR10
 from torchvision.transforms import Compose
 from typing import Callable, List
 
-from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, Noise, Noise2, Occlusion, PitchShiftRandom
 from augmentation_utils.spec_augmentations import RandomTimeDropout, RandomFreqDropout, HorizontalFlip, VerticalFlip
 from augmentation_utils.spec_augmentations import Noise as NoiseS
@@ -19,8 +18,8 @@ from dcase2020.util.utils import get_datetime, reset_seed
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 from dcase2020_task4.validator import ValidatorTag
 from dcase2020_task4.util.checkpoint import CheckPoint
-from dcase2020_task4.util.fn_dataset import FnDataset
-from dcase2020_task4.util.onehot_dataset import OneHotDataset
+from dcase2020_task4.util.datasets.fn_dataset import FnDataset
+from dcase2020_task4.util.datasets.onehot_dataset import OneHotDataset
 from dcase2020_task4.util.other_img_augments import *
 from dcase2020_task4.util.other_spec_augments import CutOutSpec, InversionSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
@@ -91,10 +90,13 @@ def main():
 			(Noise, dict(ratio=ratio, target_snr=20)),
 			(InversionSpec, dict(ratio=ratio)),
 			(Noise2, dict(ratio=ratio, noise_factor=(1.0, 1.0))),
-			(Noise2, dict(ratio=ratio, noise_factor=(0.5, 0.5))),
 			(Noise2, dict(ratio=ratio, noise_factor=(0.1, 0.1))),
+			(Noise2, dict(ratio=ratio, noise_factor=(0.01, 0.01))),
+			(Noise2, dict(ratio=ratio, noise_factor=(0.001, 0.001))),
+			(NoiseSpec, dict(ratio=ratio, snr=1.0)),
+			(NoiseSpec, dict(ratio=ratio, snr=5.0)),
+			(NoiseSpec, dict(ratio=ratio, snr=10.0)),
 			(NoiseSpec, dict(ratio=ratio, snr=15.0)),
-			(NoiseSpec, dict(ratio=ratio, snr=20.0)),
 			(Occlusion, dict(ratio=ratio, max_size=1.0)),
 			(PitchShiftRandom, dict(ratio=ratio, steps=(-1, 1))),
 			(PitchShiftRandom, dict(ratio=ratio, steps=(-3, 3))),

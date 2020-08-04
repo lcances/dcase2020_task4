@@ -1,4 +1,4 @@
-from dcase2020_task4.util.dataset_idx import split_classes_idx
+from dcase2020_task4.util.datasets.dataset_idx import split_classes_idx
 
 
 def test() -> bool:
