@@ -4,6 +4,9 @@ from torch.utils.data import Dataset
 from typing import List, Optional
 
 
+EPSILON = 1e-10
+
+
 class RandomChoiceDataset(Dataset):
 	def __init__(self, datasets: List[Dataset], distribution: Optional[List[float]] = None):
 		self.datasets = datasets
@@ -22,7 +25,8 @@ class RandomChoiceDataset(Dataset):
 		for d in self.datasets[1:]:
 			assert len(d) == len_, "Datasets must have the same size"
 
-		assert sum(self.distribution) == 1.0, "Distribution sum must be equal to 1.0"
+		distribution_sum = sum(self.distribution)
+		assert 1.0 - EPSILON <= distribution_sum <= 1.0 + EPSILON, "Distribution sum must be equal to 1.0. (%f != %f)" % (distribution_sum, 1.0)
 
 	def __getitem__(self, idx: int):
 		dataset_index = np.random.choice(range(len(self.datasets)), p=self.distribution)
