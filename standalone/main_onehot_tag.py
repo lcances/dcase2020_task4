@@ -603,7 +603,9 @@ def get_ubs8k_datasets(
 	manager = UBS8KDatasetManager(metadata_root, audio_root)
 
 	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(), cached=False)
+	dataset_train = ToTensorDataset(dataset_train)
 	dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
+	dataset_val = ToTensorDataset(dataset_val)
 
 	datasets = [UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False) for augm_fn in augms_weak]
 	dataset_train_augm_weak = RandomChoiceDataset(datasets)
