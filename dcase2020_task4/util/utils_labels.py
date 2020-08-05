@@ -17,7 +17,7 @@ def nums_to_onehot(nums: Union[np.ndarray, Tensor], nb_classes: int) -> Union[np
 def nums_to_multihot(nums: List[List[int]], nb_classes: int) -> Tensor:
 	res = torch.zeros((len(nums), nb_classes))
 	for i, nums in enumerate(nums):
-		res[i] = torch.sum(torch.stack([one_hot(num) for num in nums]), dim=0)
+		res[i] = torch.sum(torch.stack([one_hot(torch.as_tensor(num), nb_classes) for num in nums]), dim=0)
 	return res
 
 

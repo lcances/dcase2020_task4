@@ -294,10 +294,11 @@ def main():
 
 		if "fm" == args.run or "fixmatch" == args.run:
 			dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
-			dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
-			dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
 
+			dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
 			dataset_train_u_augm_weak = NoLabelDataset(dataset_train_u_augm_weak)
+
+			dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
 			dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
 
 			if args.experimental == "V11":
@@ -314,13 +315,13 @@ def main():
 				guesser = GuesserModelOneHot(model, acti_fn)
 				trainer = FixMatchTrainer(
 					model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-					criterion, writer, guesser
+					criterion, writer, guesser, [rampup_lambda_u]
 				)
 			else:
 				guesser = GuesserMeanModelOneHot(model, acti_fn)
 				trainer = FixMatchTrainerV11(
 					model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-					criterion, writer, guesser
+					criterion, writer, guesser, [rampup_lambda_u]
 				)
 
 		elif "mm" == args.run or "mixmatch" == args.run:
@@ -352,12 +353,12 @@ def main():
 			if args.experimental != "V3":
 				trainer = MixMatchTrainer(
 					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-					criterion, writer, mixer, guesser
+					criterion, writer, mixer, guesser, [rampup_lambda_u]
 				)
 			else:
 				trainer = MixMatchTrainerV3(
 					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-					criterion, writer, mixer, guesser
+					criterion, writer, mixer, guesser, [rampup_lambda_u]
 				)
 
 		elif "rmm" == args.run or "remixmatch" == args.run:
@@ -409,7 +410,7 @@ def main():
 			trainer = ReMixMatchTrainer(
 				model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs,
 				metrics_s, metrics_u, metrics_u1, metrics_r,
-				criterion, writer, mixer, distributions, guesser, ss_transform
+				criterion, writer, mixer, distributions, guesser, ss_transform, [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
 			)
 
 		elif "sf" == args.run or "supervised_full" == args.run:
@@ -470,7 +471,8 @@ def main():
 		validator = ValidatorTag(
 			model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 		)
-		steppables = [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r, sched, uni_loss]
+		# rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r,
+		steppables = [sched, uni_loss]
 		steppables = [steppable for steppable in steppables if steppable is not None]
 
 		learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables)
@@ -527,6 +529,7 @@ def get_cifar10_augms(args: Namespace) -> (Callable, Callable):
 def get_cifar10_datasets(args: Namespace, augm_weak_fn: Callable, augm_strong_fn: Callable) -> (Dataset, Dataset, Dataset, Dataset):
 	# Add preprocessing before each augmentation (shape : [32, 32, 3])
 	pre_process_fn = lambda img: np.array(img)
+	# Add preprocessing before each augmentation (shape : [32, 32, 3] -> [3, 32, 32])
 	post_process_fn = lambda img: img.transpose()
 
 	# Prepare data
@@ -564,31 +567,6 @@ def get_ubs8k_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	return augm_weak_fn, augm_strong_fn
 
 
-def get_ubs8k_datasets_OLD(
-	args: Namespace, fold_val: int, augm_weak_fn: Callable, augm_strong_fn: Callable, augm_fn: Callable
-) -> (Dataset, Dataset, Dataset, Dataset, Dataset):
-	metadata_root = osp.join(args.dataset_path, "metadata")
-	audio_root = osp.join(args.dataset_path, "audio")
-
-	folds_train = list(range(1, 11))
-	folds_train.remove(fold_val)
-	folds_train = tuple(folds_train)
-	folds_val = (fold_val,)
-
-	manager = UBS8KDatasetManager(metadata_root, audio_root)
-
-	# Shapes : (64, 173), (1)
-	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(), cached=False)
-	dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
-
-	dataset_train_augm_weak = UBS8KDataset(manager, folds=folds_train, augments=(augm_weak_fn,), cached=False)
-	dataset_train_augm_strong = UBS8KDataset(manager, folds=folds_train, augments=(augm_strong_fn,), cached=False)
-	dataset_train_augm = UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False)
-
-	raise RuntimeError("OLD FUNCTION. TODO: TO REM")
-	# return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong, dataset_train_augm
-
-
 def get_ubs8k_datasets(
 	args: Namespace, fold_val: int, augms_weak: List[Callable], augms_strong: List[Callable]
 ) -> (Dataset, Dataset, Dataset, Dataset):
@@ -604,6 +582,7 @@ def get_ubs8k_datasets(
 
 	dataset_train = UBS8KDataset(manager, folds=folds_train, augments=(), cached=False)
 	dataset_train = ToTensorDataset(dataset_train)
+
 	dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
 	dataset_val = ToTensorDataset(dataset_val)
 

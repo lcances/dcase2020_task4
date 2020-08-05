@@ -31,6 +31,7 @@ class FixMatchTrainerV4(SSTrainerABC):
 		writer: Optional[SummaryWriter],
 		threshold_multihot: float,
 		nb_classes: int,
+		steppables: Optional[list],
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -43,6 +44,7 @@ class FixMatchTrainerV4(SSTrainerABC):
 		self.writer = writer
 		self.threshold_multihot = threshold_multihot
 		self.nb_classes = nb_classes
+		self.steppables = steppables if steppables is not None else []
 
 		self.acti_count_fn = torch.softmax
 		self.metrics_recorder = MetricsRecorder(
@@ -118,6 +120,9 @@ class FixMatchTrainerV4(SSTrainerABC):
 				]
 				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
+
+				for steppable in self.steppables:
+					steppable.step()
 
 			print("")
 

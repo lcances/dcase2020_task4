@@ -1,5 +1,5 @@
 
-from typing import Optional
+from typing import Optional, Tuple
 
 from augmentation_utils.augmentations import SpecAugmentation
 from dcase2020_task4.util.utils_match import random_rect
@@ -17,8 +17,8 @@ class CutOutSpec(SpecAugmentation):
 	def __init__(
 		self,
 		ratio: float = 1.0,
-		rect_width_scale_range: tuple = (0.1, 0.5),
-		rect_height_scale_range: tuple = (0.1, 0.5),
+		rect_width_scale_range: Tuple[float, float] = (0.1, 0.5),
+		rect_height_scale_range: Tuple[float, float] = (0.1, 0.5),
 		fill_value: Optional[int] = None
 	):
 		super().__init__(ratio)

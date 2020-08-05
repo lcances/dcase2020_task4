@@ -29,6 +29,7 @@ class FixMatchTrainerV11(SSTrainerABC):
 		criterion: FixMatchLossTagABC,
 		writer: Optional[SummaryWriter],
 		guesser: GuesserModelABC,
+		steppables: Optional[list],
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -40,6 +41,7 @@ class FixMatchTrainerV11(SSTrainerABC):
 		self.criterion = criterion
 		self.writer = writer
 		self.guesser = guesser
+		self.steppables = steppables if steppables is not None else []
 
 		self.metrics_recorder = MetricsRecorder(
 			"train/",
@@ -97,6 +99,9 @@ class FixMatchTrainerV11(SSTrainerABC):
 				]
 				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
+
+				for steppable in self.steppables:
+					steppable.step()
 
 		print("")
 

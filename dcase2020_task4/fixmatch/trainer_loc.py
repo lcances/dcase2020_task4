@@ -33,6 +33,7 @@ class FixMatchTrainerLoc(SSTrainerABC):
 		writer: Optional[SummaryWriter],
 		distributions: Optional[AvgDistributions],
 		threshold_multihot: float,
+		steppables: Optional[list],
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -47,6 +48,7 @@ class FixMatchTrainerLoc(SSTrainerABC):
 		self.writer = writer
 		self.distributions = distributions
 		self.threshold_multihot = threshold_multihot
+		self.steppables = steppables if steppables is not None else []
 
 		self.metrics_recorder = MetricsRecorder(
 			"train/",
@@ -127,6 +129,9 @@ class FixMatchTrainerLoc(SSTrainerABC):
 				]
 				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
+
+				for steppable in self.steppables:
+					steppable.step()
 
 		print("")
 

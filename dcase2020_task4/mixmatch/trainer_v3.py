@@ -30,6 +30,7 @@ class MixMatchTrainerV3(SSTrainerABC):
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
 		guesser: GuesserModelABC,
+		steppables: Optional[list],
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -42,6 +43,7 @@ class MixMatchTrainerV3(SSTrainerABC):
 		self.writer = writer
 		self.mixer = mixer
 		self.guesser = guesser
+		self.steppables = steppables if steppables is not None else []
 
 		self.metrics_recorder = MetricsRecorder(
 			"train/",
@@ -99,6 +101,9 @@ class MixMatchTrainerV3(SSTrainerABC):
 				]
 				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
+
+				for steppable in self.steppables:
+					steppable.step()
 
 		print("")
 

@@ -62,14 +62,15 @@ def sq_diff(a: Tensor, b: Tensor) -> Tensor:
 
 
 def random_rect(
-	width: int, height: int, width_range: Tuple[int, int], height_range: Tuple[int, int]
+	width: int, height: int, width_range: Tuple[float, float], height_range: Tuple[float, float]
 ) -> (int, int, int, int):
 
-	r_width = np.random.randint(max(1, width_range[0] * width), max(2, width_range[1] * width))
-	r_height = np.random.randint(max(1, height_range[0] * height), max(2, height_range[1] * height))
+	r_width = np.random.randint(max(1.0, width_range[0] * width), max(2.0, width_range[1] * width))
+	r_height = np.random.randint(max(1.0, height_range[0] * height), max(2.0, height_range[1] * height))
 
 	r_left = np.random.randint(0, width - r_width)
 	r_top = np.random.randint(0, height - r_height)
 	r_right = r_left + r_width
 	r_down = r_top + r_height
+
 	return r_left, r_right, r_top, r_down

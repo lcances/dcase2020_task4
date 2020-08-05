@@ -93,7 +93,7 @@ def get_model_from_name(model_name: str, case_sensitive: bool = False, modules: 
 def get_model_from_args(args: Namespace, case_sensitive: bool = False, modules: list = None) -> Module:
 	"""
 		Instantiate CUDA model from args. Args must be an Namespace containing the attribute "model".
-		Models available are in files : cnn03, resnet, ubs8k_baseline, vgg, weak_baseline_rot
+		Models available are in files : cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot
 			(in directory "dcase2020_task4/other_models/").
 	"""
 	if modules is None:

@@ -12,6 +12,7 @@ from dcase2020_task4.fixmatch.losses.abc import FixMatchLossTagABC
 from dcase2020_task4.guessers import GuesserModelABC
 from dcase2020_task4.metrics_recorder import MetricsRecorder
 from dcase2020_task4.trainer_abc import SSTrainerABC
+from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.util.zip_cycle import ZipCycle
 
@@ -29,6 +30,7 @@ class FixMatchTrainer(SSTrainerABC):
 		criterion: FixMatchLossTagABC,
 		writer: Optional[SummaryWriter],
 		guesser: GuesserModelABC,
+		steppables: Optional[list],
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -40,6 +42,7 @@ class FixMatchTrainer(SSTrainerABC):
 		self.criterion = criterion
 		self.writer = writer
 		self.guesser = guesser
+		self.steppables = steppables if steppables is not None else []
 
 		self.metrics_recorder = MetricsRecorder(
 			"train/",
@@ -97,6 +100,9 @@ class FixMatchTrainer(SSTrainerABC):
 				]
 				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
+
+				for steppable in self.steppables:
+					steppable.step()
 
 		print("")
 

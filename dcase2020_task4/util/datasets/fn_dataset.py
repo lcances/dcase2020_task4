@@ -4,7 +4,7 @@ from typing import Callable
 
 
 class FnDataset(Dataset):
-	""" Apply a func on all item. """
+	""" Apply a function (fn) on all item. """
 	def __init__(self, dataset: Dataset, fn: Callable):
 		super().__init__()
 		self.dataset = dataset
@@ -15,3 +15,6 @@ class FnDataset(Dataset):
 
 	def __len__(self) -> int:
 		return len(self.dataset)
+
+	def get_fn(self) -> Callable:
+		return self.fn

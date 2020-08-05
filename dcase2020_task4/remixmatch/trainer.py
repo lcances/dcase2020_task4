@@ -38,6 +38,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		distributions: Optional[AvgDistributions],
 		guesser: GuesserModelABC,
 		ss_transform: SelfSupervisedABC,
+		steppables: Optional[list],
 	):
 		"""
 			Note: model must implements torch.nn.Module and implements a method "forward_rot".
@@ -57,6 +58,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		self.distributions = distributions
 		self.guesser = guesser
 		self.ss_transform = ss_transform
+		self.steppables = steppables if steppables is not None else []
 
 		self.acti_rot_fn = acti_rot_fn
 		self.metrics_recorder = MetricsRecorder(
@@ -146,6 +148,9 @@ class ReMixMatchTrainer(SSTrainerABC):
 
 				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
+
+				for steppable in self.steppables:
+					steppable.step()
 
 		print("")
 
