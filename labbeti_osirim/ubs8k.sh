@@ -27,7 +27,7 @@ scheduler="None"
 use_rampup=true
 cross_validation=false
 threshold_confidence=0.9
-nb_rampup_epochs=10
+nb_rampup_steps=10
 supervised_ratio=0.10
 lr=1e-3
 shuffle_s_with_u=true
@@ -61,7 +61,7 @@ $path_py $path_script \
 	--use_rampup $use_rampup \
 	--cross_validation $cross_validation \
 	--threshold_confidence $threshold_confidence \
-	--nb_rampup_epochs $nb_rampup_epochs \
+	--nb_rampup_steps $nb_rampup_steps \
 	--supervised_ratio $supervised_ratio \
 	--lr $lr \
 	--shuffle_s_with_u $shuffle_s_with_u \

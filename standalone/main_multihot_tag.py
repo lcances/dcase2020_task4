@@ -118,7 +118,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
 						help="Use RampUp or not for lambda_u and lambda_u1 hyperparameters.")
-	parser.add_argument("--nb_rampup_epochs", type=str_to_union_str_int, default="nb_epochs",
+	parser.add_argument("--nb_rampup_steps", type=str_to_union_str_int, default="nb_epochs",
 						help="Nb of epochs when lambda_u and lambda_u1 is increase from 0 to their value."
 							 "Use 0 for deactivate RampUp. Use \"nb_epochs\" for ramping up during all training.")
 	parser.add_argument("--use_sharpen_multihot", type=str_to_bool, default=False,
@@ -190,7 +190,7 @@ def main():
 	print(" - lambda_r: %.2e" % args.lambda_r)
 
 	print(" - use_rampup: %s" % args.use_rampup)
-	print(" - nb_rampup_epochs: %d" % args.nb_rampup_epochs)
+	print(" - nb_rampup_steps: %d" % args.nb_rampup_steps)
 	print(" - threshold_confidence: %.2e" % args.threshold_confidence)
 	print(" - shuffle_s_with_u: %s" % args.shuffle_s_with_u)
 
@@ -255,9 +255,9 @@ def main():
 		writer = None
 
 	if args.use_rampup:
-		rampup_lambda_u = RampUp(args.nb_rampup_epochs, args.lambda_u, obj=None, attr_name="lambda_u")
-		rampup_lambda_u1 = RampUp(args.nb_rampup_epochs, args.lambda_u1, obj=None, attr_name="lambda_u1")
-		rampup_lambda_r = RampUp(args.nb_rampup_epochs, args.lambda_r, obj=None, attr_name="lambda_r")
+		rampup_lambda_u = RampUp(args.nb_rampup_steps, args.lambda_u, obj=None, attr_name="lambda_u")
+		rampup_lambda_u1 = RampUp(args.nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_u1")
+		rampup_lambda_r = RampUp(args.nb_rampup_steps, args.lambda_r, obj=None, attr_name="lambda_r")
 	else:
 		rampup_lambda_u = None
 		rampup_lambda_u1 = None

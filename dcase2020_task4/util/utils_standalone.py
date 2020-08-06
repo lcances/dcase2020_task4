@@ -54,8 +54,8 @@ def post_process_args(args: Namespace) -> Namespace:
 	if args.args_file is not None:
 		args = load_args(args.args_file, args)
 
-	if args.nb_rampup_epochs == "nb_epochs":
-		args.nb_rampup_epochs = args.nb_epochs
+	if args.nb_rampup_steps == "nb_epochs":
+		args.nb_rampup_steps = args.nb_epochs
 
 	args.train_name = get_train_name(args.run)
 	args.git_hash = get_current_git_hash()
@@ -193,7 +193,7 @@ def get_hparams_ordered() -> List[Tuple[str, str]]:
 	ordered += [(FLOAT_FORMAT, "lambda_r")]
 
 	ordered += [("%d", "use_rampup")]
-	ordered += [("%d", "nb_rampup_epochs")]
+	ordered += [("%d", "nb_rampup_steps")]
 	ordered += [("%d", "shuffle_s_with_u")]
 	ordered += [(FLOAT_FORMAT, "threshold_confidence")]
 
