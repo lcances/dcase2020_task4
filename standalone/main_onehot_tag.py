@@ -126,8 +126,8 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--use_rampup", "--use_warmup", type=str_to_bool, default=False,
 						help="Use RampUp or not for lambda_u and lambda_u1 hyperparameters.")
-	parser.add_argument("--nb_rampup_epochs", type=str_to_union_str_int, default="nb_epochs",
-						help="Nb of epochs when lambda_u and lambda_u1 is increase from 0 to their value."
+	parser.add_argument("--nb_rampup_steps", type=str_to_union_str_int, default="nb_epochs",
+						help="Nb of steps when lambda_u and lambda_u1 is increase from 0 to their value."
 							 "Use 0 for deactivate RampUp. Use \"nb_epochs\" for ramping up during all training.")
 
 	parser.add_argument("--lambda_s", type=float, default=1.0,
@@ -234,13 +234,13 @@ def main():
 
 	def run(fold_val_ubs8k: int):
 		if args.dataset_name.lower() == "cifar10":
-			augm_weak_fn, augm_strong_fn = get_cifar10_augms(args)
+			augm_list_weak, augm_list_strong = get_cifar10_augms(args)
 			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong = \
-				get_cifar10_datasets(args, augm_weak_fn, augm_strong_fn)
+				get_cifar10_datasets(args, augm_list_weak, augm_list_strong)
 		elif args.dataset_name.lower() == "ubs8k":
-			augm_weak_fn, augm_strong_fn = get_ubs8k_augms(args)
+			augm_list_weak, augm_list_strong = get_ubs8k_augms(args)
 			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong = \
-				get_ubs8k_datasets(args, fold_val_ubs8k, augm_weak_fn, augm_strong_fn)
+				get_ubs8k_datasets(args, fold_val_ubs8k, augm_list_weak, augm_list_strong)
 		else:
 			raise RuntimeError("Unknown dataset %s" % args.dataset_name)
 
@@ -284,9 +284,9 @@ def main():
 			writer = None
 
 		if args.use_rampup:
-			rampup_lambda_u = RampUp(args.nb_rampup_epochs, args.lambda_u, obj=None, attr_name="lambda_u")
-			rampup_lambda_u1 = RampUp(args.nb_rampup_epochs, args.lambda_u1, obj=None, attr_name="lambda_u1")
-			rampup_lambda_r = RampUp(args.nb_rampup_epochs, args.lambda_r, obj=None, attr_name="lambda_r")
+			rampup_lambda_u = RampUp(args.nb_rampup_steps, args.lambda_u, obj=None, attr_name="lambda_u")
+			rampup_lambda_u1 = RampUp(args.nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_u1")
+			rampup_lambda_r = RampUp(args.nb_rampup_steps, args.lambda_r, obj=None, attr_name="lambda_r")
 		else:
 			rampup_lambda_u = None
 			rampup_lambda_u1 = None
@@ -479,13 +479,15 @@ def main():
 		learner.start()
 
 		if writer is not None:
-			save_writer(writer, args)
+			augments_dict = {"augm_weak": augm_list_weak, "augm_strong": augm_list_strong}
+
+			save_writer(writer, args, augments_dict)
 
 			filepath = osp.join(writer.log_dir, "args.json")
 			save_args(filepath, args)
 
 			filepath = osp.join(writer.log_dir, "augments.json")
-			save_augms(filepath, {"augm_weak": augm_weak_fn, "augm_strong": augm_strong_fn})
+			save_augms(filepath, augments_dict)
 
 		recorder = validator.get_metrics_recorder()
 		recorder.print_min_max()
@@ -510,36 +512,40 @@ def main():
 	print("Total execution time: %.2fs" % exec_time)
 
 
-def get_cifar10_augms(args: Namespace) -> (Callable, Callable):
+def get_cifar10_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	ratio_augm_weak = 0.5
-	augm_weak_fn = RandomChoice([
+	augm_list_weak = [
 		HorizontalFlip(ratio_augm_weak),
 		# VerticalFlip(ratio_augm_weak),
 		# Transform(ratio_augm_weak, scale=(0.75, 1.25)),
-	])
+	]
 	ratio_augm_strong = 1.0
-	augm_strong_fn = RandomChoice([
-		# CutOut(ratio_augm_strong),
+	augm_list_strong = [
+		CutOut(ratio_augm_strong),
 		RandAugment(ratio=ratio_augm_strong, magnitude_m=args.ra_magnitude, nb_choices_n=args.ra_nb_choices),
-	])
+	]
 
-	return augm_weak_fn, augm_strong_fn
+	return augm_list_weak, augm_list_strong
 
 
-def get_cifar10_datasets(args: Namespace, augm_weak_fn: Callable, augm_strong_fn: Callable) -> (Dataset, Dataset, Dataset, Dataset):
-	# Add preprocessing before each augmentation (shape : [32, 32, 3])
+def get_cifar10_datasets(args: Namespace, augm_list_weak: List[Callable], augm_list_strong: List[Callable]) -> (Dataset, Dataset, Dataset, Dataset):
+	# Add preprocessing before each augmentation
 	pre_process_fn = lambda img: np.array(img)
-	# Add preprocessing before each augmentation (shape : [32, 32, 3] -> [3, 32, 32])
+	# Add postprocessing after each augmentation (shape : [32, 32, 3] -> [3, 32, 32])
 	post_process_fn = lambda img: img.transpose()
 
 	# Prepare data
 	dataset_train = CIFAR10(
 		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, post_process_fn]))
+
 	dataset_val = CIFAR10(
 		args.dataset_path, train=False, download=True, transform=Compose([pre_process_fn, post_process_fn]))
 
+	augm_weak_fn = RandomChoice(augm_list_weak)
 	dataset_train_augm_weak = CIFAR10(
 		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_weak_fn, post_process_fn]))
+
+	augm_strong_fn = RandomChoice(augm_list_strong)
 	dataset_train_augm_strong = CIFAR10(
 		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_strong_fn, post_process_fn]))
 
@@ -548,12 +554,12 @@ def get_cifar10_datasets(args: Namespace, augm_weak_fn: Callable, augm_strong_fn
 
 def get_ubs8k_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	ratio_augm_weak = 0.5
-	augm_weak_fn = [
+	augm_list_weak = [
 		HorizontalFlip(ratio_augm_weak),
 		Occlusion(ratio_augm_weak, max_size=1.0),
 	]
 	ratio_augm_strong = 1.0
-	augm_strong_fn = [
+	augm_list_strong = [
 		TimeStretch(ratio_augm_strong),
 		PitchShiftRandom(ratio_augm_strong, steps=(-1, 1)),
 		Noise(ratio_augm_strong, target_snr=15),
@@ -564,11 +570,11 @@ def get_ubs8k_augms(args: Namespace) -> (List[Callable], List[Callable]):
 		Noise2(ratio_augm_strong, noise_factor=(0.005, 0.005)),
 	]
 
-	return augm_weak_fn, augm_strong_fn
+	return augm_list_weak, augm_list_strong
 
 
 def get_ubs8k_datasets(
-	args: Namespace, fold_val: int, augms_weak: List[Callable], augms_strong: List[Callable]
+	args: Namespace, fold_val: int, augm_list_weak: List[Callable], augm_list_strong: List[Callable]
 ) -> (Dataset, Dataset, Dataset, Dataset):
 	metadata_root = osp.join(args.dataset_path, "metadata")
 	audio_root = osp.join(args.dataset_path, "audio")
@@ -586,11 +592,11 @@ def get_ubs8k_datasets(
 	dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True)
 	dataset_val = ToTensorDataset(dataset_val)
 
-	datasets = [UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False) for augm_fn in augms_weak]
+	datasets = [UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False) for augm_fn in augm_list_weak]
 	dataset_train_augm_weak = RandomChoiceDataset(datasets)
 	dataset_train_augm_weak = ToTensorDataset(dataset_train_augm_weak)
 
-	datasets = [UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False) for augm_fn in augms_strong]
+	datasets = [UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False) for augm_fn in augm_list_strong]
 	dataset_train_augm_strong = RandomChoiceDataset(datasets)
 	dataset_train_augm_strong = ToTensorDataset(dataset_train_augm_strong)
 

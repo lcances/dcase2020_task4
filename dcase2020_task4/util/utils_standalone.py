@@ -214,8 +214,10 @@ def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> Summ
 	return writer
 
 
-def save_writer(writer: SummaryWriter, args: Namespace):
+def save_writer(writer: SummaryWriter, args: Namespace, augments_dict: dict):
 	writer.add_hparams(hparam_dict=_filter_hparams(args), metric_dict={})
+	writer.add_text("args", json.dumps(args.__dict__, indent="\t"))
+	writer.add_text("augments", json.dumps(augments_dict, indent="\t"))
 	writer.close()
 	print("Data will saved in tensorboard writer \"%s\"." % writer.log_dir)
 
@@ -245,11 +247,11 @@ def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namesp
 	return args
 
 
-def augm_fn_to_dict(augm_fn: Callable) -> Union[dict, list]:
+def augm_fn_to_dict(augm_fn: Any) -> Union[dict, list]:
 	return to_dict_rec(augm_fn, "__class__")
 
 
-def save_augms(filepath: str, augms: Dict[str, Callable]):
+def save_augms(filepath: str, augms: Dict[str, List[Callable]]):
 	content = {
 		name: augm_fn_to_dict(augm_fn) for name, augm_fn in augms.items()
 	}
