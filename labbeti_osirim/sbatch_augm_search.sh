@@ -10,22 +10,22 @@ path_dataset="/projets/samova/leocances/UrbanSound8K/" # CIFAR10, UrbanSound8K
 model="CNN03Rot" # WideResNet28Rot, CNN03Rot
 
 tmp_file=".tmp_sbatch.sh"
-name="AUGM"
+name="AUG_$dataset_name"
 out_file="$HOME/logs/AUGM_%j_$dataset_name.out"
 err_file="$HOME/logs/AUGM_%j_$dataset_name.err"
 
 cat << EOT > $tmp_file
 #!/bin/sh
 
-# SBATCH --job-name=$name
-# SBATCH --output=$out_file
-# SBATCH --error=$err_file
-# SBATCH --ntasks=1
-# SBATCH --cpus-per-task=5
+#SBATCH --job-name=$name
+#SBATCH --output=$out_file
+#SBATCH --error=$err_file
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=5
 # For GPU nodes
-# SBATCH --partition="GPUNodes"
-# SBATCH --gres=gpu:1
-# SBATCH --gres-flags=enforce-binding
+#SBATCH --partition="GPUNodes"
+#SBATCH --gres=gpu:1
+#SBATCH --gres-flags=enforce-binding
 
 module purge
 module load singularity/3.0.3

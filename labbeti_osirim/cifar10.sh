@@ -23,6 +23,7 @@ checkpoint_metric_name="acc"
 batch_size_s=64
 batch_size_u=64
 
+optimizer="Adam"
 scheduler="None"
 use_rampup=true
 cross_validation=false

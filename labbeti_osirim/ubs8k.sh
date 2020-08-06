@@ -1,10 +1,10 @@
 #!/bin/sh
 
-run="mm"
-suffix="MMV8"
+run="fm"
+suffix="DEBUG"
 
 write_results=False
-nb_epochs=20
+nb_epochs=100
 
 path_torch="/logiciels/containerCollections/CUDA10/pytorch.sif"
 path_py="$HOME/miniconda3/envs/dcase2020/bin/python"
@@ -23,6 +23,7 @@ checkpoint_metric_name="acc"
 batch_size_s=64
 batch_size_u=64
 
+optimizer="Adam"
 scheduler="None"
 use_rampup=true
 cross_validation=false
@@ -31,7 +32,7 @@ nb_rampup_epochs=10
 supervised_ratio=0.10
 lr=1e-3
 shuffle_s_with_u=true
-experimental="V8"
+experimental="None"
 criterion_name_u="ce"
 
 nb_augms=2
