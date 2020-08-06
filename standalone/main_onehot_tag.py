@@ -129,6 +129,8 @@ def create_args() -> Namespace:
 	parser.add_argument("--nb_rampup_steps", type=str_to_union_str_int, default="nb_epochs",
 						help="Nb of steps when lambda_u and lambda_u1 is increase from 0 to their value."
 							 "Use 0 for deactivate RampUp. Use \"nb_epochs\" for ramping up during all training.")
+	parser.add_argument("--step_each_epoch", type=str_to_bool, default=True,
+						help="If true, update RampUp each epoch, otherwise step each iteration.")
 
 	parser.add_argument("--lambda_s", type=float, default=1.0,
 						help="MixMatch, FixMatch and ReMixMatch \"lambda_s\" hyperparameter.")
@@ -310,18 +312,19 @@ def main():
 			loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
 			criterion = FixMatchLossOneHot.from_edict(args)
+			steppables = [] if args.step_each_epoch else [rampup_lambda_u]
 
 			if args.experimental != "V11":
 				guesser = GuesserModelOneHot(model, acti_fn)
 				trainer = FixMatchTrainer(
 					model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-					criterion, writer, guesser, [rampup_lambda_u]
+					criterion, writer, guesser, steppables
 				)
 			else:
 				guesser = GuesserMeanModelOneHot(model, acti_fn)
 				trainer = FixMatchTrainerV11(
 					model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-					criterion, writer, guesser, [rampup_lambda_u]
+					criterion, writer, guesser, steppables
 				)
 
 		elif "mm" == args.run or "mixmatch" == args.run:
@@ -349,16 +352,17 @@ def main():
 
 			sharpen_fn = Sharpen(args.sharpen_temperature)
 			guesser = GuesserMeanModelSharpen(model, acti_fn, sharpen_fn)
+			steppables = [] if args.step_each_epoch else [rampup_lambda_u]
 
 			if args.experimental != "V3":
 				trainer = MixMatchTrainer(
 					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-					criterion, writer, mixer, guesser, [rampup_lambda_u]
+					criterion, writer, mixer, guesser, steppables
 				)
 			else:
 				trainer = MixMatchTrainerV3(
 					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-					criterion, writer, mixer, guesser, [rampup_lambda_u]
+					criterion, writer, mixer, guesser, steppables
 				)
 
 		elif "rmm" == args.run or "remixmatch" == args.run:
@@ -407,10 +411,12 @@ def main():
 			if ss_transform.get_nb_classes() != args.nb_classes_self_supervised:
 				raise RuntimeError("Invalid self supervised transform.")
 
+			steppables = [] if args.step_each_epoch else [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
+
 			trainer = ReMixMatchTrainer(
 				model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs,
 				metrics_s, metrics_u, metrics_u1, metrics_r,
-				criterion, writer, mixer, distributions, guesser, ss_transform, [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
+				criterion, writer, mixer, distributions, guesser, ss_transform, steppables
 			)
 
 		elif "sf" == args.run or "supervised_full" == args.run:
@@ -471,8 +477,10 @@ def main():
 		validator = ValidatorTag(
 			model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 		)
-		# rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r,
+
 		steppables = [sched, uni_loss]
+		if args.use_rampup and args.step_each_epoch:
+			steppables += [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
 		steppables = [steppable for steppable in steppables if steppable is not None]
 
 		learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables)
