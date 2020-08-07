@@ -2,6 +2,7 @@ import numpy as np
 
 from abc import ABC
 from PIL import Image, ImageOps, ImageEnhance, ImageFilter
+from torch import Tensor
 from typing import Optional, Tuple
 
 from augmentation_utils.augmentations import ImgAugmentation
@@ -15,7 +16,7 @@ class ImgRGBAugmentation(ABC, ImgAugmentation):
 		super().__init__(ratio)
 		self.value_range = value_range
 
-	def _apply(self, data: np.array) -> np.array:
+	def _apply(self, data: (Tensor, np.ndarray)) -> (Tensor, np.ndarray):
 		if len(data.shape) != 3 or data.shape[2] != 3:
 			raise RuntimeError(
 				"Invalid dimension %s. This augmentation only supports RGB (width, height, 3) images." %
@@ -28,7 +29,7 @@ class Gray(ImgRGBAugmentation):
 	def __init__(self, ratio: float = 1.0, value_range: tuple = (0, 255)):
 		super().__init__(ratio, value_range)
 
-	def apply_helper(self, data):
+	def apply_helper(self, data: (Tensor, np.ndarray)) -> (Tensor, np.ndarray):
 		# Mean on dimension 2
 		gray_img = data.mean(2)
 		for i in range(data.shape[2]):
@@ -50,7 +51,7 @@ class CutOut(ImgRGBAugmentation):
 		self.rect_height_scale_range = rect_height_scale_range
 		self.fill_value = fill_value if fill_value is not None else int((self.value_range[1] + self.value_range[0]) / 2.0)
 
-	def apply_helper(self, data):
+	def apply_helper(self, data: (Tensor, np.ndarray)) -> (Tensor, np.ndarray):
 		width, height = data.shape[0], data.shape[1]
 		r_left, r_right, r_top, r_down = random_rect(width, height, self.rect_width_scale_range, self.rect_height_scale_range)
 
@@ -64,7 +65,7 @@ class UniColor(ImgRGBAugmentation):
 	def __init__(self, ratio: float = 1.0, value_range: tuple = (0, 255)):
 		super().__init__(ratio, value_range)
 
-	def apply_helper(self, data):
+	def apply_helper(self, data: (Tensor, np.ndarray)) -> (Tensor, np.ndarray):
 		max_img = np.max(data, 2)
 
 		color_chosen = np.random.randint(data.shape[2])
@@ -78,7 +79,7 @@ class Inversion(ImgRGBAugmentation):
 	def __init__(self, ratio: float = 1.0, value_range: tuple = (0, 255)):
 		super().__init__(ratio, value_range)
 
-	def apply_helper(self, data):
+	def apply_helper(self, data: (Tensor, np.ndarray)) -> (Tensor, np.ndarray):
 		return self.value_range[1] - data
 
 
@@ -94,6 +95,9 @@ class ImgPILAugmentation(ABC, ImgAugmentation):
 		ImgAugmentation.__init__(self, ratio)
 		self.mode = mode
 
+	def apply_helper(self, data: Image) -> Image.Image:
+		raise NotImplementedError("Abstract method")
+
 	def _apply(self, data: np.array) -> np.array:
 		if len(data.shape) != 3 or data.shape[2] != 3:
 			raise RuntimeError(
@@ -101,9 +105,6 @@ class ImgPILAugmentation(ABC, ImgAugmentation):
 				str(data.shape)
 			)
 		return np.asarray(self.apply_helper(Image.fromarray(data, mode=self.mode)))
-
-	def apply_helper(self, data: Image.Image) -> Image.Image:
-		raise NotImplementedError("Abstract method")
 
 	def set_mode(self, mode: str):
 		self.mode = mode

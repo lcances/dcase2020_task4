@@ -12,14 +12,10 @@ class RandomChoiceDataset(Dataset):
 		self.datasets = datasets
 		self.distribution = distribution
 
-		if self.distribution is None:
-			proba = 1.0 / float(len(self.datasets))
-			self.distribution = [proba for _ in range(len(self.datasets))]
-
 		self._check_attributes()
 
 	def _check_attributes(self):
-		assert len(self.datasets) > 0, "Datasets should not be an empty iterable"
+		assert len(self.datasets) > 0, "Datasets should not be an empty list"
 
 		len_ = len(self.datasets[0])
 		for d in self.datasets[1:]:

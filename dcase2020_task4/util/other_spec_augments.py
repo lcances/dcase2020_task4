@@ -1,4 +1,6 @@
+import numpy as np
 
+from torch import Tensor
 from typing import Optional, Tuple
 
 from augmentation_utils.augmentations import SpecAugmentation
@@ -19,7 +21,7 @@ class CutOutSpec(SpecAugmentation):
 		ratio: float = 1.0,
 		rect_width_scale_range: Tuple[float, float] = (0.1, 0.5),
 		rect_height_scale_range: Tuple[float, float] = (0.1, 0.5),
-		fill_value: Optional[int] = None
+		fill_value: Optional[float] = None
 	):
 		super().__init__(ratio)
 		self.value_range = (-80.0, 0.0)
@@ -27,7 +29,7 @@ class CutOutSpec(SpecAugmentation):
 		self.rect_height_scale_range = rect_height_scale_range
 		self.fill_value = fill_value if fill_value is not None else self.value_range[0]
 
-	def apply_helper(self, data):
+	def apply_helper(self, data: (Tensor, np.ndarray)) -> (Tensor, np.ndarray):
 		width, height = data.shape[0], data.shape[1]
 		r_left, r_right, r_top, r_down = random_rect(width, height, self.rect_width_scale_range, self.rect_height_scale_range)
 

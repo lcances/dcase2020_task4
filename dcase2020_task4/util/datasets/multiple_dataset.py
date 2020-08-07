@@ -14,7 +14,7 @@ class MultipleDataset(Dataset):
 		self._check_attributes()
 
 	def _check_attributes(self):
-		assert len(self.datasets) > 0, "Datasets should not be an empty iterable"
+		assert len(self.datasets) > 0, "Datasets should not be an empty list"
 
 		len_ = len(self.datasets[0])
 		for d in self.datasets[1:]:

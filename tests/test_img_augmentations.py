@@ -78,9 +78,14 @@ def test():
 	img = get_saved_img()
 
 	augms = [
-		Identity(), Rotation(ratio=ratio, angles=(-30, 30)), Inversion(), UniColor(), CutOut(), Gray()
+		Identity(),
+		Rotation(ratio=ratio, angles=(-30, 30)),
+		Inversion(),
+		UniColor(),
+		CutOut(),
+		Gray()
 	]
-	print("Img augm shape = %s (type=%s)" % (img.shape, img.dtype))
+	print("Img original shape = %s (type=%s)" % (img.shape, img.dtype))
 
 	for augm in augms:
 		img_a = augm(img.copy())

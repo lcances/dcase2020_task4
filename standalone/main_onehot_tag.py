@@ -89,7 +89,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--logdir", type=str, default=osp.join("..", "..", "tensorboard"))
 	parser.add_argument("--model", type=str, default="VGG11Rot",
-						choices=["VGG11Rot", "ResNet18Rot", "WideResNet28Rot", "UBS8KBaselineRot", "CNN03Rot"])
+						choices=["VGG11Rot", "ResNet18Rot", "WideResNet28Rot", "UBS8KBaselineRot", "CNN03Rot", "CNN03MishRot"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--confidence", type=float, default=0.5,
 						help="Confidence threshold used in VALIDATION.")
@@ -111,7 +111,7 @@ def create_args() -> Namespace:
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 	parser.add_argument("--lr", "--learning_rate", type=float, default=1e-3,
 						help="Learning rate used.")
-	parser.add_argument("--weight_decay", type=float, default=0.0,
+	parser.add_argument("--weight_decay", "--wd", type=float, default=0.0,
 						help="Weight decay used.")
 
 	parser.add_argument("--write_results", type=str_to_bool, default=True,
@@ -172,7 +172,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--cross_validation", type=str_to_bool, default=False,
 						help="Use cross validation for UBS8K dataset.")
 	parser.add_argument("--fold_val", type=int, default=10,
-						help="Fold used for validation in UBS8K dataset.")
+						help="Fold used for validation in UBS8K dataset. This parameter is unused if cross validation is True.")
 
 	parser.add_argument("--ra_magnitude", type=str_to_optional_int, default=2,
 						help="Magnitude used in RandAugment. Use \"None\" for generate a random "
@@ -569,7 +569,7 @@ def get_ubs8k_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	ratio_augm_strong = 1.0
 	augm_list_strong = [
 		TimeStretch(ratio_augm_strong),
-		PitchShiftRandom(ratio_augm_strong, steps=(-1, 1)),
+		# PitchShiftRandom(ratio_augm_strong, steps=(-1, 1)),
 		Noise(ratio_augm_strong, target_snr=15),
 		CutOutSpec(ratio_augm_strong, rect_width_scale_range=(0.1, 0.25), rect_height_scale_range=(0.1, 0.25)),
 		RandomTimeDropout(ratio_augm_strong, dropout=0.01),
