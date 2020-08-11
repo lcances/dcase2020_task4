@@ -45,23 +45,21 @@ class UniLoss:
 class WeightLinearUniLoss:
 	def __init__(self, targets: List[Tuple[object, str, float, float, float]], nb_steps: int):
 		"""
-			@param targets: List of tuple (object to update, attribute name, constant value, probability at start, probability at end)
-			@param nb_steps:
+			@param targets: List of tuples (object to update, attribute name, constant value, probability at start, probability at end)
+			@param nb_steps: Nb of steps max. Can be the number of iterations multiply by the number of epochs.
 		"""
 		self.targets = targets
 		self.nb_steps = nb_steps
 		self.index_step = 0
 
+		self._update_objects()
+
 	def reset(self):
 		self.index_step = 0
 
 	def step(self):
-		ratios = self.get_current_ratios()
-		chosen = np.random.choice(range(len(self.targets)), p=ratios)
-
-		for i, (obj, attr_name, value, _, _) in enumerate(self.targets):
-			cur_value = value if i == chosen else 0.0
-			obj.__setattr__(attr_name, cur_value)
+		self.index_step += 1
+		self._update_objects()
 
 	def get_current_ratios(self) -> List[float]:
 		ratios = []
@@ -69,3 +67,11 @@ class WeightLinearUniLoss:
 			ratio = self.index_step / self.nb_steps * (ratio_end - ratio_start) + ratio_start
 			ratios.append(ratio)
 		return ratios
+
+	def _update_objects(self):
+		ratios = self.get_current_ratios()
+		chosen = np.random.choice(range(len(self.targets)), p=ratios)
+
+		for i, (obj, attr_name, value, _, _) in enumerate(self.targets):
+			cur_value = value if i == chosen else 0.0
+			obj.__setattr__(attr_name, cur_value)

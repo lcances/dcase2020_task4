@@ -176,7 +176,8 @@ def get_nb_trainable_parameters(model: Module) -> int:
 	return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def get_hparams_ordered() -> List[Tuple[str, str]]:
+def get_hparams_ordered_OLD() -> List[Tuple[str, str]]:
+	# TODO
 	ordered = []
 
 	ordered += [("%s", "model")]
@@ -198,6 +199,16 @@ def get_hparams_ordered() -> List[Tuple[str, str]]:
 	ordered += [(FLOAT_FORMAT, "threshold_confidence")]
 
 	ordered += [("%s", "criterion_name_u")]
+
+	return ordered
+
+
+def get_hparams_ordered() -> List[Tuple[str, str]]:
+	# TODO
+	ordered = []
+
+	ordered += [("%s", "model")]
+	ordered += [("%s", "train_name")]
 
 	return ordered
 
