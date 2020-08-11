@@ -199,11 +199,16 @@ def main():
 	check_args(args)
 
 	print("Start match_onehot. (suffix: \"%s\")" % args.suffix)
-	print(" - dataset_name: %s" % args.dataset_name)
+	# TODO : rem old prints
+	# print(" - dataset_name: %s" % args.dataset_name)
 	print(" - start_date: %s" % start_date)
 
-	for format_, name in get_hparams_ordered():
+	print("Arguments :")
+	print(json.dumps(args.__dict__))
+	"""
+	for format_, name in args.__dict__:
 		print((" - %s: %s" % (name, format_)) % args.__dict__[name])
+	"""
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
@@ -253,6 +258,8 @@ def main():
 		idx_train_s, idx_train_u = split_classes_idx(cls_idx_all, sub_loaders_ratios)
 
 		idx_val = list(range(int(len(dataset_val) * args.dataset_ratio)))
+
+		print("%s: %d train examples supervised, %d train examples unsupervised, %d validation examples" % (args.dataset_name, len(idx_train_s), len(idx_train_u), len(idx_val)))
 
 		dataset_train = OneHotDataset(dataset_train, args.nb_classes)
 		dataset_val = OneHotDataset(dataset_val, args.nb_classes)
