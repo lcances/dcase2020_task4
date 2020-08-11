@@ -9,7 +9,6 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
-import torch
 
 from argparse import ArgumentParser
 from time import time
@@ -58,7 +57,7 @@ from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.rand_augment import RandAugment
 from dcase2020_task4.util.sharpen import Sharpen
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int, str_to_optional_int
-from dcase2020_task4.util.uniloss import UniLoss
+from dcase2020_task4.util.uniloss import UniLoss, WeightLinearUniLoss
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import *
 
@@ -180,10 +179,11 @@ def create_args() -> Namespace:
 						help="Nb augmentations composed for RandAugment. ")
 
 	parser.add_argument("--experimental", type=str_to_optional_str, default=None,
-						choices=[None, "V3", "V8", "V11"])
+						choices=[None, "None", "V3", "V8", "V11", "V12"],
+						help="Experimental mode activated.")
 
 	parser.add_argument("--label_smooth", type=float, default=0.0,
-						help="Label smoothing value for supervised trainings. Use 0.0 for not using label smoothing.")
+						help="Label smoothing value for supervised trainings. Use 0.0 for deactivate label smoothing.")
 	parser.add_argument("--nb_classes_self_supervised", type=int, default=4,
 						help="Nb classes in rotation loss (Self-Supervised part) of ReMixMatch.")
 
@@ -293,7 +293,9 @@ def main():
 			rampup_lambda_u1 = None
 			rampup_lambda_r = None
 
-		if "fm" == args.run or "fixmatch" == args.run:
+		uni_loss = None
+
+		if args.run in ["fm", "fixmatch"]:
 			dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
 
 			dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
@@ -324,13 +326,13 @@ def main():
 					criterion, writer, guesser, steppables
 				)
 			else:
-				guesser = GuesserMeanModelOneHot(model, acti_fn)
+				guesser = GuesserMeanModelBinarize(model, acti_fn)
 				trainer = FixMatchTrainerV11(
 					model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
 					criterion, writer, guesser, steppables
 				)
 
-		elif "mm" == args.run or "mixmatch" == args.run:
+		elif args.run in ["mm", "mixmatch"]:
 			dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
 			dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
 
@@ -357,6 +359,36 @@ def main():
 			guesser = GuesserMeanModelSharpen(model, acti_fn, sharpen_fn)
 			steppables = [] if args.step_each_epoch else [rampup_lambda_u]
 
+			if args.experimental == "V8":
+				if args.use_rampup:
+					raise RuntimeError("Experimental MMV8 cannot be used with RampUp.")
+				if args.nb_epochs < 10:
+					raise RuntimeError("Cannot train with V8 with less than %d epochs." % 10)
+
+				begin_s = 0
+				begin_unif = int(args.nb_epochs * 0.1)
+				begin_u = int(args.nb_epochs * 0.9)
+
+				attributes = [(criterion, "lambda_s"), (criterion, "lambda_u")]
+				uni_loss = UniLoss(
+					attributes=attributes,
+					ratios_range=[
+						([1.0, 0.0], begin_s, begin_unif - 1),
+						([0.5, 0.5], begin_unif, args.nb_epochs),
+						# ([0.0, 1.0], begin_u, args.nb_epochs),
+					]
+				)
+
+			if args.experimental == "V12":
+				weight_linear_scheduler = WeightLinearUniLoss(
+					targets=[
+						(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
+						(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
+					],
+					nb_steps=args.nb_epochs * len(loader_train_u_augms)
+				)
+				steppables.append(weight_linear_scheduler)
+
 			if args.experimental != "V3":
 				trainer = MixMatchTrainer(
 					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
@@ -368,7 +400,7 @@ def main():
 					criterion, writer, mixer, guesser, steppables
 				)
 
-		elif "rmm" == args.run or "remixmatch" == args.run:
+		elif args.run in ["rmm", "remixmatch"]:
 			dataset_train_s_augm_strong = Subset(dataset_train_augm_strong, idx_train_s)
 			dataset_train_u_augm_weak = Subset(dataset_train_augm_weak, idx_train_u)
 			dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
@@ -422,7 +454,7 @@ def main():
 				criterion, writer, mixer, distributions, guesser, ss_transform, steppables
 			)
 
-		elif "sf" == args.run or "supervised_full" == args.run:
+		elif args.run in ["sf", "supervised_full"]:
 			dataset_train_full = Subset(dataset_train, idx_train_s + idx_train_u)
 			loader_train_full = DataLoader(dataset_train_full, **args_loader_train_s)
 
@@ -432,7 +464,7 @@ def main():
 				model, acti_fn, optim, loader_train_full, metrics_s, criterion, writer
 			)
 
-		elif "sp" == args.run or "supervised_part" == args.run:
+		elif args.run in ["sp", "supervised_part"]:
 			dataset_train_part = Subset(dataset_train, idx_train_s)
 			loader_train_part = DataLoader(dataset_train_part, **args_loader_train_s)
 
@@ -447,28 +479,6 @@ def main():
 
 		if rampup_lambda_u is not None:
 			rampup_lambda_u.set_obj(criterion)
-
-		if args.experimental == "V8":
-			if args.use_rampup:
-				raise RuntimeError("Experimental MMV8 cannot be used with RampUp.")
-			if args.nb_epochs < 10:
-				raise RuntimeError("Cannot train with V8 with less than %d epochs." % 10)
-
-			begin_s = 0
-			begin_unif = int(args.nb_epochs * 0.1)
-			begin_u = int(args.nb_epochs * 0.9)
-
-			attributes = [(criterion, "lambda_s"), (criterion, "lambda_u")]
-			uni_loss = UniLoss(
-				attributes=attributes,
-				ratios_range=[
-					([1.0, 0.0], begin_s, begin_unif - 1),
-					([0.5, 0.5], begin_unif, args.nb_epochs),
-					# ([0.0, 1.0], begin_u, args.nb_epochs),
-				]
-			)
-		else:
-			uni_loss = None
 
 		if args.write_results:
 			filename = "%s_%s_%s.torch" % (args.model, args.train_name, args.suffix)
@@ -513,13 +523,19 @@ def main():
 			run(fold_val_ubs8k_)
 
 		content = [(" %d: %f" % (fold, value)) for fold, value in cross_validation_results.items()]
+		mean_ = np.mean(list(cross_validation_results.values()))
 		print("\n")
 		print("Cross-validation results : \n", "\n".join(content))
-		print("Cross-validation mean : ", np.mean(list(cross_validation_results.values())))
+		print("Cross-validation mean : ", mean_)
+
+		if args.write_results:
+			filepath = osp.join(args.logdir, "cross_val_results_%s.json" % start_date)
+			content = {"results": cross_validation_results, "mean": mean_}
+			with open(filepath, "w") as file:
+				json.dump(content, file)
 
 	exec_time = time() - start_time
-	print("")
-	print("Program started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
+	print("\nProgram started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)
 
 

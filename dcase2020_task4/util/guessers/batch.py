@@ -66,7 +66,7 @@ class GuesserModelSharpen(GuesserModelOther):
 		super().__init__(model, acti_fn, sharpen_fn)
 
 
-class GuesserMeanModelOneHot(GuesserModelABC):
+class GuesserMeanModelBinarize(GuesserModelABC):
 	def __init__(self, model: Module, acti_fn: Callable):
 		self.guesser_compose = GuesserCompose(
 			GuesserMeanModel(model, acti_fn),

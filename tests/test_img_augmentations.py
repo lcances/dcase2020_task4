@@ -78,6 +78,7 @@ def test():
 	img = get_saved_img()
 
 	augms = [
+		AutoContrast(),
 		Identity(),
 		Rotation(ratio=ratio, angles=(-30, 30)),
 		Inversion(),
