@@ -199,10 +199,6 @@ def main():
 	check_args(args)
 
 	print("Start match_onehot. (suffix: \"%s\")" % args.suffix)
-
-	print("Arguments : ")
-	print(json.dumps(args.__dict__, indent="\t"))
-
 	print(" - dataset_name: %s" % args.dataset_name)
 	print(" - start_date: %s" % start_date)
 
