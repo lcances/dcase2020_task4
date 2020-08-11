@@ -9,7 +9,7 @@ from dcase2020_task4.util.guessers.abc import GuesserModelABC, GuesserCompose
 from dcase2020_task4.util.guessers.pred import GuesserBinarizeOneHot, GuesserThreshold, GuesserSmoothOneHot, GuesserSmoothMultiHot
 
 
-class GuesserModelOther(ABC, GuesserModelABC):
+class GuesserModelOther(GuesserModelABC):
 	def __init__(self, model: Module, acti_fn: Callable, *args):
 		self.guesser_compose = GuesserCompose(
 			GuesserModel(model, acti_fn),

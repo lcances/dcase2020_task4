@@ -535,7 +535,8 @@ def main():
 				json.dump(content, file)
 
 	exec_time = time() - start_time
-	print("\nProgram started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
+	print("")
+	print("Program started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)
 
 
