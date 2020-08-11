@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose
 
-from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise, Noise2
+from augmentation_utils.signal_augmentations import TimeStretch, Occlusion, Noise, Noise2
 from augmentation_utils.spec_augmentations import HorizontalFlip, RandomTimeDropout, RandomFreqDropout
 from augmentation_utils.spec_augmentations import Noise as NoiseSpec
 
@@ -26,8 +26,6 @@ from dcase2020.util.utils import get_datetime, reset_seed
 from dcase2020_task4.fixmatch.losses.tag.onehot import FixMatchLossOneHot
 from dcase2020_task4.fixmatch.trainer import FixMatchTrainer
 from dcase2020_task4.fixmatch.trainer_v11 import FixMatchTrainerV11
-
-from dcase2020_task4.guessers import GuesserModelOneHot, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen, GuesserMeanModelOneHot
 
 from dcase2020_task4.mixmatch.losses.tag.onehot import MixMatchLossOneHot
 from dcase2020_task4.mixmatch.mixers.tag import MixMatchMixer
@@ -52,6 +50,7 @@ from dcase2020_task4.util.datasets.onehot_dataset import OneHotDataset
 from dcase2020_task4.util.datasets.random_choice_dataset import RandomChoiceDataset
 from dcase2020_task4.util.datasets.smooth_dataset import SmoothOneHotDataset
 from dcase2020_task4.util.datasets.to_tensor_dataset import ToTensorDataset
+from dcase2020_task4.util.guessers.batch import *
 from dcase2020_task4.util.other_img_augments import *
 from dcase2020_task4.util.other_spec_augments import CutOutSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
@@ -315,7 +314,11 @@ def main():
 			steppables = [] if args.step_each_epoch else [rampup_lambda_u]
 
 			if args.experimental != "V11":
-				guesser = GuesserModelOneHot(model, acti_fn)
+				if args.label_smooth > 0.0:
+					guesser = GuesserModelBinarizeSmooth(model, acti_fn, args.label_smooth, args.nb_classes)
+				else:
+					guesser = GuesserModelBinarize(model, acti_fn)
+
 				trainer = FixMatchTrainer(
 					model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
 					criterion, writer, guesser, steppables

@@ -57,7 +57,7 @@ from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, get_model_from_args, \
 	get_optim_from_args, get_sched_from_args, post_process_args, check_args, save_args
 
-from dcase2020_task4.guessers import GuesserModelThreshold, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen
+from dcase2020_task4.util.guessers.batch import GuesserModelThreshold, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen
 from dcase2020_task4.learner import Learner
 from dcase2020_task4.validator import ValidatorTag
 

@@ -9,10 +9,9 @@ from typing import Callable, Dict, List, Optional
 from metric_utils.metrics import Metrics
 
 from dcase2020_task4.fixmatch.losses.abc import FixMatchLossTagABC
-from dcase2020_task4.guessers import GuesserModelABC
 from dcase2020_task4.metrics_recorder import MetricsRecorder
 from dcase2020_task4.trainer_abc import SSTrainerABC
-from dcase2020_task4.util.ramp_up import RampUp
+from dcase2020_task4.util.guessers.abc import GuesserModelABC
 from dcase2020_task4.util.utils_match import get_lr
 from dcase2020_task4.util.zip_cycle import ZipCycle
 
