@@ -179,7 +179,7 @@ def create_args() -> Namespace:
 						help="Nb augmentations composed for RandAugment. ")
 
 	parser.add_argument("--experimental", type=str_to_optional_str, default=None,
-						choices=[None, "None", "V3", "V8", "V11", "V12"],
+						choices=[None, "None", "V3", "V8", "V9", "V11", "V12"],
 						help="Experimental mode activated.")
 
 	parser.add_argument("--label_smooth", type=float, default=0.0,
@@ -204,7 +204,7 @@ def main():
 	print(" - start_date: %s" % start_date)
 
 	print("Arguments :")
-	print(json.dumps(args.__dict__))
+	print(json.dumps(args.__dict__, indent="\t"))
 	"""
 	for format_, name in args.__dict__:
 		print((" - %s: %s" % (name, format_)) % args.__dict__[name])
@@ -365,25 +365,33 @@ def main():
 			guesser = GuesserMeanModelSharpen(model, acti_fn, sharpen_fn)
 			steppables = [] if args.step_each_epoch else [rampup_lambda_u]
 
-			if args.experimental == "V8":
+			if args.experimental == "V8" or args.experimental == "V9":
 				if args.use_rampup:
-					raise RuntimeError("Experimental MMV8 cannot be used with RampUp.")
+					raise RuntimeError("Experimental MMV8 (or MMV9) cannot be used with RampUp.")
 				if args.nb_epochs < 10:
-					raise RuntimeError("Cannot train with V8 with less than %d epochs." % 10)
+					raise RuntimeError("Cannot train with MMV8 (or MMV9) with less than %d epochs." % 10)
 
-				begin_s = 0
-				begin_unif = int(args.nb_epochs * 0.1)
-				begin_u = int(args.nb_epochs * 0.9)
+				begin_only_s = 0
+				begin_uniform_s_u = int(args.nb_epochs * 0.1)
+				begin_only_u = int(args.nb_epochs * 0.9)
 
 				attributes = [(criterion, "lambda_s"), (criterion, "lambda_u")]
-				uni_loss = UniLoss(
-					attributes=attributes,
-					ratios_range=[
-						([1.0, 0.0], begin_s, begin_unif - 1),
-						([0.5, 0.5], begin_unif, args.nb_epochs),
-						# ([0.0, 1.0], begin_u, args.nb_epochs),
+
+				if args.experimental == "V8":
+					ratios_range = [
+						([1.0, 0.0], begin_only_s, begin_uniform_s_u - 1),
+						([0.5, 0.5], begin_uniform_s_u, begin_only_u - 1),
+						([0.0, 1.0], begin_only_u, args.nb_epochs),
 					]
-				)
+				elif args.experimental == "V9":
+					ratios_range = [
+						([1.0, 0.0], begin_only_s, begin_uniform_s_u - 1),
+						([0.5, 0.5], begin_uniform_s_u, args.nb_epochs),
+					]
+				else:
+					raise RuntimeError("Invalid exprimental mode %s" % args.experimental)
+
+				uni_loss = UniLoss(attributes=attributes, ratios_range=ratios_range)
 
 			if args.experimental == "V12":
 				weight_linear_scheduler = WeightLinearUniLoss(
@@ -519,7 +527,7 @@ def main():
 		recorder = validator.get_metrics_recorder()
 		recorder.print_min_max()
 
-		_, maxs = recorder.get_mins_maxs()
+		maxs = recorder.get_maxs()
 		cross_validation_results[fold_val_ubs8k] = maxs["acc"]
 
 	if not args.cross_validation:

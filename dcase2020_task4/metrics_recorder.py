@@ -55,6 +55,14 @@ class MetricsRecorderABC:
 		""" Get the max of means of metric called name. """
 		raise NotImplementedError("Abstract method")
 
+	def get_mins(self) -> Dict[str, float]:
+		""" Get the maxs of means of all names stored.. """
+		raise NotImplementedError("Abstract method")
+
+	def get_maxs(self) -> Dict[str, float]:
+		""" Get the mins of means of all names stored.. """
+		raise NotImplementedError("Abstract method")
+
 	def get_mins_maxs(self) -> (Dict[str, float], Dict[str, float]):
 		""" Returns two dictionaries containing the minimums and maximums values for all epochs done. """
 		raise NotImplementedError("Abstract method")
@@ -174,10 +182,16 @@ class MetricsRecorder(MetricsRecorderABC):
 	def get_std_of_max(self, name: str) -> float:
 		return self.stds_max[name]
 
-	def get_mins_maxs(self) -> (Dict[str, float], Dict[str, float]):
+	def get_mins(self) -> Dict[str, float]:
 		mins = {name: self.get_min(name) for name in sorted(self.data.keys())}
+		return mins
+
+	def get_maxs(self) -> Dict[str, float]:
 		maxs = {name: self.get_max(name) for name in sorted(self.data.keys())}
-		return mins, maxs
+		return maxs
+
+	def get_mins_maxs(self) -> (Dict[str, float], Dict[str, float]):
+		return self.get_mins(), self.get_maxs()
 
 	def _print_header(self):
 		def filter_(name: str) -> str:

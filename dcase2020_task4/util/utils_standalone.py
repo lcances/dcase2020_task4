@@ -226,7 +226,7 @@ def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> Summ
 
 
 def save_writer(writer: SummaryWriter, args: Namespace, augments_dict: dict):
-	writer.add_hparams(hparam_dict=_filter_hparams(args), metric_dict={})
+	writer.add_hparams(hparam_dict=_filter_args(args), metric_dict={})
 	writer.add_text("args", json.dumps(args.__dict__, indent="\t"))
 	writer.add_text("augments", json.dumps(augments_dict, indent="\t"))
 	writer.close()
@@ -258,20 +258,14 @@ def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namesp
 	return args
 
 
-def augm_fn_to_dict(augm_fn: Any) -> Union[dict, list]:
-	return to_dict_rec(augm_fn, "__class__")
-
-
-def save_augms(filepath: str, augms: Dict[str, List[Callable]]):
-	content = {
-		name: augm_fn_to_dict(augm_fn) for name, augm_fn in augms.items()
-	}
+def save_augms(filepath: str, augms: Any):
+	content = {"augments": to_dict_rec(augms, "__class__")}
 	with open(filepath, "w") as file:
 		json.dump(content, file, indent="\t")
 	print("Augments names saved in file \"%s\"." % filepath)
 
 
-def to_dict_rec(obj: Any, class_name_key: Optional[str] = None) -> Union[dict, list]:
+def to_dict_rec(obj: Any, class_name_key: Optional[str] = "__class__") -> Union[dict, list]:
 	# Code imported from (with small changes) :
 	# https://stackoverflow.com/questions/1036409/recursively-convert-python-object-graph-to-dictionary
 
@@ -298,8 +292,8 @@ def to_dict_rec(obj: Any, class_name_key: Optional[str] = None) -> Union[dict, l
 		return obj
 
 
-def _filter_hparams(args: Namespace) -> dict:
-	""" Modify hparams values for storing them in SummaryWriter. """
+def _filter_args(args: Namespace) -> dict:
+	""" Modify args values for storing them in SummaryWriter. """
 
 	def filter_item(v):
 		if v is None:

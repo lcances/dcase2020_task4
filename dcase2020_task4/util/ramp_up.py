@@ -24,6 +24,7 @@ class RampUp:
 		self.min_value = min_value
 
 		self.cur_step = 0
+		self._check_attributes()
 		self.reset()
 
 	def reset(self):
@@ -32,6 +33,7 @@ class RampUp:
 
 	def set_obj(self, obj: Optional[object]):
 		self.obj = obj
+		self._check_attributes()
 		self._update_obj()
 
 	def step(self):
@@ -40,9 +42,12 @@ class RampUp:
 			self._update_obj()
 
 	def value(self) -> float:
-		return (self.max_value - self.min_value) * self.get_coef() + self.min_value
+		return (self.max_value - self.min_value) * self.get_coefficient() + self.min_value
 
-	def get_coef(self) -> float:
+	def get_value(self) -> float:
+		return self.value()
+
+	def get_coefficient(self) -> float:
 		if self.nb_steps > 0:
 			return self.cur_step / self.nb_steps
 		else:
@@ -51,3 +56,7 @@ class RampUp:
 	def _update_obj(self):
 		if self.obj is not None:
 			self.obj.__setattr__(self.attr_name, self.value())
+
+	def _check_attributes(self):
+		if self.obj is not None and not hasattr(self.obj, self.attr_name):
+			raise RuntimeError("Use RampUp on attribute \"%s\" but the object \"%s\" do not contains this attribute." % (self.attr_name, obj.__class__.__name__))

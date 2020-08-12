@@ -26,7 +26,6 @@ def main():
 	positions = np.arange(len(main_results))
 	values = list(main_results.values())
 
-	nb_labels_lines = 5
 	kwargs = {full_name: ",".join([str(v) for v in params.values()]) for full_name, params in augments.items()}
 	labels = [full_name.split("_")[0] + "\n(" + kwargs[full_name] + ")" for full_name in main_results.keys()]
 	labels = [label for i, label in enumerate(labels)]

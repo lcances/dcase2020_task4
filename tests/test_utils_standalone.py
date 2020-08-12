@@ -4,7 +4,7 @@ from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRando
 from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, Noise, RandomTimeDropout, RandomFreqDropout
 from torchvision.transforms import RandomChoice, Compose
 from dcase2020_task4.util.rand_augment import RandAugment
-from dcase2020_task4.util.utils_standalone import get_model_from_name, augm_fn_to_dict
+from dcase2020_task4.util.utils_standalone import get_model_from_name, to_dict_rec
 
 
 def test_model():

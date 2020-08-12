@@ -239,7 +239,7 @@ def main():
 		validator.val(0)
 
 		recorder = validator.get_metrics_recorder()
-		_, maxs = recorder.get_mins_maxs()
+		maxs = recorder.get_maxs()
 		acc_max = maxs["acc"]
 		print("[%s][%s] Acc max = %f" % (augm_train_name, augm_val_name, acc_max))
 		results[augm_train_name][augm_val_name] = acc_max
