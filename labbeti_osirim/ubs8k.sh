@@ -1,6 +1,6 @@
 #!/bin/sh
 
-run="fm"
+run="mm"
 suffix="DEBUG"
 
 path_torch="/logiciels/containerCollections/CUDA10/pytorch.sif"
@@ -11,7 +11,7 @@ path_script="$HOME/root/task4/standalone/main_onehot_tag.py"
 $path_py $path_script \
 	--run "$run" \
 	--suffix "$suffix" \
-	--nb_epochs 100 \
+	--nb_epochs 10 \
 	--experimental "None" \
 	--optimizer "Adam" \
 	--scheduler "None" \
@@ -35,10 +35,10 @@ $path_py $path_script \
 	--checkpoint_path "$HOME/root/task4/models/" \
 	--dataset_name "UBS8K" \
 	--nb_classes 10 \
-	--supervised_ratio 0.1 \
-	--write_results false \
-	--debug_mode true \
+	--supervised_ratio 0.10 \
 	--model "CNN03Rot" \
 	--num_workers_s 4 \
 	--num_workers_u 4 \
 	--checkpoint_metric_name "acc" \
+	--write_results false \
+	--debug_mode true \
