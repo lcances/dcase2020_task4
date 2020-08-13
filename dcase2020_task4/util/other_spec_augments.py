@@ -4,10 +4,11 @@ from torch import Tensor
 from typing import Optional, Tuple
 
 from augmentation_utils.augmentations import SpecAugmentation
+from augmentation_utils.spec_augmentations import Noise
 from dcase2020_task4.util.utils_match import random_rect
 
 
-class Identity(SpecAugmentation):
+class IdentitySpec(SpecAugmentation):
 	def __init__(self):
 		super().__init__(1.0)
 
@@ -45,3 +46,7 @@ class InversionSpec(SpecAugmentation):
 
 	def apply_helper(self, data):
 		return self.value_range[1] + self.value_range[0] - data
+
+
+class NoiseSpec(Noise):
+	pass

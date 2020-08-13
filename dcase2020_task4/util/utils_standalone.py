@@ -225,10 +225,10 @@ def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> Summ
 	return writer
 
 
-def save_writer(writer: SummaryWriter, args: Namespace, augments_dict: dict):
+def save_writer(writer: SummaryWriter, args: Namespace, augments: Any):
 	writer.add_hparams(hparam_dict=_filter_args(args), metric_dict={})
 	writer.add_text("args", json.dumps(args.__dict__, indent="\t"))
-	writer.add_text("augments", json.dumps(augments_dict, indent="\t"))
+	writer.add_text("augments", json.dumps(to_dict_rec(augments), indent="\t"))
 	writer.close()
 	print("Data will saved in tensorboard writer \"%s\"." % writer.log_dir)
 

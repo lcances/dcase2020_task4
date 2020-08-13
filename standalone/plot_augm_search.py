@@ -47,7 +47,7 @@ def main():
 	for rect in rects:
 		value = rect.get_width()
 		ax.annotate(
-			"{:.3f}".format(value),
+			"{:.4f}".format(value),
 			xy=(rect.get_width(), rect.get_y() + rect.get_height() / 4),
 			xytext=(15, 0),  # horizontal offset
 			textcoords="offset points",
