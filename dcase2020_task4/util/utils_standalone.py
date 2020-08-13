@@ -225,7 +225,7 @@ def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> Summ
 	return writer
 
 
-def save_writer(writer: SummaryWriter, args: Namespace, augments: Any):
+def save_and_close_writer(writer: SummaryWriter, args: Namespace, augments: Any):
 	writer.add_hparams(hparam_dict=_filter_args(args), metric_dict={})
 	writer.add_text("args", json.dumps(args.__dict__, indent="\t"))
 	writer.add_text("augments", json.dumps(to_dict_rec(augments), indent="\t"))

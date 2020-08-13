@@ -54,7 +54,7 @@ from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import SharpenMulti
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int
 from dcase2020_task4.util.utils import reset_seed, get_datetime
-from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_writer, get_model_from_args, \
+from dcase2020_task4.util.utils_standalone import build_writer, get_nb_parameters, save_and_close_writer, get_model_from_args, \
 	get_optim_from_args, get_sched_from_args, post_process_args, check_args, save_args
 
 from dcase2020_task4.util.guessers.batch import GuesserModelThreshold, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen
@@ -418,7 +418,7 @@ def main():
 	learner.start()
 
 	if writer is not None:
-		save_writer(writer, args)
+		save_and_close_writer(writer, args)
 		filepath = osp.join(writer.log_dir, "args.json")
 		save_args(filepath, args)
 

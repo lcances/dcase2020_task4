@@ -3,7 +3,7 @@ import numpy as np
 from typing import Callable, List, Tuple, Union
 
 
-class UniLoss:
+class ConstantEpochUniloss:
 	def __init__(
 		self,
 		attributes: Union[List[Tuple[object, str]], List[Tuple[object, str, Callable]]],
@@ -42,23 +42,30 @@ class UniLoss:
 				break
 
 
-class WeightLinearUniLoss:
-	def __init__(self, targets: List[Tuple[object, str, float, float, float]], nb_steps: int):
+class WeightLinearUniloss:
+	def __init__(
+		self,
+		targets: List[Tuple[object, str, float, float, float]],
+		nb_steps: int,
+		update_idx_on_step: bool,
+	):
 		"""
 			@param targets: List of tuples (object to update, attribute name, constant value, probability at start, probability at end)
 			@param nb_steps: Nb of steps max. Can be the number of iterations multiply by the number of epochs.
 		"""
 		self.targets = targets
 		self.nb_steps = nb_steps
-		self.index_step = 0
+		self.update_idx_on_step = update_idx_on_step
 
+		self.index_step = 0
 		self._update_objects()
 
 	def reset(self):
 		self.index_step = 0
 
 	def step(self):
-		self.index_step += 1
+		if self.update_idx_on_step:
+			self.index_step += 1
 		self._update_objects()
 
 	def get_current_ratios(self) -> List[float]:
@@ -75,3 +82,11 @@ class WeightLinearUniLoss:
 		for i, (obj, attr_name, value, _, _) in enumerate(self.targets):
 			cur_value = value if i == chosen else 0.0
 			obj.__setattr__(attr_name, cur_value)
+
+
+class WeightLinearUnilossStepper:
+	def __init__(self, wlu: WeightLinearUniloss):
+		self.wlu = wlu
+
+	def step(self):
+		self.wlu.index_step += 1

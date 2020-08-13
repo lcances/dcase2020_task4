@@ -1,4 +1,4 @@
-from dcase2020_task4.util.uniloss import UniLoss
+from dcase2020_task4.util.uniloss import ConstantEpochUniloss
 
 
 def test():
@@ -33,7 +33,7 @@ def test():
 	print("Ranges: [%d, %d]" % (begin_unif, begin_u - 1))
 	print("Ranges: [%d, %d]" % (begin_u, nb_epochs))
 
-	uni_loss = UniLoss(
+	uni_loss = ConstantEpochUniloss(
 		attributes=[(obj, "a", ramp), (obj, "b")],
 		ratios_range=[
 			([1.0, 0.0], begin_s, begin_unif - 1),

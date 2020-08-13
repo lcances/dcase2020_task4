@@ -57,7 +57,7 @@ from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.rand_augment import RandAugment
 from dcase2020_task4.util.sharpen import Sharpen
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int, str_to_optional_int
-from dcase2020_task4.util.uniloss import UniLoss, WeightLinearUniLoss
+from dcase2020_task4.util.uniloss import ConstantEpochUniloss, WeightLinearUniloss, WeightLinearUnilossStepper
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import *
 
@@ -182,10 +182,17 @@ def create_args() -> Namespace:
 						choices=[None, "None", "V3", "V8", "V9", "V11", "V12"],
 						help="Experimental mode activated.")
 
-	parser.add_argument("--label_smooth", type=float, default=0.0,
+	parser.add_argument("--label_smoothing", type=float, default=0.0,
 						help="Label smoothing value for supervised trainings. Use 0.0 for deactivate label smoothing.")
 	parser.add_argument("--nb_classes_self_supervised", type=int, default=4,
 						help="Nb classes in rotation loss (Self-Supervised part) of ReMixMatch.")
+
+	parser.add_argument("--use_weight_linear_uniloss", "--use_wlu", type=str_to_bool, default=False,
+						help="Activate Weight Linear Uniloss experimental mode.")
+	parser.add_argument("--wlu_on_iteration", type=str_to_bool, default=False,
+						help="Update WLU on iteration or on epoch.")
+	parser.add_argument("--wlu_steps", type=int, default=10,
+						help="Weight Linear Uniloss nb steps.")
 
 	return parser.parse_args()
 
@@ -266,11 +273,11 @@ def main():
 		dataset_train_augm_weak = OneHotDataset(dataset_train_augm_weak, args.nb_classes)
 		dataset_train_augm_strong = OneHotDataset(dataset_train_augm_strong, args.nb_classes)
 
-		if args.label_smooth > 0.0:
-			dataset_train = SmoothOneHotDataset(dataset_train, args.nb_classes, args.label_smooth)
-			dataset_val = SmoothOneHotDataset(dataset_val, args.nb_classes, args.label_smooth)
-			dataset_train_augm_weak = SmoothOneHotDataset(dataset_train_augm_weak, args.nb_classes, args.label_smooth)
-			dataset_train_augm_strong = SmoothOneHotDataset(dataset_train_augm_strong, args.nb_classes, args.label_smooth)
+		if args.label_smoothing > 0.0:
+			dataset_train = SmoothOneHotDataset(dataset_train, args.nb_classes, args.label_smoothing)
+			dataset_val = SmoothOneHotDataset(dataset_val, args.nb_classes, args.label_smoothing)
+			dataset_train_augm_weak = SmoothOneHotDataset(dataset_train_augm_weak, args.nb_classes, args.label_smoothing)
+			dataset_train_augm_strong = SmoothOneHotDataset(dataset_train_augm_strong, args.nb_classes, args.label_smoothing)
 
 		dataset_val = Subset(dataset_val, idx_val)
 		loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
@@ -300,6 +307,7 @@ def main():
 			rampup_lambda_r = None
 
 		uni_loss = None
+		wlu_stepper = None
 
 		if args.run in ["fm", "fixmatch"]:
 			dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
@@ -322,8 +330,8 @@ def main():
 			steppables = [] if args.step_each_epoch else [rampup_lambda_u]
 
 			if args.experimental != "V11":
-				if args.label_smooth > 0.0:
-					guesser = GuesserModelBinarizeSmooth(model, acti_fn, args.label_smooth, args.nb_classes)
+				if args.label_smoothing > 0.0:
+					guesser = GuesserModelBinarizeSmooth(model, acti_fn, args.label_smoothing, args.nb_classes)
 				else:
 					guesser = GuesserModelBinarize(model, acti_fn)
 
@@ -389,19 +397,26 @@ def main():
 						([0.5, 0.5], begin_uniform_s_u, args.nb_epochs),
 					]
 				else:
-					raise RuntimeError("Invalid exprimental mode %s" % args.experimental)
+					raise RuntimeError("Invalid experimental mode %s" % args.experimental)
 
-				uni_loss = UniLoss(attributes=attributes, ratios_range=ratios_range)
+				uni_loss = ConstantEpochUniloss(attributes=attributes, ratios_range=ratios_range)
 
-			if args.experimental == "V12":
-				weight_linear_scheduler = WeightLinearUniLoss(
+			# MMV12, and others
+			if args.use_weight_linear_uniloss:
+				nb_steps = args.nb_epochs * len(loader_train_u_augms) if args.wlu_on_iteration else args.wlu_steps
+				wlu = WeightLinearUniloss(
 					targets=[
 						(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
 						(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
 					],
-					nb_steps=args.nb_epochs * len(loader_train_u_augms)
+					nb_steps=nb_steps,
+					update_idx_on_step=False
 				)
-				steppables.append(weight_linear_scheduler)
+
+				wlu_stepper = WeightLinearUnilossStepper(wlu)
+				if args.wlu_on_iteration:
+					steppables.append(wlu_stepper)
+				steppables.append(wlu)
 
 			if args.experimental != "V3":
 				trainer = MixMatchTrainer(
@@ -506,6 +521,8 @@ def main():
 		)
 
 		steppables = [sched, uni_loss]
+		if not args.wlu_on_iteration:
+			steppables.append(wlu_stepper)
 		if args.use_rampup and args.step_each_epoch:
 			steppables += [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
 		steppables = [steppable for steppable in steppables if steppable is not None]
@@ -516,7 +533,7 @@ def main():
 		if writer is not None:
 			augments_dict = {"augm_weak": augm_list_weak, "augm_strong": augm_list_strong}
 
-			save_writer(writer, args, augments_dict)
+			save_and_close_writer(writer, args, augments_dict)
 
 			filepath = osp.join(writer.log_dir, "args.json")
 			save_args(filepath, args)
