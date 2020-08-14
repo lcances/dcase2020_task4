@@ -78,13 +78,14 @@ def test():
 	img = get_saved_img()
 
 	augms = [
-		AutoContrast(),
 		Identity(),
-		Rotation(ratio=ratio, angles=(-30, 30)),
-		Inversion(),
-		UniColor(),
-		CutOut(),
-		Gray()
+		# AutoContrast(),
+		# Rotation(ratio=ratio, angles=(-30, 30)),
+		# Inversion(),
+		# UniColor(),
+		# CutOut(),
+		# Gray(),
+		Posterize(ratio=ratio, nbs_bits=(3, 4)),
 	]
 	print("Img original shape = %s (type=%s)" % (img.shape, img.dtype))
 

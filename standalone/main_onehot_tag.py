@@ -64,6 +64,8 @@ from dcase2020_task4.util.utils_standalone import *
 from dcase2020_task4.learner import Learner
 from dcase2020_task4.validator import ValidatorTag
 
+from metric_utils.metrics import Metrics
+
 from ubs8k.datasets import Dataset as UBS8KDataset
 from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
 
@@ -127,7 +129,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--nb_rampup_steps", type=str_to_union_str_int, default="nb_epochs",
 						help="Nb of steps when lambda_u and lambda_u1 is increase from 0 to their value."
 							 "Use 0 for deactivate RampUp. Use \"nb_epochs\" for ramping up during all training.")
-	parser.add_argument("--step_each_epoch", type=str_to_bool, default=True,
+	parser.add_argument("--rampup_each_epoch", type=str_to_bool, default=True,
 						help="If true, update RampUp each epoch, otherwise step each iteration.")
 
 	parser.add_argument("--lambda_s", type=float, default=1.0,
@@ -220,26 +222,7 @@ def main():
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
 
-	metrics_s = {
-		"s_acc": CategoricalAccuracyOnehot(dim=1),
-		"s_max": MaxMetric(dim=1),
-	}
-	metrics_u = {
-		"u_acc": CategoricalAccuracyOnehot(dim=1),
-		"u_max": MaxMetric(dim=1),
-	}
-	metrics_u1 = {
-		"u1_acc": CategoricalAccuracyOnehot(dim=1),
-	}
-	metrics_r = {
-		"r_acc": CategoricalAccuracyOnehot(dim=1),
-	}
-	metrics_val = {
-		"acc": CategoricalAccuracyOnehot(dim=1),
-		"ce": FnMetric(cross_entropy),
-		"eq": EqConfidenceMetric(args.confidence, dim=1),
-		"max": MaxMetric(dim=1),
-	}
+	metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val = get_default_metrics(args)
 
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
 	cross_validation_results = {}
@@ -306,7 +289,7 @@ def main():
 			rampup_lambda_u1 = None
 			rampup_lambda_r = None
 
-		uni_loss = None
+		constant_epoch_uniloss = None
 		wlu_stepper = None
 
 		if args.run in ["fm", "fixmatch"]:
@@ -327,7 +310,20 @@ def main():
 			loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
 			criterion = FixMatchLossOneHot.from_edict(args)
-			steppables = [] if args.step_each_epoch else [rampup_lambda_u]
+			steppables_iteration = [] if args.rampup_each_epoch else [rampup_lambda_u]
+
+			if args.use_weight_linear_uniloss:
+				nb_steps_wlu = args.nb_epochs * len(idx_train_u) * args.batch_size_u if args.wlu_on_iteration else args.wlu_steps
+				targets_wlu = [
+					(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
+					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
+				]
+				wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu, False)
+				wlu_stepper = WeightLinearUnilossStepper(wlu)
+
+				if args.wlu_on_iteration:
+					steppables_iteration.append(wlu_stepper)
+				steppables_iteration.append(wlu)
 
 			if args.experimental != "V11":
 				if args.label_smoothing > 0.0:
@@ -337,13 +333,13 @@ def main():
 
 				trainer = FixMatchTrainer(
 					model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-					criterion, writer, guesser, steppables
+					criterion, writer, guesser, steppables_iteration
 				)
 			else:
 				guesser = GuesserMeanModelBinarize(model, acti_fn)
 				trainer = FixMatchTrainerV11(
 					model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-					criterion, writer, guesser, steppables
+					criterion, writer, guesser, steppables_iteration
 				)
 
 		elif args.run in ["mm", "mixmatch"]:
@@ -371,7 +367,7 @@ def main():
 
 			sharpen_fn = Sharpen(args.sharpen_temperature)
 			guesser = GuesserMeanModelSharpen(model, acti_fn, sharpen_fn)
-			steppables = [] if args.step_each_epoch else [rampup_lambda_u]
+			steppables_iteration = [] if args.rampup_each_epoch else [rampup_lambda_u]
 
 			if args.experimental == "V8" or args.experimental == "V9":
 				if args.use_rampup:
@@ -399,34 +395,30 @@ def main():
 				else:
 					raise RuntimeError("Invalid experimental mode %s" % args.experimental)
 
-				uni_loss = ConstantEpochUniloss(attributes=attributes, ratios_range=ratios_range)
+				constant_epoch_uniloss = ConstantEpochUniloss(attributes, ratios_range)
 
-			# MMV12, and others
 			if args.use_weight_linear_uniloss:
-				nb_steps = args.nb_epochs * len(loader_train_u_augms) if args.wlu_on_iteration else args.wlu_steps
-				wlu = WeightLinearUniloss(
-					targets=[
-						(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
-						(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
-					],
-					nb_steps=nb_steps,
-					update_idx_on_step=False
-				)
-
+				nb_steps_wlu = args.nb_epochs * len(idx_train_u) * args.batch_size_u if args.wlu_on_iteration else args.wlu_steps
+				targets_wlu = [
+					(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
+					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
+				]
+				wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu, False)
 				wlu_stepper = WeightLinearUnilossStepper(wlu)
+
 				if args.wlu_on_iteration:
-					steppables.append(wlu_stepper)
-				steppables.append(wlu)
+					steppables_iteration.append(wlu_stepper)
+				steppables_iteration.append(wlu)
 
 			if args.experimental != "V3":
 				trainer = MixMatchTrainer(
 					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-					criterion, writer, mixer, guesser, steppables
+					criterion, writer, mixer, guesser, steppables_iteration
 				)
 			else:
 				trainer = MixMatchTrainerV3(
 					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-					criterion, writer, mixer, guesser, steppables
+					criterion, writer, mixer, guesser, steppables_iteration
 				)
 
 		elif args.run in ["rmm", "remixmatch"]:
@@ -463,9 +455,10 @@ def main():
 
 			acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
 
-			if args.dataset_name.startswith("CIFAR10"):
+			# TODO : change conditions
+			if args.dataset_name == "CIFAR10":
 				ss_transform = SelfSupervisedFlips()
-			elif args.dataset_name.startswith("UBS8K"):
+			elif args.dataset_name == "UBS8K":
 				ss_transform = SelfSupervisedFlips()
 			else:
 				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (
@@ -475,12 +468,27 @@ def main():
 			if ss_transform.get_nb_classes() != args.nb_classes_self_supervised:
 				raise RuntimeError("Invalid self supervised transform.")
 
-			steppables = [] if args.step_each_epoch else [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
+			steppables_iteration = [] if args.rampup_each_epoch else [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
+
+			if args.use_weight_linear_uniloss:
+				nb_steps_wlu = args.nb_epochs * len(idx_train_u) * args.batch_size_u if args.wlu_on_iteration else args.wlu_steps
+				targets_wlu = [
+					(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
+					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0 / 3.0),
+					(criterion, "lambda_u1", args.lambda_u1, 0.0, 1.0 / 3.0),
+					(criterion, "lambda_r", args.lambda_r, 0.0, 1.0 / 3.0),
+				]
+				wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu, False)
+				wlu_stepper = WeightLinearUnilossStepper(wlu)
+
+				if args.wlu_on_iteration:
+					steppables_iteration.append(wlu_stepper)
+				steppables_iteration.append(wlu)
 
 			trainer = ReMixMatchTrainer(
 				model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs,
 				metrics_s, metrics_u, metrics_u1, metrics_r,
-				criterion, writer, mixer, distributions, guesser, ss_transform, steppables
+				criterion, writer, mixer, distributions, guesser, ss_transform, steppables_iteration
 			)
 
 		elif args.run in ["sf", "supervised_full"]:
@@ -520,14 +528,14 @@ def main():
 			model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 		)
 
-		steppables = [sched, uni_loss]
+		steppables_epoch = [sched, constant_epoch_uniloss]
 		if not args.wlu_on_iteration:
-			steppables.append(wlu_stepper)
-		if args.use_rampup and args.step_each_epoch:
-			steppables += [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
-		steppables = [steppable for steppable in steppables if steppable is not None]
+			steppables_epoch.append(wlu_stepper)
+		if args.use_rampup and args.rampup_each_epoch:
+			steppables_epoch += [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
+		steppables_epoch = [steppable for steppable in steppables_epoch if steppable is not None]
 
-		learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables)
+		learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables_epoch)
 		learner.start()
 
 		if writer is not None:
@@ -569,6 +577,30 @@ def main():
 	print("")
 	print("Program started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)
+
+
+def get_default_metrics(args: Namespace) -> List[Dict[str, Metrics]]:
+	metrics_s = {
+		"s_acc": CategoricalAccuracyOnehot(dim=1),
+		"s_max": MaxMetric(dim=1),
+	}
+	metrics_u = {
+		"u_acc": CategoricalAccuracyOnehot(dim=1),
+		"u_max": MaxMetric(dim=1),
+	}
+	metrics_u1 = {
+		"u1_acc": CategoricalAccuracyOnehot(dim=1),
+	}
+	metrics_r = {
+		"r_acc": CategoricalAccuracyOnehot(dim=1),
+	}
+	metrics_val = {
+		"acc": CategoricalAccuracyOnehot(dim=1),
+		"ce": FnMetric(cross_entropy),
+		"eq": EqConfidenceMetric(args.confidence, dim=1),
+		"max": MaxMetric(dim=1),
+	}
+	return [metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val]
 
 
 def get_cifar10_augms(args: Namespace) -> (List[Callable], List[Callable]):
