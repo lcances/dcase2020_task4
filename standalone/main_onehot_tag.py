@@ -319,7 +319,7 @@ def main():
 					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
 				]
 				wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu, False)
-				wlu_stepper = WeightLinearUnilossStepper(wlu)
+				wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, nb_steps_wlu, wlu)
 
 				if args.wlu_on_iteration:
 					steppables_iteration.append(wlu_stepper)
@@ -404,7 +404,7 @@ def main():
 					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
 				]
 				wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu, False)
-				wlu_stepper = WeightLinearUnilossStepper(wlu)
+				wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, nb_steps_wlu, wlu)
 
 				if args.wlu_on_iteration:
 					steppables_iteration.append(wlu_stepper)
@@ -479,7 +479,7 @@ def main():
 					(criterion, "lambda_r", args.lambda_r, 0.0, 1.0 / 3.0),
 				]
 				wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu, False)
-				wlu_stepper = WeightLinearUnilossStepper(wlu)
+				wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, nb_steps_wlu, wlu)
 
 				if args.wlu_on_iteration:
 					steppables_iteration.append(wlu_stepper)

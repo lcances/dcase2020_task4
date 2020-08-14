@@ -85,8 +85,16 @@ class WeightLinearUniloss:
 
 
 class WeightLinearUnilossStepper:
-	def __init__(self, wlu: WeightLinearUniloss):
+	def __init__(self, nb_epochs: int, nb_steps_wlu: int, wlu: WeightLinearUniloss):
+		self.nb_epochs = nb_epochs
+		self.nb_steps_wlu = nb_steps_wlu
 		self.wlu = wlu
 
+		self.local_index = 0
+
 	def step(self):
-		self.wlu.index_step += 1
+		if self.local_index < self.nb_epochs / self.nb_steps_wlu:
+			self.local_index += 1
+		else:
+			self.local_index = 0
+			self.wlu.index_step += 1
