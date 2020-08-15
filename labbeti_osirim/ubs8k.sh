@@ -27,9 +27,13 @@ $path_py $path_script \
 	--lambda_r 0.5 \
 	--batch_size_s 64 \
 	--batch_size_u 64 \
-	--step_each_epoch true \
+	--label_smoothing 0.000 \
+	--rampup_each_epoch true \
 	--shuffle_s_with_u true \
-	--criterion_name_u "ce" \
+	--criterion_name_u "cross_entropy" \
+	--use_wlu false \
+	--wlu_on_epoch true \
+	--wlu_steps 10 \
 	--dataset_path "/projets/samova/leocances/UrbanSound8K/" \
 	--logdir "$HOME/root/tensorboard/UBS8K/fold_10_CNN03/" \
 	--checkpoint_path "$HOME/root/task4/models/" \

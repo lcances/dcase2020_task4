@@ -1,7 +1,7 @@
 #!/bin/sh
 
 run="sf"
-suffix="SF"
+suffix="SF_new_model"
 
 path_torch="/logiciels/containerCollections/CUDA10/pytorch.sif"
 path_py="$HOME/miniconda3/envs/dcase2020/bin/python"
@@ -9,7 +9,7 @@ path_script="$HOME/root/task4/standalone/main_onehot_tag.py"
 
 
 tmp_file=".tmp_sbatch.sh"
-name="CTAG_$run"
+name="CT$suffix"
 out_file="$HOME/logs/CIFAR10_%j_$run.out"
 err_file="$HOME/logs/CIFAR10_%j_$run.err"
 
@@ -32,7 +32,7 @@ module load singularity/3.0.3
 srun singularity exec $path_torch $path_py $path_script \
 	--run "$run" \
 	--suffix "$suffix" \
-	--nb_epochs 10 \
+	--nb_epochs 300 \
 	--experimental "None" \
 	--optimizer "Adam" \
 	--scheduler "None" \
@@ -48,9 +48,13 @@ srun singularity exec $path_torch $path_py $path_script \
 	--lambda_r 0.5 \
 	--batch_size_s 64 \
 	--batch_size_u 64 \
-	--step_each_epoch true \
+	--label_smoothing 0.000 \
+	--rampup_each_epoch true \
 	--shuffle_s_with_u true \
-	--criterion_name_u "ce" \
+	--criterion_name_u "cross_entropy" \
+	--use_wlu false \
+	--wlu_on_epoch true \
+	--wlu_steps 10 \
 	--dataset_path "/projets/samova/leocances/CIFAR10/" \
 	--logdir "$HOME/root/tensorboard/CIFAR10/default/" \
 	--checkpoint_path "$HOME/root/task4/models/" \

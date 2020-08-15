@@ -5,7 +5,7 @@ path_py="$HOME/miniconda3/envs/dcase2020/bin/python"
 path_script="$HOME/root/task4/standalone/main_onehot_tag.py"
 
 run="mm"
-suffix="MMV17"
+suffix="MMV18"
 
 tmp_file=".tmp_sbatch.sh"
 name="UT$suffix"
@@ -40,16 +40,20 @@ srun singularity exec $path_torch $path_py $path_script \
 	--cross_validation false \
 	--threshold_confidence 0.9 \
 	--lr 1e-3 \
-	--nb_augms 16 \
-	--nb_augms_strong 4 \
+	--nb_augms 2 \
+	--nb_augms_strong 2 \
 	--lambda_u 1.0 \
 	--lambda_u1 0.5 \
 	--lambda_r 0.5 \
 	--batch_size_s 64 \
 	--batch_size_u 64 \
-	--step_each_epoch true \
+	--label_smoothing 0.000 \
+	--rampup_each_epoch true \
 	--shuffle_s_with_u true \
 	--criterion_name_u "cross_entropy" \
+	--use_wlu false \
+	--wlu_on_epoch true \
+	--wlu_steps 10 \
 	--dataset_path "/projets/samova/leocances/UrbanSound8K/" \
 	--logdir "$HOME/root/tensorboard/UBS8K/fold_10_CNN03/" \
 	--checkpoint_path "$HOME/root/task4/models/" \

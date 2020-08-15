@@ -1,0 +1,173 @@
+{
+	"results": {
+		"Identity_": {
+			"Identity_": 0.828125,
+			"HorizontalFlip_ratio_1.0": 0.7487980769230769,
+			"VerticalFlip_ratio_1.0": 0.25841346153846156,
+			"Noise_ratio_1.0_target_snr_15": 0.6610576923076923,
+			"Noise_ratio_1.0_target_snr_20": 0.7007211538461539,
+			"InversionSpec_ratio_1.0": 0.17668269230769232,
+			"Noise2_noise_factor__op_1.0_c__1.0_cp__ratio_1.0": 0.12139423076923077,
+			"Noise2_noise_factor__op_0.1_c__0.1_cp__ratio_1.0": 0.2764423076923077,
+			"Noise2_noise_factor__op_0.01_c__0.01_cp__ratio_1.0": 0.5961538461538461,
+			"Noise2_noise_factor__op_0.001_c__0.001_cp__ratio_1.0": 0.78125,
+			"NoiseSpec_ratio_1.0_snr_1.0": 0.8293269230769231,
+			"NoiseSpec_ratio_1.0_snr_5.0": 0.7572115384615384,
+			"NoiseSpec_ratio_1.0_snr_10.0": 0.5480769230769231,
+			"NoiseSpec_ratio_1.0_snr_15.0": 0.4699519230769231,
+			"Occlusion_max_size_1.0_ratio_1.0": 0.7848557692307693,
+			"PitchShiftRandom_ratio_1.0_steps__op_-1_c__1_cp_": 0.7199519230769231,
+			"PitchShiftRandom_ratio_1.0_steps__op_-3_c__3_cp_": 0.6538461538461539,
+			"CutOutSpec_fill_value_-80_ratio_1.0_rect_height_scale_range__op_0.1_c__0.5_cp__rect_width_scale_range__op_0.1_c__0.5_cp_": 0.6274038461538461,
+			"CutOutSpec_fill_value_-80_ratio_1.0_rect_height_scale_range__op_0.1_c__0.25_cp__rect_width_scale_range__op_0.1_c__0.25_cp_": 0.7548076923076923,
+			"RandomTimeDropout_dropout_0.5_ratio_1.0": 0.18269230769230768,
+			"RandomTimeDropout_dropout_0.01_ratio_1.0": 0.7632211538461539,
+			"RandomFreqDropout_dropout_0.5_ratio_1.0": 0.10096153846153846,
+			"RandomFreqDropout_dropout_0.01_ratio_1.0": 0.6201923076923077,
+			"TimeStretch_ratio_1.0": 0.7728365384615384
+		}
+	},
+	"augments": {
+		"Identity_": {},
+		"HorizontalFlip_ratio_1.0": {
+			"ratio": 1.0
+		},
+		"VerticalFlip_ratio_1.0": {
+			"ratio": 1.0
+		},
+		"Noise_ratio_1.0_target_snr_15": {
+			"ratio": 1.0,
+			"target_snr": 15
+		},
+		"Noise_ratio_1.0_target_snr_20": {
+			"ratio": 1.0,
+			"target_snr": 20
+		},
+		"InversionSpec_ratio_1.0": {
+			"ratio": 1.0
+		},
+		"Noise2_noise_factor__op_1.0_c__1.0_cp__ratio_1.0": {
+			"ratio": 1.0,
+			"noise_factor": [
+				1.0,
+				1.0
+			]
+		},
+		"Noise2_noise_factor__op_0.1_c__0.1_cp__ratio_1.0": {
+			"ratio": 1.0,
+			"noise_factor": [
+				0.1,
+				0.1
+			]
+		},
+		"Noise2_noise_factor__op_0.01_c__0.01_cp__ratio_1.0": {
+			"ratio": 1.0,
+			"noise_factor": [
+				0.01,
+				0.01
+			]
+		},
+		"Noise2_noise_factor__op_0.001_c__0.001_cp__ratio_1.0": {
+			"ratio": 1.0,
+			"noise_factor": [
+				0.001,
+				0.001
+			]
+		},
+		"NoiseSpec_ratio_1.0_snr_1.0": {
+			"ratio": 1.0,
+			"snr": 1.0
+		},
+		"NoiseSpec_ratio_1.0_snr_5.0": {
+			"ratio": 1.0,
+			"snr": 5.0
+		},
+		"NoiseSpec_ratio_1.0_snr_10.0": {
+			"ratio": 1.0,
+			"snr": 10.0
+		},
+		"NoiseSpec_ratio_1.0_snr_15.0": {
+			"ratio": 1.0,
+			"snr": 15.0
+		},
+		"Occlusion_max_size_1.0_ratio_1.0": {
+			"ratio": 1.0,
+			"max_size": 1.0
+		},
+		"PitchShiftRandom_ratio_1.0_steps__op_-1_c__1_cp_": {
+			"ratio": 1.0,
+			"steps": [
+				-1,
+				1
+			]
+		},
+		"PitchShiftRandom_ratio_1.0_steps__op_-3_c__3_cp_": {
+			"ratio": 1.0,
+			"steps": [
+				-3,
+				3
+			]
+		},
+		"CutOutSpec_fill_value_-80_ratio_1.0_rect_height_scale_range__op_0.1_c__0.5_cp__rect_width_scale_range__op_0.1_c__0.5_cp_": {
+			"ratio": 1.0,
+			"fill_value": -80,
+			"rect_width_scale_range": [
+				0.1,
+				0.5
+			],
+			"rect_height_scale_range": [
+				0.1,
+				0.5
+			]
+		},
+		"CutOutSpec_fill_value_-80_ratio_1.0_rect_height_scale_range__op_0.1_c__0.25_cp__rect_width_scale_range__op_0.1_c__0.25_cp_": {
+			"ratio": 1.0,
+			"fill_value": -80,
+			"rect_width_scale_range": [
+				0.1,
+				0.25
+			],
+			"rect_height_scale_range": [
+				0.1,
+				0.25
+			]
+		},
+		"RandomTimeDropout_dropout_0.5_ratio_1.0": {
+			"ratio": 1.0,
+			"dropout": 0.5
+		},
+		"RandomTimeDropout_dropout_0.01_ratio_1.0": {
+			"ratio": 1.0,
+			"dropout": 0.01
+		},
+		"RandomFreqDropout_dropout_0.5_ratio_1.0": {
+			"ratio": 1.0,
+			"dropout": 0.5
+		},
+		"RandomFreqDropout_dropout_0.01_ratio_1.0": {
+			"ratio": 1.0,
+			"dropout": 0.01
+		},
+		"TimeStretch_ratio_1.0": {
+			"ratio": 1.0
+		}
+	},
+	"args": {
+		"dataset_name": "UBS8K",
+		"dataset_path": "/projets/samova/leocances/UrbanSound8K/",
+		"nb_classes": 10,
+		"seed": 123,
+		"batch_size_s": 64,
+		"num_workers_s": 4,
+		"nb_epochs": 100,
+		"checkpoint_path": "/users/samova/elabbe/root/task4/models/",
+		"checkpoint_metric_name": "acc",
+		"confidence": 0.5,
+		"model": "CNN03Rot",
+		"optimizer": "Adam",
+		"scheduler": "None",
+		"lr": 0.001,
+		"weight_decay": 0.0,
+		"fold_val": 10
+	}
+}
