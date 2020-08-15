@@ -60,6 +60,7 @@ from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_
 from dcase2020_task4.util.uniloss import ConstantEpochUniloss, WeightLinearUniloss, WeightLinearUnilossStepper
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import *
+from dcase2020_task4.util.zip_cycle import ZipCycle
 
 from dcase2020_task4.learner import Learner
 from dcase2020_task4.validator import ValidatorTag
@@ -189,9 +190,9 @@ def create_args() -> Namespace:
 	parser.add_argument("--nb_classes_self_supervised", type=int, default=4,
 						help="Nb classes in rotation loss (Self-Supervised part) of ReMixMatch.")
 
-	parser.add_argument("--use_weight_linear_uniloss", "--use_wlu", type=str_to_bool, default=False,
+	parser.add_argument("--use_wlu", "--use_weight_linear_uniloss", type=str_to_bool, default=False,
 						help="Activate Weight Linear Uniloss experimental mode.")
-	parser.add_argument("--wlu_on_iteration", type=str_to_bool, default=False,
+	parser.add_argument("--wlu_on_epoch", type=str_to_bool, default=True,
 						help="Update WLU on iteration or on epoch.")
 	parser.add_argument("--wlu_steps", type=int, default=10,
 						help="Weight Linear Uniloss nb steps.")
@@ -289,7 +290,8 @@ def main():
 			rampup_lambda_u1 = None
 			rampup_lambda_r = None
 
-		constant_epoch_uniloss = None
+		steppables_iteration = []
+		steppables_epoch = []
 		wlu_stepper = None
 
 		if args.run in ["fm", "fixmatch"]:
@@ -308,12 +310,14 @@ def main():
 
 			loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 			loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
+			loader = ZipCycle([loader_train_s_augm_weak, loader_train_u_augms_weak_strong])
 
 			criterion = FixMatchLossOneHot.from_edict(args)
-			steppables_iteration = [] if args.rampup_each_epoch else [rampup_lambda_u]
+			if not args.rampup_each_epoch:
+				steppables_iteration.append(rampup_lambda_u)
 
-			if args.use_weight_linear_uniloss:
-				nb_steps_wlu = args.nb_epochs * len(idx_train_u) * args.batch_size_u if args.wlu_on_iteration else args.wlu_steps
+			if args.use_wlu:
+				nb_steps_wlu = args.nb_epochs * len(idx_train_u) * args.batch_size_u if not args.wlu_on_epoch else args.wlu_steps
 				targets_wlu = [
 					(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
 					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
@@ -321,7 +325,7 @@ def main():
 				wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu, False)
 				wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, nb_steps_wlu, wlu)
 
-				if args.wlu_on_iteration:
+				if not args.wlu_on_epoch:
 					steppables_iteration.append(wlu_stepper)
 				steppables_iteration.append(wlu)
 
@@ -332,14 +336,14 @@ def main():
 					guesser = GuesserModelBinarize(model, acti_fn)
 
 				trainer = FixMatchTrainer(
-					model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-					criterion, writer, guesser, steppables_iteration
+					model, acti_fn, optim, loader, criterion, guesser, metrics_s, metrics_u,
+					writer, steppables_iteration
 				)
 			else:
 				guesser = GuesserMeanModelBinarize(model, acti_fn)
 				trainer = FixMatchTrainerV11(
-					model, acti_fn, optim, loader_train_s_augm_weak, loader_train_u_augms_weak_strong, metrics_s, metrics_u,
-					criterion, writer, guesser, steppables_iteration
+					model, acti_fn, optim, loader, criterion, guesser, metrics_s, metrics_u,
+					writer, steppables_iteration
 				)
 
 		elif args.run in ["mm", "mixmatch"]:
@@ -356,6 +360,7 @@ def main():
 
 			loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 			loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
+			loader = ZipCycle([loader_train_s_augm, loader_train_u_augms])
 
 			if loader_train_s_augm.batch_size != loader_train_u_augms.batch_size:
 				raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
@@ -367,7 +372,8 @@ def main():
 
 			sharpen_fn = Sharpen(args.sharpen_temperature)
 			guesser = GuesserMeanModelSharpen(model, acti_fn, sharpen_fn)
-			steppables_iteration = [] if args.rampup_each_epoch else [rampup_lambda_u]
+			if not args.rampup_each_epoch:
+				steppables_iteration.append(rampup_lambda_u)
 
 			if args.experimental == "V8" or args.experimental == "V9":
 				if args.use_rampup:
@@ -396,9 +402,10 @@ def main():
 					raise RuntimeError("Invalid experimental mode %s" % args.experimental)
 
 				constant_epoch_uniloss = ConstantEpochUniloss(attributes, ratios_range)
+				steppables_epoch.append(constant_epoch_uniloss)
 
-			if args.use_weight_linear_uniloss:
-				nb_steps_wlu = args.nb_epochs * len(idx_train_u) * args.batch_size_u if args.wlu_on_iteration else args.wlu_steps
+			if args.use_wlu:
+				nb_steps_wlu = args.nb_epochs * len(idx_train_u) * args.batch_size_u if not args.wlu_on_epoch else args.wlu_steps
 				targets_wlu = [
 					(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
 					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
@@ -406,19 +413,19 @@ def main():
 				wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu, False)
 				wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, nb_steps_wlu, wlu)
 
-				if args.wlu_on_iteration:
+				if not args.wlu_on_epoch:
 					steppables_iteration.append(wlu_stepper)
 				steppables_iteration.append(wlu)
 
 			if args.experimental != "V3":
 				trainer = MixMatchTrainer(
-					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-					criterion, writer, mixer, guesser, steppables_iteration
+					model, acti_fn, optim, loader, criterion, guesser, metrics_s, metrics_u,
+					writer, mixer, steppables_iteration
 				)
 			else:
 				trainer = MixMatchTrainerV3(
-					model, acti_fn, optim, loader_train_s_augm, loader_train_u_augms, metrics_s, metrics_u,
-					criterion, writer, mixer, guesser, steppables_iteration
+					model, acti_fn, optim, loader, criterion, guesser, metrics_s, metrics_u,
+					writer, mixer, steppables_iteration
 				)
 
 		elif args.run in ["rmm", "remixmatch"]:
@@ -434,6 +441,7 @@ def main():
 
 			loader_train_s_strong = DataLoader(dataset_train_s_augm_strong, **args_loader_train_s)
 			loader_train_u_augms_weak_strongs = DataLoader(dataset_train_u_weak_strongs, **args_loader_train_u)
+			loader = ZipCycle([loader_train_s_strong, loader_train_u_augms_weak_strongs])
 
 			if loader_train_s_strong.batch_size != loader_train_u_augms_weak_strongs.batch_size:
 				raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
@@ -468,10 +476,13 @@ def main():
 			if ss_transform.get_nb_classes() != args.nb_classes_self_supervised:
 				raise RuntimeError("Invalid self supervised transform.")
 
-			steppables_iteration = [] if args.rampup_each_epoch else [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
+			if not args.rampup_each_epoch:
+				steppables_iteration.append(rampup_lambda_u)
+				steppables_iteration.append(rampup_lambda_u1)
+				steppables_iteration.append(rampup_lambda_r)
 
-			if args.use_weight_linear_uniloss:
-				nb_steps_wlu = args.nb_epochs * len(idx_train_u) * args.batch_size_u if args.wlu_on_iteration else args.wlu_steps
+			if args.use_wlu:
+				nb_steps_wlu = args.nb_epochs * len(idx_train_u) * args.batch_size_u if not args.wlu_on_epoch else args.wlu_steps
 				targets_wlu = [
 					(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
 					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0 / 3.0),
@@ -481,14 +492,14 @@ def main():
 				wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu, False)
 				wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, nb_steps_wlu, wlu)
 
-				if args.wlu_on_iteration:
+				if not args.wlu_on_epoch:
 					steppables_iteration.append(wlu_stepper)
 				steppables_iteration.append(wlu)
 
 			trainer = ReMixMatchTrainer(
-				model, acti_fn, acti_rot_fn, optim, loader_train_s_strong, loader_train_u_augms_weak_strongs,
+				model, acti_fn, acti_rot_fn, optim, loader, criterion, guesser,
 				metrics_s, metrics_u, metrics_u1, metrics_r,
-				criterion, writer, mixer, distributions, guesser, ss_transform, steppables_iteration
+				writer, mixer, distributions, ss_transform, steppables_iteration
 			)
 
 		elif args.run in ["sf", "supervised_full"]:
@@ -498,7 +509,7 @@ def main():
 			criterion = cross_entropy
 
 			trainer = SupervisedTrainer(
-				model, acti_fn, optim, loader_train_full, metrics_s, criterion, writer
+				model, acti_fn, optim, loader_train_full, criterion, metrics_s, writer
 			)
 
 		elif args.run in ["sp", "supervised_part"]:
@@ -508,7 +519,7 @@ def main():
 			criterion = cross_entropy
 
 			trainer = SupervisedTrainer(
-				model, acti_fn, optim, loader_train_part, metrics_s, criterion, writer
+				model, acti_fn, optim, loader_train_part, criterion, metrics_s, writer
 			)
 
 		else:
@@ -519,8 +530,8 @@ def main():
 
 		if args.write_results:
 			filename = "%s_%s_%s.torch" % (args.model, args.train_name, args.suffix)
-			filepath = osp.join(args.checkpoint_path, filename)
-			checkpoint = CheckPoint(model, optim, name=filepath)
+			filepath_args = osp.join(args.checkpoint_path, filename)
+			checkpoint = CheckPoint(model, optim, name=filepath_args)
 		else:
 			checkpoint = None
 
@@ -528,11 +539,13 @@ def main():
 			model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 		)
 
-		steppables_epoch = [sched, constant_epoch_uniloss]
-		if not args.wlu_on_iteration:
+		steppables_epoch.append(sched)
+		if args.use_wlu and args.wlu_on_epoch:
 			steppables_epoch.append(wlu_stepper)
 		if args.use_rampup and args.rampup_each_epoch:
-			steppables_epoch += [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]
+			steppables_epoch.append(rampup_lambda_u)
+			steppables_epoch.append(rampup_lambda_u1)
+			steppables_epoch.append(rampup_lambda_r)
 		steppables_epoch = [steppable for steppable in steppables_epoch if steppable is not None]
 
 		learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables_epoch)
@@ -543,11 +556,11 @@ def main():
 
 			save_and_close_writer(writer, args, augments_dict)
 
-			filepath = osp.join(writer.log_dir, "args.json")
-			save_args(filepath, args)
+			filepath_args = osp.join(writer.log_dir, "args.json")
+			save_args(filepath_args, args)
 
-			filepath = osp.join(writer.log_dir, "augments.json")
-			save_augms(filepath, augments_dict)
+			filepath_augms = osp.join(writer.log_dir, "augments.json")
+			save_augms(filepath_augms, augments_dict)
 
 		recorder = validator.get_metrics_recorder()
 		recorder.print_min_max()

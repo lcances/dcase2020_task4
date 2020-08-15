@@ -1,4 +1,10 @@
-from typing import Optional, Union
+
+from abc import ABC
+from typing import Iterable, Optional, Sized, Union, Protocol
+
+
+class IterableSized(Iterable, Sized, Protocol):
+	pass
 
 
 def str_to_bool(x: str) -> bool:

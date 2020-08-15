@@ -93,6 +93,9 @@ class MetricsRecorder(MetricsRecorderABC):
 		self.maxs = {k: -np.inf for k in self.keys}
 		self.stds_max = {k: 0 for k in self.keys}
 
+		if self.prefix != "" and self.prefix[-1] != "/":
+			self.prefix += "/"
+
 		if len(set(keys)) != len(keys):
 			raise RuntimeError("Duplicate found for metrics names : %s" % " ".join(keys))
 

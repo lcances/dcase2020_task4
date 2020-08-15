@@ -3,7 +3,7 @@ from abc import ABC
 from time import time
 from typing import Optional
 
-from dcase2020_task4.trainer_abc import TrainerABC, SSTrainerABC
+from dcase2020_task4.trainer_abc import TrainerABC, TrainerABC
 from dcase2020_task4.validator import ValidatorABC
 
 
@@ -45,22 +45,7 @@ class Learner(LearnerABC):
 
 	def _on_start(self):
 		if self.verbose > 0:
-			if issubclass(type(self.trainer), SSTrainerABC):
-				print("\nStart %s training (%d epochs, %d supervised train examples, %d unsupervised train examples, "
-					  "%d valid examples)..." % (
-						  self.name,
-						  self.nb_epochs,
-						  self.trainer.nb_examples_supervised(),
-						  self.trainer.nb_examples_unsupervised(),
-						  self.validator.nb_examples()
-					  ))
-			else:
-				print("\nStart %s training (%d epochs, %d train examples, %d valid examples)..." % (
-					self.name,
-					self.nb_epochs,
-					self.trainer.nb_examples(),
-					self.validator.nb_examples()
-				))
+			print("\nStart %s training (%d epochs)..." % (self.name, self.nb_epochs))
 		self.start_time = time()
 
 	def _on_end(self):

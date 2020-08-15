@@ -76,9 +76,6 @@ class ValidatorLoc(ValidatorABC):
 				self.metrics_recorder.store_in_writer(self.writer, epoch)
 				self.metrics_recorder.store_min_max_in_writer(self.writer, epoch)
 
-	def nb_examples(self) -> int:
-		return len(self.loader) * self.loader.batch_size
-
 	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
 		return [self.metrics_weak, self.metrics_strong]
 

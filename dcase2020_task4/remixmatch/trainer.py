@@ -4,39 +4,38 @@ from torch.nn import Module
 from torch.optim.optimizer import Optimizer
 from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Collection, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 
 from dcase2020_task4.metrics_recorder import MetricsRecorder
 from dcase2020_task4.remixmatch.losses.abc import ReMixMatchLossTagABC
 from dcase2020_task4.remixmatch.self_label import SelfSupervisedABC
-from dcase2020_task4.trainer_abc import SSTrainerABC
+from dcase2020_task4.trainer_abc import TrainerABC
 
 from dcase2020_task4.util.avg_distributions import AvgDistributions
 from dcase2020_task4.util.guessers.abc import GuesserModelABC
+from dcase2020_task4.util.types import IterableSized
 from dcase2020_task4.util.utils_match import get_lr
-from dcase2020_task4.util.zip_cycle import ZipCycle
 
 
-class ReMixMatchTrainer(SSTrainerABC):
+class ReMixMatchTrainer(TrainerABC):
 	def __init__(
 		self,
 		model: Module,
 		acti_fn: Callable,
 		acti_rot_fn: Callable,
 		optim: Optimizer,
-		loader_train_s: DataLoader,
-		loader_train_u: DataLoader,
+		loader: IterableSized,
+		criterion: ReMixMatchLossTagABC,
+		guesser: GuesserModelABC,
 		metrics_s: Dict[str, Metrics],
 		metrics_u: Dict[str, Metrics],
 		metrics_u1: Dict[str, Metrics],
 		metrics_r: Dict[str, Metrics],
-		criterion: ReMixMatchLossTagABC,
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
 		distributions: Optional[AvgDistributions],
-		guesser: GuesserModelABC,
 		ss_transform: SelfSupervisedABC,
 		steppables: Optional[list],
 	):
@@ -46,17 +45,16 @@ class ReMixMatchTrainer(SSTrainerABC):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.optim = optim
-		self.loader_train_s = loader_train_s
-		self.loader_train_u = loader_train_u
+		self.loader = loader
+		self.criterion = criterion
+		self.guesser = guesser
 		self.metrics_s = metrics_s
 		self.metrics_u = metrics_u
 		self.metrics_u1 = metrics_u1
 		self.metrics_r = metrics_r
-		self.criterion = criterion
 		self.writer = writer
 		self.mixer = mixer
 		self.distributions = distributions
-		self.guesser = guesser
 		self.ss_transform = ss_transform
 		self.steppables = steppables if steppables is not None else []
 
@@ -78,8 +76,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 		self.metrics_recorder.reset_epoch()
 		self.model.train()
 
-		loaders_zip = ZipCycle([self.loader_train_s, self.loader_train_u])
-		iter_train = iter(loaders_zip)
+		iter_train = iter(self.loader)
 
 		for i, item in enumerate(iter_train):
 			(s_batch_augm_strong, s_labels), (u_batch_augm_weak, u_batch_augm_strongs) = item
@@ -147,7 +144,7 @@ class ReMixMatchTrainer(SSTrainerABC):
 				]
 
 				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
-				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
+				self.metrics_recorder.print_metrics(epoch, i, self.get_nb_iterations())
 
 				for steppable in self.steppables:
 					steppable.step()
@@ -162,11 +159,8 @@ class ReMixMatchTrainer(SSTrainerABC):
 			self.writer.add_scalar("hparams/lambda_r", self.criterion.get_lambda_r(), epoch)
 			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
-	def nb_examples_supervised(self) -> int:
-		return len(self.loader_train_s) * self.loader_train_s.batch_size
-
-	def nb_examples_unsupervised(self) -> int:
-		return len(self.loader_train_u) * self.loader_train_u.batch_size
-
 	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
 		return [self.metrics_s, self.metrics_u, self.metrics_u1, self.metrics_r]
+
+	def get_nb_iterations(self) -> int:
+		return len(self.loader)

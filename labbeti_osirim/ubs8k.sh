@@ -27,7 +27,7 @@ $path_py $path_script \
 	--lambda_r 0.5 \
 	--batch_size_s 64 \
 	--batch_size_u 64 \
-	--step_each_epoch true \
+	--rampup_each_epoch true \
 	--shuffle_s_with_u true \
 	--criterion_name_u "ce" \
 	--dataset_path "/projets/samova/leocances/UrbanSound8K/" \
