@@ -5,6 +5,9 @@ from torch.nn.functional import softplus
 
 
 class Mish(Module):
+	def __init__(self, *args, **kwargs):
+		super().__init__()
+
 	def __call__(self, x):
 		return mish(x)
 

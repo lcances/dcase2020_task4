@@ -101,8 +101,13 @@ def get_model_from_args(args: Namespace, case_sensitive: bool = False, modules: 
 	modules += [cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wide_resnet]
 
 	model_class = get_model_from_name(args.model, case_sensitive, modules)
-	model = model_class().cuda()
 
+	if hasattr(model_class, "from_args"):
+		model = model_class.from_args(args)
+	else:
+		model = model_class()
+
+	model = model.cuda()
 	return model
 
 

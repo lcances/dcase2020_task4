@@ -3,7 +3,7 @@ from dcase2020_task4.baseline.layers import ConvPoolReLU
 
 
 class UBS8KBaseline(nn.Module):
-	def __init__(self, **kwargs):
+	def __init__(self, dropout: float = 0.5, **kwargs):
 		nn.Module.__init__(self)
 
 		self.features = nn.Sequential(
@@ -16,7 +16,7 @@ class UBS8KBaseline(nn.Module):
 
 		self.classifier = nn.Sequential(
 			nn.Flatten(),
-			nn.Dropout(0.5),
+			nn.Dropout(dropout),
 			nn.Linear(672, 10)
 		)
 

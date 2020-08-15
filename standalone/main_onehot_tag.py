@@ -90,7 +90,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--logdir", type=str, default=osp.join("..", "..", "tensorboard"))
 	parser.add_argument("--model", type=str, default="VGG11Rot",
-						choices=["VGG11Rot", "ResNet18Rot", "WideResNet28Rot", "UBS8KBaselineRot", "CNN03Rot", "CNN03MishRot"])
+						choices=["VGG11Rot", "ResNet18Rot", "WideResNetRot", "WideResNet28Rot", "UBS8KBaselineRot", "CNN03Rot", "CNN03MishRot"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--confidence", type=float, default=0.5,
 						help="Confidence threshold used in VALIDATION.")
@@ -196,6 +196,8 @@ def create_args() -> Namespace:
 						help="Update WLU on iteration or on epoch.")
 	parser.add_argument("--wlu_steps", type=int, default=10,
 						help="Weight Linear Uniloss nb steps.")
+	parser.add_argument("--dropout", type=float, default=0.5,
+						help="Dropout used in model.")
 
 	return parser.parse_args()
 

@@ -5,18 +5,24 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from argparse import Namespace
 from torch import Tensor
+
+
+relu_fn = nn.ReLU  # nn.ReLU, nn.LeakyReLU
+bn_momentum = 0.1  # 0.1, 0.999
 
 
 class BasicBlock(nn.Module):
 	def __init__(self, in_planes, out_planes, stride, dropout=0.0):
 		super(BasicBlock, self).__init__()
-		self.bn1 = nn.BatchNorm2d(in_planes)
-		self.relu1 = nn.ReLU(inplace=True)
+		self.bn1 = nn.BatchNorm2d(in_planes, momentum=bn_momentum)
+		self.relu1 = relu_fn(inplace=True)
 		self.conv1 = nn.Conv2d(in_planes, out_planes, kernel_size=3, stride=stride,
 							   padding=1, bias=False)
-		self.bn2 = nn.BatchNorm2d(out_planes)
-		self.relu2 = nn.ReLU(inplace=True)
+		self.bn2 = nn.BatchNorm2d(out_planes, momentum=bn_momentum)
+		self.relu2 = relu_fn(inplace=True)
 		self.conv2 = nn.Conv2d(out_planes, out_planes, kernel_size=3, stride=1,
 							   padding=1, bias=False)
 		self.dropout = dropout
@@ -52,7 +58,7 @@ class NetworkBlock(nn.Module):
 
 
 class WideResNet(nn.Module):
-	def __init__(self, depth, num_classes, widen_factor=16, dropout=0.0):
+	def __init__(self, depth: int = 28, num_classes: int = 10, widen_factor: int = 2, dropout: float = 0.5):
 		# TODO : old widen_factor = 1
 		super(WideResNet, self).__init__()
 		n_channels = [16, 16*widen_factor, 32*widen_factor, 64*widen_factor]
@@ -68,8 +74,8 @@ class WideResNet(nn.Module):
 		# 3rd block
 		self.block3 = NetworkBlock(n, n_channels[2], n_channels[3], block, 2, dropout)
 		# global average pooling and classifier
-		self.bn1 = nn.BatchNorm2d(n_channels[3])
-		self.relu = nn.ReLU(inplace=True)
+		self.bn1 = nn.BatchNorm2d(n_channels[3], momentum=bn_momentum)
+		self.relu = relu_fn(inplace=True)
 		self.fc = nn.Linear(n_channels[3], num_classes)
 		self.nChannels = n_channels[3]
 
@@ -81,6 +87,15 @@ class WideResNet(nn.Module):
 				m.bias.data.zero_()
 			elif isinstance(m, nn.Linear):
 				m.bias.data.zero_()
+
+	@staticmethod
+	def from_args(args: Namespace) -> 'WideResNet':
+		return WideResNet(
+			depth=28,
+			num_classes=args.nb_classes,
+			widen_factor=2,
+			dropout=args.dropout,
+		)
 
 	def forward(self, x):
 		out = self.conv1(x)
@@ -95,11 +110,21 @@ class WideResNet(nn.Module):
 
 class WideResNetRot(WideResNet):
 	def __init__(
-		self, depth: int, num_classes: int = 10, widen_factor: int = 1, dropout: float = 0.0, rot_output_size: int = 4
+		self, depth: int, num_classes: int = 10, widen_factor: int = 2, dropout: float = 0.0, rot_output_size: int = 4
 	):
 		super().__init__(depth, num_classes, widen_factor, dropout)
 		classifier_input_size = 64 * widen_factor
 		self.classifier_rot = nn.Linear(classifier_input_size, rot_output_size)
+
+	@staticmethod
+	def from_args(args: Namespace) -> 'WideResNetRot':
+		return WideResNetRot(
+			depth=28,
+			num_classes=args.nb_classes,
+			widen_factor=2,
+			dropout=args.dropout,
+			rot_output_size=args.nb_classes_self_supervised,
+		)
 
 	def forward_rot(self, x: Tensor) -> Tensor:
 		out = self.conv1(x)
@@ -115,4 +140,4 @@ class WideResNetRot(WideResNet):
 
 class WideResNet28Rot(WideResNetRot):
 	def __init__(self):
-		super().__init__(depth=28, num_classes=10, widen_factor=2, dropout=0.5, rot_output_size=4)
+		super().__init__(depth=28, num_classes=10, widen_factor=2, dropout=0.0, rot_output_size=4)

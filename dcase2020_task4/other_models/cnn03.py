@@ -1,3 +1,5 @@
+
+from argparse import Namespace
 from torch import nn
 from torch.nn import Module, Sequential
 
@@ -5,46 +7,59 @@ from dcase2020_task4.other_models.layers import ConvReLU, ConvPoolReLU
 
 
 class CNN03(Module):
-    def __init__(self, **kwargs):
-        super().__init__()
+	def __init__(self, output_size: int = 10, dropout: float = 0.5, **kwargs):
+		super().__init__()
 
-        self.features = Sequential(
-            ConvPoolReLU(1, 24, 3, 1, 1, (4, 2), (4, 2)),
-            ConvPoolReLU(24, 48, 3, 1, 1, (4, 2), (4, 2)),
-            ConvPoolReLU(48, 72, 3, 1, 1, (2, 2), (2, 2)),
-            ConvPoolReLU(72, 72, 3, 1, 1, (2, 2), (2, 2)),
-            ConvReLU(72, 72, 3, 1, 1),
-        )
+		self.features = Sequential(
+			ConvPoolReLU(1, 24, 3, 1, 1, (4, 2), (4, 2)),
+			ConvPoolReLU(24, 48, 3, 1, 1, (4, 2), (4, 2)),
+			ConvPoolReLU(48, 72, 3, 1, 1, (2, 2), (2, 2)),
+			ConvPoolReLU(72, 72, 3, 1, 1, (2, 2), (2, 2)),
+			ConvReLU(72, 72, 3, 1, 1),
+		)
 
-        self.classifier = Sequential(
-            nn.Flatten(),
-            nn.Dropout(0.5),
-            nn.Linear(720, 10),
-        )
+		self.classifier = Sequential(
+			nn.Flatten(),
+			nn.Dropout(dropout),
+			nn.Linear(720, output_size),
+		)
 
-    def forward(self, x):
-        x = x.view(-1, 1, *x.shape[1:])
+	@staticmethod
+	def from_args(args: Namespace) -> 'CNN03':
+		return CNN03(
+			dropout=args.dropout,
+		)
 
-        x = self.features(x)
-        x = self.classifier(x)
+	def forward(self, x):
+		x = x.view(-1, 1, *x.shape[1:])
 
-        return x
+		x = self.features(x)
+		x = self.classifier(x)
+
+		return x
 
 
 class CNN03Rot(CNN03):
-    def __init__(self, rot_output_size: int = 4, **kwargs):
-        super().__init__(**kwargs)
+	def __init__(self, output_size: int = 10, dropout: float = 0.5, rot_output_size: int = 4, **kwargs):
+		super().__init__(output_size, dropout, **kwargs)
 
-        self.classifier_rot = Sequential(
-            nn.Flatten(),
-            nn.Dropout(0.5),
-            nn.Linear(720, rot_output_size),
-        )
+		self.classifier_rot = Sequential(
+			nn.Flatten(),
+			nn.Dropout(dropout),
+			nn.Linear(720, rot_output_size),
+		)
 
-    def forward_rot(self, x):
-        x = x.view(-1, 1, *x.shape[1:])
+	@staticmethod
+	def from_args(args: Namespace) -> 'CNN03Rot':
+		return CNN03Rot(
+			dropout=args.dropout,
+			rot_output_size=args.nb_classes_self_supervised,
+		)
 
-        x = self.features(x)
-        x = self.classifier_rot(x)
+	def forward_rot(self, x):
+		x = x.view(-1, 1, *x.shape[1:])
 
-        return x
+		x = self.features(x)
+		x = self.classifier_rot(x)
+
+		return x
