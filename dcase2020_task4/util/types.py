@@ -1,6 +1,6 @@
 
-from abc import ABC
-from typing import Iterable, Optional, Sized, Union, Protocol
+from typing import Iterable, Optional, Sized, Union
+from typing_extensions import Protocol
 
 
 class IterableSized(Iterable, Sized, Protocol):
