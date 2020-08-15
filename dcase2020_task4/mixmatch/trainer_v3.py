@@ -10,39 +10,37 @@ from metric_utils.metrics import Metrics
 
 from dcase2020_task4.metrics_recorder import MetricsRecorder
 from dcase2020_task4.mixmatch.losses.abc import MixMatchLossTagABC
-from dcase2020_task4.trainer_abc import SSTrainerABC
+from dcase2020_task4.trainer_abc import TrainerABC
 from dcase2020_task4.util.guessers.abc import GuesserModelABC
 from dcase2020_task4.util.utils_match import get_lr
-from dcase2020_task4.util.zip_cycle import ZipCycle
+from dcase2020_task4.util.types import IterableSized
 
 
-class MixMatchTrainerV3(SSTrainerABC):
+class MixMatchTrainerV3(TrainerABC):
 	def __init__(
 		self,
 		model: Module,
 		acti_fn: Callable,
 		optim: Optimizer,
-		loader_train_s_augm: DataLoader,
-		loader_train_u_augms: DataLoader,
+		loader: IterableSized,
+		criterion: MixMatchLossTagABC,
+		guesser: GuesserModelABC,
 		metrics_s: Dict[str, Metrics],
 		metrics_u: Dict[str, Metrics],
-		criterion: MixMatchLossTagABC,
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
-		guesser: GuesserModelABC,
 		steppables: Optional[list],
 	):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.optim = optim
-		self.loader_train_s_augm = loader_train_s_augm
-		self.loader_train_u_augms = loader_train_u_augms
+		self.loader = loader
+		self.criterion = criterion
+		self.guesser = guesser
 		self.metrics_s = metrics_s
 		self.metrics_u = metrics_u
-		self.criterion = criterion
 		self.writer = writer
 		self.mixer = mixer
-		self.guesser = guesser
 		self.steppables = steppables if steppables is not None else []
 
 		self.metrics_recorder = MetricsRecorder(
@@ -57,8 +55,7 @@ class MixMatchTrainerV3(SSTrainerABC):
 		self.metrics_recorder.reset_epoch()
 		self.model.train()
 
-		loaders_zip = ZipCycle([self.loader_train_s_augm, self.loader_train_u_augms])
-		iter_train = iter(loaders_zip)
+		iter_train = iter(self.loader)
 
 		for i, item in enumerate(iter_train):
 			(s_batch_augm, s_labels), (u_batch_augms, u_batch) = item
@@ -100,7 +97,7 @@ class MixMatchTrainerV3(SSTrainerABC):
 					(self.metrics_u, u_pred_mixed, u_labels_mixed),
 				]
 				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
-				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
+				self.metrics_recorder.print_metrics(epoch, i, self.get_nb_iterations())
 
 				for steppable in self.steppables:
 					steppable.step()
@@ -113,11 +110,8 @@ class MixMatchTrainerV3(SSTrainerABC):
 			self.writer.add_scalar("hparams/lambda_u", self.criterion.get_lambda_u(), epoch)
 			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
-	def nb_examples_supervised(self) -> int:
-		return len(self.loader_train_s_augm) * self.loader_train_s_augm.batch_size
-
-	def nb_examples_unsupervised(self) -> int:
-		return len(self.loader_train_u_augms) * self.loader_train_u_augms.batch_size
-
 	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
 		return [self.metrics_s, self.metrics_u]
+
+	def get_nb_iterations(self) -> int:
+		return len(self.loader)

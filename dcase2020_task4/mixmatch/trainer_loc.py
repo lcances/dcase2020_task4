@@ -2,7 +2,6 @@ import torch
 
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
-from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
 from typing import Callable, Dict, List, Optional
 
@@ -10,25 +9,23 @@ from metric_utils.metrics import Metrics
 
 from dcase2020_task4.mixmatch.losses.abc import MixMatchLossLocABC
 from dcase2020_task4.metrics_recorder import MetricsRecorder
-from dcase2020_task4.trainer_abc import SSTrainerABC
-from dcase2020_task4.util.ramp_up import RampUp
+from dcase2020_task4.trainer_abc import TrainerABC
 from dcase2020_task4.util.utils_match import get_lr
-from dcase2020_task4.util.zip_cycle import ZipCycle
+from dcase2020_task4.util.types import IterableSized
 
 
-class MixMatchTrainerLoc(SSTrainerABC):
+class MixMatchTrainerLoc(TrainerABC):
 	def __init__(
 		self,
 		model: Module,
 		acti_fn: Callable,
 		optim: Optimizer,
-		loader_train_s_augm: DataLoader,
-		loader_train_u_augms: DataLoader,
+		loader: IterableSized,
+		criterion: MixMatchLossLocABC,
 		metrics_s_weak: Dict[str, Metrics],
 		metrics_u_weak: Dict[str, Metrics],
 		metrics_s_strong: Dict[str, Metrics],
 		metrics_u_strong: Dict[str, Metrics],
-		criterion: MixMatchLossLocABC,
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
 		sharpen_fn: Callable,
@@ -37,13 +34,12 @@ class MixMatchTrainerLoc(SSTrainerABC):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.optim = optim
-		self.loader_train_s_augm = loader_train_s_augm
-		self.loader_train_u_augms = loader_train_u_augms
+		self.loader = loader
+		self.criterion = criterion
 		self.metrics_s_weak = metrics_s_weak
 		self.metrics_u_weak = metrics_u_weak
 		self.metrics_s_strong = metrics_s_strong
 		self.metrics_u_strong = metrics_u_strong
-		self.criterion = criterion
 		self.writer = writer
 		self.mixer = mixer
 		self.sharpen_fn = sharpen_fn
@@ -63,8 +59,7 @@ class MixMatchTrainerLoc(SSTrainerABC):
 		self.metrics_recorder.reset_epoch()
 		self.model.train()
 
-		loaders_zip = ZipCycle([self.loader_train_s_augm, self.loader_train_u_augms])
-		iter_train = iter(loaders_zip)
+		iter_train = iter(self.loader)
 
 		for i, item in enumerate(iter_train):
 			(s_batch_augm, s_labels_weak, s_labels_strong), u_batch_augms = item
@@ -128,7 +123,7 @@ class MixMatchTrainerLoc(SSTrainerABC):
 					(self.metrics_u_strong, u_pred_strong_mixed, u_labels_strong_mixed),
 				]
 				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
-				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
+				self.metrics_recorder.print_metrics(epoch, i, self.get_nb_iterations())
 
 				for steppable in self.steppables:
 					steppable.step()
@@ -140,11 +135,8 @@ class MixMatchTrainerLoc(SSTrainerABC):
 			self.writer.add_scalar("hparams/lambda_u", self.criterion.get_lambda_u(), epoch)
 			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
-	def nb_examples_supervised(self) -> int:
-		return len(self.loader_train_s_augm) * self.loader_train_s_augm.batch_size
-
-	def nb_examples_unsupervised(self) -> int:
-		return len(self.loader_train_u_augms) * self.loader_train_u_augms.batch_size
-
 	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
 		return [self.metrics_s_weak, self.metrics_u_weak]
+
+	def get_nb_iterations(self) -> int:
+		return len(self.loader)

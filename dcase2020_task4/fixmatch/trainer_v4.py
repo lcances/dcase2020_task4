@@ -3,31 +3,29 @@ import torch
 from torch.nn import Module
 from torch.nn.functional import one_hot
 from torch.optim.optimizer import Optimizer
-from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Collection, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 
 from dcase2020_task4.fixmatch.losses.tag.multihot_v4 import FixMatchLossMultiHotV4
 from dcase2020_task4.metrics_recorder import MetricsRecorder
-from dcase2020_task4.trainer_abc import SSTrainerABC
+from dcase2020_task4.trainer_abc import TrainerABC
 from dcase2020_task4.util.utils_match import get_lr
-from dcase2020_task4.util.zip_cycle import ZipCycle
+from dcase2020_task4.util.types import IterableSized
 
 
-class FixMatchTrainerV4(SSTrainerABC):
+class FixMatchTrainerV4(TrainerABC):
 	""" Experimental TrainerABC used for FixMatch V4 loss with only tag part. """
 	def __init__(
 		self,
 		model: Module,
 		acti_fn: Callable,
 		optim: Optimizer,
-		loader_train_s_augm_weak: DataLoader,
-		loader_train_u_augms_weak_strong: DataLoader,
+		loader: IterableSized,
+		criterion: FixMatchLossMultiHotV4,
 		metrics_s: Dict[str, Metrics],
 		metrics_u: Dict[str, Metrics],
-		criterion: FixMatchLossMultiHotV4,
 		writer: Optional[SummaryWriter],
 		threshold_multihot: float,
 		nb_classes: int,
@@ -36,11 +34,10 @@ class FixMatchTrainerV4(SSTrainerABC):
 		self.model = model
 		self.acti_fn = acti_fn
 		self.optim = optim
-		self.loader_train_s_augm_weak = loader_train_s_augm_weak
-		self.loader_train_u_augms_weak_strong = loader_train_u_augms_weak_strong
+		self.loader = loader
+		self.criterion = criterion
 		self.metrics_s = metrics_s
 		self.metrics_u = metrics_u
-		self.criterion = criterion
 		self.writer = writer
 		self.threshold_multihot = threshold_multihot
 		self.nb_classes = nb_classes
@@ -59,8 +56,7 @@ class FixMatchTrainerV4(SSTrainerABC):
 		self.metrics_recorder.reset_epoch()
 		self.model.train()
 
-		loaders_zip = ZipCycle([self.loader_train_s_augm_weak, self.loader_train_u_augms_weak_strong])
-		iter_train = iter(loaders_zip)
+		iter_train = iter(self.loader)
 
 		for i, item in enumerate(iter_train):
 			(s_batch_augm_weak, s_labels), (u_batch_augm_weak, u_batch_augm_strong) = item
@@ -119,7 +115,7 @@ class FixMatchTrainerV4(SSTrainerABC):
 					(self.metrics_u, u_pred_augm_strong, u_labels_weak_guessed),
 				]
 				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
-				self.metrics_recorder.print_metrics(epoch, i, len(loaders_zip))
+				self.metrics_recorder.print_metrics(epoch, i, self.get_nb_iterations())
 
 				for steppable in self.steppables:
 					steppable.step()
@@ -131,11 +127,8 @@ class FixMatchTrainerV4(SSTrainerABC):
 			self.writer.add_scalar("hparams/lambda_u", self.criterion.get_lambda_u(), epoch)
 			self.metrics_recorder.store_in_writer(self.writer, epoch)
 
-	def nb_examples_supervised(self) -> int:
-		return len(self.loader_train_s_augm_weak) * self.loader_train_s_augm_weak.batch_size
-
-	def nb_examples_unsupervised(self) -> int:
-		return len(self.loader_train_u_augms_weak_strong) * self.loader_train_u_augms_weak_strong.batch_size
-
 	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
 		return [self.metrics_s, self.metrics_u]
+
+	def get_nb_iterations(self) -> int:
+		return len(self.loader)

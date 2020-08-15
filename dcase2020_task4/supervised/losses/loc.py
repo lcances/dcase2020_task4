@@ -6,10 +6,11 @@ from typing	import Callable
 
 
 class SupervisedLossLoc(Callable):
-	def __init__(self, lambda_u: float = 1.0, reduce: str = "mean"):
+	def __init__(self, lambda_weak: float = 1.0, lambda_strong: float = 1.0, reduce: str = "mean"):
 		assert reduce in ["mean", "sum"], "support only \"mean\" and \"sum\""
 
-		self.lambda_u = lambda_u
+		self.lambda_weak = lambda_weak
+		self.lambda_strong = lambda_strong
 		if reduce == "mean":
 			self.reduce_fn = torch.mean
 		else:
@@ -33,12 +34,18 @@ class SupervisedLossLoc(Callable):
 		# Final loss
 		loss_weak = self.reduce_fn(loss_weak)
 		loss_strong = self.reduce_fn(strong_mask * loss_strong)
-		loss = loss_weak + self.lambda_u * loss_strong
+		loss = self.lambda_weak * loss_weak + self.lambda_strong * loss_strong
 
 		return loss, loss_weak, loss_strong
 
 	def get_strong_mask(self, label_strong: Tensor) -> Tensor:
 		return label_strong.sum(dim=(1, 2)).clamp(0, 1)
+
+	def get_lambda_weak(self) -> float:
+		return self.lambda_weak
+
+	def get_lambda_strong(self) -> float:
+		return self.lambda_strong
 
 
 def weak_synth_loss(

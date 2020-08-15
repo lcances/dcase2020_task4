@@ -9,10 +9,10 @@ class ValidatorABC(ABC):
 	def val(self, epoch: int):
 		raise NotImplementedError("Abstract method")
 
-	def nb_examples(self) -> int:
+	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
 		raise NotImplementedError("Abstract method")
 
-	def get_all_metrics(self) -> List[Dict[str, Metrics]]:
+	def get_metrics_recorder(self) -> MetricsRecorderABC:
 		raise NotImplementedError("Abstract method")
 
 	def reset_all_metrics(self):
@@ -20,6 +20,3 @@ class ValidatorABC(ABC):
 		for metrics in all_metrics:
 			for metric in metrics.values():
 				metric.reset()
-
-	def get_metrics_recorder(self) -> MetricsRecorderABC:
-		raise NotImplementedError("Abstract method")
