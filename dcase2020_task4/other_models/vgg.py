@@ -4,7 +4,7 @@
 import torch
 import torch.nn as nn
 
-cfg = {
+cfgs = {
     'VGG11': [64, 'M', 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'VGG13': [64, 64, 'M', 128, 128, 'M', 256, 256, 'M', 512, 512, 'M', 512, 512, 'M'],
     'VGG16': [64, 64, 'M', 128, 128, 'M', 256, 256, 256, 'M', 512, 512, 512, 'M', 512, 512, 512, 'M'],
@@ -13,12 +13,12 @@ cfg = {
 
 
 class VGG(nn.Module):
-    def __init__(self, vgg_name):
+    def __init__(self, vgg_name: str):
         super(VGG, self).__init__()
-        self.features = self._make_layers(cfg[vgg_name])
+        self.features = self._make_layers(cfgs[vgg_name])
         self.classifier = nn.Linear(512, 10)
 
-    def _make_layers(self, cfg):
+    def _make_layers(self, cfg: list):
         layers = []
         in_channels = 3
         for x in cfg:

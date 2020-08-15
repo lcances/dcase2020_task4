@@ -27,6 +27,7 @@ class CNN03(Module):
 	@staticmethod
 	def from_args(args: Namespace) -> 'CNN03':
 		return CNN03(
+			output_size=args.nb_classes,
 			dropout=args.dropout,
 		)
 
@@ -52,6 +53,7 @@ class CNN03Rot(CNN03):
 	@staticmethod
 	def from_args(args: Namespace) -> 'CNN03Rot':
 		return CNN03Rot(
+			output_size=args.nb_classes,
 			dropout=args.dropout,
 			rot_output_size=args.nb_classes_self_supervised,
 		)

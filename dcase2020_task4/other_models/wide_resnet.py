@@ -33,9 +33,10 @@ class BasicBlock(nn.Module):
 	def forward(self, x):
 		if not self.equalInOut:
 			x = self.relu1(self.bn1(x))
+			out = x
 		else:
 			out = self.relu1(self.bn1(x))
-		out = self.relu2(self.bn2(self.conv1(out if self.equalInOut else x)))
+		out = self.relu2(self.bn2(self.conv1(out)))
 		if self.dropout > 0:
 			out = F.dropout(out, p=self.dropout, training=self.training)
 		out = self.conv2(out)
@@ -91,13 +92,18 @@ class WideResNet(nn.Module):
 	@staticmethod
 	def from_args(args: Namespace) -> 'WideResNet':
 		return WideResNet(
-			depth=28,
+			depth=args.wrn_depth,
 			num_classes=args.nb_classes,
-			widen_factor=2,
+			widen_factor=args.wrn_widen_factor,
 			dropout=args.dropout,
 		)
 
-	def forward(self, x):
+	def forward(self, x: Tensor) -> Tensor:
+		out = self._features(x)
+		out = self.fc(out)
+		return out
+
+	def _features(self, x: Tensor) -> Tensor:
 		out = self.conv1(x)
 		out = self.block1(out)
 		out = self.block2(out)
@@ -105,7 +111,7 @@ class WideResNet(nn.Module):
 		out = self.relu(self.bn1(out))
 		out = F.avg_pool2d(out, 8)
 		out = out.view(-1, self.nChannels)
-		return self.fc(out)
+		return out
 
 
 class WideResNetRot(WideResNet):
@@ -119,25 +125,14 @@ class WideResNetRot(WideResNet):
 	@staticmethod
 	def from_args(args: Namespace) -> 'WideResNetRot':
 		return WideResNetRot(
-			depth=28,
+			depth=args.wrn_depth,
 			num_classes=args.nb_classes,
-			widen_factor=2,
+			widen_factor=args.wrn_widen_factor,
 			dropout=args.dropout,
 			rot_output_size=args.nb_classes_self_supervised,
 		)
 
 	def forward_rot(self, x: Tensor) -> Tensor:
-		out = self.conv1(x)
-		out = self.block1(out)
-		out = self.block2(out)
-		out = self.block3(out)
-		out = self.relu(self.bn1(out))
-		out = F.avg_pool2d(out, 8)
-		out = out.view(-1, self.nChannels)
+		out = self._features(x)
 		out = self.classifier_rot(out)
 		return out
-
-
-class WideResNet28Rot(WideResNetRot):
-	def __init__(self):
-		super().__init__(depth=28, num_classes=10, widen_factor=2, dropout=0.0, rot_output_size=4)
