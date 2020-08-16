@@ -201,8 +201,12 @@ def create_args() -> Namespace:
 						help="Dropout used in model.")
 	parser.add_argument("--wrn_depth", type=int, default=28,
 						help="WideResNet widen factor.")
-	parser.add_argument("--wrn_widen_factor", type=int, default=2,
+	parser.add_argument("--wrn_widen_factor", "--wrn_width", type=int, default=2,
 						help="WideResNet widen factor.")
+
+	parser.add_argument("--supervised_augment", type=str_to_optional_str, default=None,
+						choices=["None", "weak", "strong"],
+						help="Apply identity, weak or strong augment on supervised train dataset.")
 
 	return parser.parse_args()
 
@@ -216,16 +220,11 @@ def main():
 	check_args(args)
 
 	print("Start match_onehot. (suffix: \"%s\")" % args.suffix)
-	# TODO : rem old prints
-	# print(" - dataset_name: %s" % args.dataset_name)
 	print(" - start_date: %s" % start_date)
 
 	print("Arguments :")
-	print(json.dumps(args.__dict__, indent="\t"))
-	"""
-	for format_, name in args.__dict__:
-		print((" - %s: %s" % (name, format_)) % args.__dict__[name])
-	"""
+	for name, value in args.__dict__.items():
+		print(" - %s: %s" % (name, str(value)))
 
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
@@ -301,6 +300,9 @@ def main():
 		steppables_epoch = []
 		wlu_stepper = None
 
+		if not args.rampup_each_epoch:
+			steppables_iteration.append(rampup_lambda_u)
+
 		if args.run in ["fm", "fixmatch"]:
 			dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
 
@@ -320,8 +322,8 @@ def main():
 			loader = ZipCycle([loader_train_s_augm_weak, loader_train_u_augms_weak_strong])
 
 			criterion = FixMatchLossOneHot.from_edict(args)
-			if not args.rampup_each_epoch:
-				steppables_iteration.append(rampup_lambda_u)
+			if rampup_lambda_u is not None:
+				rampup_lambda_u.set_obj(criterion)
 
 			if args.use_wlu:
 				nb_steps_wlu = args.nb_epochs * len(idx_train_u) * args.batch_size_u if not args.wlu_on_epoch else args.wlu_steps
@@ -374,6 +376,8 @@ def main():
 					loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
 
 			criterion = MixMatchLossOneHot.from_edict(args)
+			if rampup_lambda_u is not None:
+				rampup_lambda_u.set_obj(criterion)
 			mixup_mixer = MixUpMixerTag.from_edict(args)
 			mixer = MixMatchMixer(mixup_mixer, args.shuffle_s_with_u)
 
@@ -456,6 +460,8 @@ def main():
 				)
 
 			criterion = ReMixMatchLossOneHot.from_edict(args)
+			if rampup_lambda_u is not None:
+				rampup_lambda_u.set_obj(criterion)
 			if rampup_lambda_u1 is not None:
 				rampup_lambda_u1.set_obj(criterion)
 			if rampup_lambda_r is not None:
@@ -510,7 +516,16 @@ def main():
 			)
 
 		elif args.run in ["sf", "supervised_full"]:
-			dataset_train_full = Subset(dataset_train, idx_train_s + idx_train_u)
+			if args.supervised_augment is None:
+				dataset_train_full = dataset_train
+			elif args.supervised_augment == "weak":
+				dataset_train_full = dataset_train_augm_weak
+			elif args.supervised_augment == "strong":
+				dataset_train_full = dataset_train_augm_strong
+			else:
+				raise RuntimeError("Invalid supervised augment choice \"%s\"." % str(args.supervised_augment))
+
+			dataset_train_full = Subset(dataset_train_full, idx_train_s + idx_train_u)
 			loader_train_full = DataLoader(dataset_train_full, **args_loader_train_s)
 
 			criterion = cross_entropy
@@ -520,7 +535,16 @@ def main():
 			)
 
 		elif args.run in ["sp", "supervised_part"]:
-			dataset_train_part = Subset(dataset_train, idx_train_s)
+			if args.supervised_augment is None:
+				dataset_train_part = dataset_train
+			elif args.supervised_augment == "weak":
+				dataset_train_part = dataset_train_augm_weak
+			elif args.supervised_augment == "strong":
+				dataset_train_part = dataset_train_augm_strong
+			else:
+				raise RuntimeError("Invalid supervised augment choice \"%s\"." % str(args.supervised_augment))
+
+			dataset_train_part = Subset(dataset_train_part, idx_train_s)
 			loader_train_part = DataLoader(dataset_train_part, **args_loader_train_s)
 
 			criterion = cross_entropy
@@ -532,13 +556,10 @@ def main():
 		else:
 			raise RuntimeError("Unknown run %s" % args.run)
 
-		if rampup_lambda_u is not None:
-			rampup_lambda_u.set_obj(criterion)
-
 		if args.write_results:
-			filename = "%s_%s_%s.torch" % (args.model, args.train_name, args.suffix)
-			filepath_args = osp.join(args.checkpoint_path, filename)
-			checkpoint = CheckPoint(model, optim, name=filepath_args)
+			filename_model = "%s_%s_%s.torch" % (args.model, args.train_name, args.suffix)
+			filepath_model = osp.join(args.checkpoint_path, filename_model)
+			checkpoint = CheckPoint(model, optim, name=filepath_model)
 		else:
 			checkpoint = None
 
