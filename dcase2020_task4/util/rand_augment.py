@@ -62,8 +62,8 @@ class RandAugment(ImgRGBAugmentation):
 
 	def _apply_magnitude(self, chosen: List[Callable]) -> List[Callable]:
 		for augm in chosen:
-			if hasattr(augm, "levels"):
-				augm.levels = duplicate(to_range(self.magnitude, *self.enhance_range, *self.magnitude_range))
+			if hasattr(augm, "enhance"):
+				augm.enhance.levels = duplicate(to_range(self.magnitude, *self.enhance_range, *self.magnitude_range))
 			elif hasattr(augm, "angles"):
 				augm.angles = duplicate(to_range(self.magnitude, *self.angles_range, *self.magnitude_range))
 			elif hasattr(augm, "nbs_bits"):
@@ -77,7 +77,7 @@ class RandAugment(ImgRGBAugmentation):
 			elif isinstance(augm, AutoContrast) or isinstance(augm, Equalize):
 				pass
 			else:
-				raise RuntimeError("Unknown augmentation.")
+				raise RuntimeError("Unknown augmentation \"%s\"." % augm.__name__)
 		return chosen
 
 	def _reset_ranges(self):
