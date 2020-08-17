@@ -1,5 +1,6 @@
 import numpy as np
 
+from PIL import Image
 from torchvision.transforms import Compose
 from typing import Callable, List, Optional
 
@@ -54,11 +55,11 @@ class RandAugment(ImgRGBAugmentation):
 		self.magnitude = magnitude_m
 		self.nb_choices_n = nb_choices_n
 
-	def apply_helper(self, data):
+	def apply_helper(self, data: Image.Image) -> Image.Image:
 		chosen = np.random.choice(self.augments_list, self.nb_choices_n)
 		if self.magnitude is not None:
 			chosen = self._apply_magnitude(chosen)
-		return Compose(chosen)
+		return Compose(chosen)(data)
 
 	def _apply_magnitude(self, chosen: List[Callable]) -> List[Callable]:
 		for augm in chosen:
