@@ -36,7 +36,11 @@ class Standardize(ImgRGBAugmentation):
 			raise RuntimeError("Means and stds lists must have the same size.")
 
 	def apply_helper(self, data: (Tensor, np.ndarray)) -> (Tensor, np.ndarray):
-		output = torch.zeros_like(data)
+		if isinstance(data, Tensor):
+			output = torch.zeros_like(data)
+		else:
+			output = np.zeros_like(data)
+
 		for channel, (mean, std) in enumerate(zip(self.means, self.stds)):
 			output[channel] = (data[channel] - mean) / std
 		return output
