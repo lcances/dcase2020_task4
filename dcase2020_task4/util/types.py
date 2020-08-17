@@ -8,6 +8,14 @@ class IterableSized(Iterable, Sized, Protocol):
 
 
 def str_to_bool(x: str) -> bool:
+	"""
+		Convert a string to bool. Case insensitive.
+		@param x:
+			x in ["true", "1", "yes", "y"] => True
+			x in ["false", "0", "no", "n"] => False
+			_ => RuntimeError
+		@return: The corresponding boolean value.
+	"""
 	x_low = str(x).lower()
 	if x_low in ["true", "1", "yes", "y"]:
 		return True
@@ -18,6 +26,11 @@ def str_to_bool(x: str) -> bool:
 
 
 def str_to_optional_str(x: str) -> Optional[str]:
+	"""
+		Convert string to optional string value. Case insensitive.
+		@param x: Any string value.
+		@return: None if x == "None", otherwise the string value.
+	"""
 	x = str(x)
 	if x.lower() == "none":
 		return None

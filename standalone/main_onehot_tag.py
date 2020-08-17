@@ -14,7 +14,7 @@ from argparse import ArgumentParser
 from time import time
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision.datasets import CIFAR10
-from torchvision.transforms import RandomChoice, Compose
+from torchvision.transforms import RandomChoice, Compose, Normalize
 
 from augmentation_utils.signal_augmentations import TimeStretch, Occlusion, Noise, Noise2
 from augmentation_utils.spec_augmentations import HorizontalFlip, RandomTimeDropout, RandomFreqDropout
@@ -205,8 +205,10 @@ def create_args() -> Namespace:
 						help="WideResNet widen factor.")
 
 	parser.add_argument("--supervised_augment", type=str_to_optional_str, default=None,
-						choices=["None", "weak", "strong"],
+						choices=[None, "weak", "strong"],
 						help="Apply identity, weak or strong augment on supervised train dataset.")
+	parser.add_argument("--normalize", type=str_to_bool, default=False,
+						help="Normalize CIFAR10 data. Currently unused on UBS8K.")
 
 	return parser.parse_args()
 
@@ -660,26 +662,44 @@ def get_cifar10_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	return augm_list_weak, augm_list_strong
 
 
-def get_cifar10_datasets(args: Namespace, augm_list_weak: List[Callable], augm_list_strong: List[Callable]) -> (Dataset, Dataset, Dataset, Dataset):
+def get_cifar10_datasets(
+	args: Namespace, augm_list_weak: List[Callable], augm_list_strong: List[Callable]) -> (Dataset, Dataset, Dataset, Dataset):
 	# Add preprocessing before each augmentation
 	pre_process_fn = lambda img: np.array(img)
 	# Add postprocessing after each augmentation (shape : [32, 32, 3] -> [3, 32, 32])
 	post_process_fn = lambda img: img.transpose()
 
-	# Prepare data
+	normalize_fn = Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+
+	# Prepare TRAIN data
+	transforms_train = [pre_process_fn, post_process_fn]
+	if args.normalize:
+		transforms_train.append(normalize_fn)
 	dataset_train = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, post_process_fn]))
+		args.dataset_path, train=True, download=True, transform=Compose(transforms_train))
 
+	# Prepare VALIDATION data
+	transforms_val = [pre_process_fn, post_process_fn]
+	if args.normalize:
+		transforms_val.append(normalize_fn)
 	dataset_val = CIFAR10(
-		args.dataset_path, train=False, download=True, transform=Compose([pre_process_fn, post_process_fn]))
+		args.dataset_path, train=False, download=True, transform=Compose(transforms_val))
 
+	# Prepare WEAKLY AUGMENTED TRAIN data
 	augm_weak_fn = RandomChoice(augm_list_weak)
+	transforms_train_weak = [pre_process_fn, augm_weak_fn, post_process_fn]
+	if args.normalize:
+		transforms_train_weak.append(normalize_fn)
 	dataset_train_augm_weak = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_weak_fn, post_process_fn]))
+		args.dataset_path, train=True, download=True, transform=Compose(transforms_train_weak))
 
+	# Prepare STRONGLY AUGMENTED TRAIN data
 	augm_strong_fn = RandomChoice(augm_list_strong)
+	transforms_train_strong = [pre_process_fn, augm_strong_fn, post_process_fn]
+	if args.normalize:
+		transforms_train_strong.append(normalize_fn)
 	dataset_train_augm_strong = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose([pre_process_fn, augm_strong_fn, post_process_fn]))
+		args.dataset_path, train=True, download=True, transform=Compose(transforms_train_strong))
 
 	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong
 
