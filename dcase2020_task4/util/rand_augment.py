@@ -68,11 +68,11 @@ class RandAugment(ImgRGBAugmentation):
 			elif hasattr(augm, "angles"):
 				augm.angles = duplicate(to_range(self.magnitude, *self.angles_range, *self.magnitude_range))
 			elif hasattr(augm, "nbs_bits"):
-				augm.nbs_bits = duplicate(to_range(self.magnitude, *self.posterize_range, *self.magnitude_range))
+				augm.nbs_bits = duplicate(int(to_range(self.magnitude, *self.posterize_range, *self.magnitude_range)))
 			elif hasattr(augm, "shears"):
 				augm.shears = duplicate(to_range(self.magnitude, *self.transforms_range, *self.magnitude_range))
 			elif hasattr(augm, "thresholds"):
-				augm.thresholds = duplicate(to_range(self.magnitude, *self.thresholds_range, *self.magnitude_range))
+				augm.thresholds = duplicate(int(to_range(self.magnitude, *self.thresholds_range, *self.magnitude_range)))
 			elif hasattr(augm, "deltas"):
 				augm.deltas = duplicate(to_range(self.magnitude, *self.transforms_range, *self.magnitude_range))
 			elif isinstance(augm, AutoContrast) or isinstance(augm, Equalize):
