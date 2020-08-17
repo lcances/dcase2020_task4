@@ -669,7 +669,7 @@ def get_cifar10_datasets(
 	# Add postprocessing after each augmentation (shape : [32, 32, 3] -> [3, 32, 32])
 	post_process_fn = lambda img: img.transpose()
 
-	normalize_fn = Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010)),
+	normalize_fn = Normalize((0.4914, 0.4822, 0.4465), (0.2023, 0.1994, 0.2010))
 
 	# Prepare TRAIN data
 	transforms_train = [pre_process_fn, post_process_fn]
