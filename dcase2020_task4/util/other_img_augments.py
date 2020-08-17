@@ -1,9 +1,10 @@
 import numpy as np
+import torch
 
 from abc import ABC
 from PIL import Image, ImageOps, ImageEnhance, ImageFilter
 from torch import Tensor
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 from augmentation_utils.augmentations import ImgAugmentation
 from dcase2020_task4.util.utils_match import random_rect
@@ -23,6 +24,22 @@ class ImgRGBAugmentation(ABC, ImgAugmentation):
 				str(data.shape)
 			)
 		return self.apply_helper(data)
+
+
+class Standardize(ImgRGBAugmentation):
+	def __init__(self, means: List[float], stds: List[float], ratio: float = 1.0):
+		super().__init__(ratio)
+		self.means = list(means)
+		self.stds = list(stds)
+
+		if len(means) != len(stds):
+			raise RuntimeError("Means and stds lists must have the same size.")
+
+	def apply_helper(self, data: (Tensor, np.ndarray)) -> (Tensor, np.ndarray):
+		output = torch.zeros_like(data)
+		for channel, (mean, std) in enumerate(zip(self.means, self.stds)):
+			output[channel] = (data[channel] - mean) / std
+		return output
 
 
 class Gray(ImgRGBAugmentation):
