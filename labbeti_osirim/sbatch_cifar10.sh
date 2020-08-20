@@ -1,7 +1,7 @@
 #!/bin/sh
 
 run="sf"
-suffix="SF_new_model"
+suffix="SF_cosine_smooth_strong"
 
 path_torch="/logiciels/containerCollections/CUDA10/pytorch.sif"
 path_py="$HOME/miniconda3/envs/dcase2020/bin/python"
@@ -10,8 +10,8 @@ path_script="$HOME/root/task4/standalone/main_onehot_tag.py"
 
 tmp_file=".tmp_sbatch.sh"
 name="CT$suffix"
-out_file="$HOME/logs/CIFAR10_%j_$run.out"
-err_file="$HOME/logs/CIFAR10_%j_$run.err"
+out_file="$HOME/logs/CIFAR10_%j_${run}_${suffix}.out"
+err_file="$HOME/logs/CIFAR10_%j_${run}_${suffix}.err"
 
 cat << EOT > $tmp_file
 #!/bin/sh
@@ -33,9 +33,9 @@ srun singularity exec $path_torch $path_py $path_script \
 	--run "$run" \
 	--suffix "$suffix" \
 	--nb_epochs 300 \
-	--experimental "None" \
+	--experimental "none" \
 	--optimizer "Adam" \
-	--scheduler "None" \
+	--scheduler "Cosine" \
 	--use_rampup false \
 	--nb_rampup_steps 10 \
 	--cross_validation false \
@@ -48,28 +48,31 @@ srun singularity exec $path_torch $path_py $path_script \
 	--lambda_r 0.5 \
 	--batch_size_s 64 \
 	--batch_size_u 64 \
-<<<<<<< HEAD
-	--label_smoothing 0.000 \
-=======
->>>>>>> d96054673890951ade7d04b3f81f655abb33a82c
+	--label_smoothing 0.001 \
 	--rampup_each_epoch true \
 	--shuffle_s_with_u true \
 	--criterion_name_u "cross_entropy" \
 	--use_wlu false \
 	--wlu_on_epoch true \
 	--wlu_steps 10 \
+	--dropout 0.5 \
+	--supervised_augment "strong" \
+	--standardize false \
+	--self_supervised_component "flips" \
 	--dataset_path "/projets/samova/leocances/CIFAR10/" \
 	--logdir "$HOME/root/tensorboard/CIFAR10/default/" \
 	--checkpoint_path "$HOME/root/task4/models/" \
 	--dataset_name "CIFAR10" \
 	--nb_classes 10 \
 	--supervised_ratio 0.08 \
-	--model "WideResNet28Rot" \
+	--model "WideResNetRot" \
 	--num_workers_s 4 \
 	--num_workers_u 4 \
 	--checkpoint_metric_name "acc" \
 	--write_results true \
 	--debug_mode false \
+	--wrn_depth 28 \
+	--wrn_widen_factor 2 \
 
 EOT
 

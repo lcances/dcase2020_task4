@@ -4,13 +4,13 @@ path_torch="/logiciels/containerCollections/CUDA10/pytorch.sif"
 path_py="$HOME/miniconda3/envs/dcase2020/bin/python"
 path_script="$HOME/root/task4/standalone/main_onehot_tag.py"
 
-run="mm"
-suffix="MMV18"
+run="sf"
+suffix="SF"
 
 tmp_file=".tmp_sbatch.sh"
 name="UT$suffix"
-out_file="$HOME/logs/UBS8K_%j_$run.out"
-err_file="$HOME/logs/UBS8K_%j_$run.err"
+out_file="$HOME/logs/UBS8K_%j_${run}_${suffix}.out"
+err_file="$HOME/logs/UBS8K_%j_${run}_${suffix}.err"
 
 cat << EOT > $tmp_file
 #!/bin/sh
@@ -35,7 +35,7 @@ srun singularity exec $path_torch $path_py $path_script \
 	--experimental "None" \
 	--optimizer "Adam" \
 	--scheduler "None" \
-	--use_rampup true \
+	--use_rampup false \
 	--nb_rampup_steps 10 \
 	--cross_validation false \
 	--threshold_confidence 0.9 \
@@ -47,16 +47,17 @@ srun singularity exec $path_torch $path_py $path_script \
 	--lambda_r 0.5 \
 	--batch_size_s 64 \
 	--batch_size_u 64 \
-<<<<<<< HEAD
 	--label_smoothing 0.000 \
-=======
->>>>>>> d96054673890951ade7d04b3f81f655abb33a82c
 	--rampup_each_epoch true \
 	--shuffle_s_with_u true \
 	--criterion_name_u "cross_entropy" \
 	--use_wlu false \
 	--wlu_on_epoch true \
 	--wlu_steps 10 \
+	--dropout 0.5 \
+	--supervised_augment "none" \
+	--standardize false \
+	--self_supervised_component "flips" \
 	--dataset_path "/projets/samova/leocances/UrbanSound8K/" \
 	--logdir "$HOME/root/tensorboard/UBS8K/fold_10_CNN03/" \
 	--checkpoint_path "$HOME/root/task4/models/" \
