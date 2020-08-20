@@ -145,8 +145,11 @@ class ReMixMatchTrainer(TrainerABC):
 					(self.metrics_s, s_pred_mixed, s_labels_mixed),
 					(self.metrics_u, u_pred_mixed, u_labels_mixed),
 					(self.metrics_u1, u1_pred, u1_label),
-					(self.metrics_r, u1_pred_self_super, u1_label_self_super),
 				]
+				if u1_pred_self_super is not None and u1_label_self_super is not None:
+					metrics_preds_labels += [
+						(self.metrics_r, u1_pred_self_super, u1_label_self_super),
+					]
 
 				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
 				self.metrics_recorder.print_metrics(epoch, i, self.get_nb_iterations())
