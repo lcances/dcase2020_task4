@@ -713,7 +713,6 @@ def get_ubs8k_augms(args: Namespace) -> (List[Callable], List[Callable]):
 		RandomTimeDropout(ratio_augm_strong, dropout=0.01),
 		RandomFreqDropout(ratio_augm_strong, dropout=0.01),
 		NoiseSpec(ratio_augm_strong, snr=5.0),
-		Noise2(ratio_augm_strong, noise_factor=(0.005, 0.005)),
 	]
 
 	return augm_list_weak, augm_list_strong
