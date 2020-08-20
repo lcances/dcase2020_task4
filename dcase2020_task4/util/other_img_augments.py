@@ -53,7 +53,7 @@ class Standardize(ImgRGBAugmentation):
 			output = np.zeros_like(data)
 
 		for channel, (mean, std) in enumerate(zip(self.means, self.stds)):
-			output[channel] = (data[channel] - mean) / std
+			output[:, :, channel] = (data[:, :, channel] - mean) / std
 		return output
 
 

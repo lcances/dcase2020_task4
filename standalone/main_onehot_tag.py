@@ -672,7 +672,7 @@ def get_cifar10_datasets(
 		# TODO : always normalize ?
 		normalize_fn = Normalize(original_range=(0, 255), target_range=(0, 1))
 		standardize_fn = Standardize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])
-		post_process_fn = Compose([post_process_fn, normalize_fn, standardize_fn])
+		post_process_fn = Compose([normalize_fn, standardize_fn, post_process_fn])
 
 	# Prepare TRAIN data
 	transforms_train = [pre_process_fn, post_process_fn]
