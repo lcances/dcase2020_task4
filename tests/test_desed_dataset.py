@@ -47,5 +47,36 @@ def test():
 		json.dump(data, file, indent="\t")
 
 
+def test_signal_spec():
+	args = create_args()
+	desed_metadata_root = osp.join(args.dataset_path, "dataset", "metadata")
+	desed_audio_root = osp.join(args.dataset_path, "dataset", "audio")
+
+	manager = DESEDManager(
+		desed_metadata_root, desed_audio_root,
+		from_disk=True,
+		sampling_rate=22050,
+		verbose=1
+	)
+
+	manager.add_subset("weak")
+	manager.add_subset("synthetic20")
+	dataset = DESEDDataset(manager, train=True, val=False, augments=(), cached=False, weak=True, strong=True)
+
+	idx = 0
+	filename = dataset.filenames[idx]
+	signal = dataset.get_raw_audio(filename)
+	spec, labels = dataset[idx]
+
+	data = {
+		"idx": idx,
+		"signal": signal.tolist(),
+		"spec": spec.tolist(),
+		"labels": [label.tolist() for label in labels],
+	}
+	with open("signal_spec.json", "w") as file:
+		json.dump(data, file, indent="\t")
+
+
 if __name__ == "__main__":
-	test()
+	test_signal_spec()
