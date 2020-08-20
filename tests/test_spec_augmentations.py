@@ -10,7 +10,16 @@ from dcase2020_task4.util.other_spec_augments import IdentitySpec, CutOutSpec, I
 
 
 def get_spec():
-	with open("spec.json", "r") as file:
+	filepath = "spec.json"
+	with open(filepath, "r") as file:
+		data = json.load(file)
+		x = data["x"]
+		return np.array(x)
+
+
+def get_spec_ts():
+	filepath = "spec_time_stretch.json"
+	with open(filepath, "r") as file:
 		data = json.load(file)
 		x = data["x"]
 		return np.array(x)
@@ -18,6 +27,8 @@ def get_spec():
 
 def test():
 	spec = get_spec()
+	spec_ts = get_spec_ts()
+	specs = [spec, spec_ts]
 
 	ratio = 1.0
 	augms = [
@@ -40,18 +51,20 @@ def test():
 		# RandCropSpec(ratio, fill_value=-80),
 		# VerticalFlip(ratio),
 		# Compose([HorizontalFlip(ratio), VerticalFlip(ratio)]),
-		HorizontalFlip(ratio),
+		# HorizontalFlip(ratio),
 		# CutOutSpec(ratio),
 		# InversionSpec(ratio),
 	]
-	print(spec.shape)
 
-	for augm in augms:
-		spec_a = augm(spec.copy())
+	for spec in specs:
+		print(spec.shape)
 
-		plt.figure()
-		plt.title(augm.__class__.__name__)
-		plt.imshow(spec_a)
+		for augm in augms:
+			spec_a = augm(spec.copy())
+
+			plt.figure()
+			plt.title(augm.__class__.__name__)
+			plt.imshow(spec_a)
 
 	plt.show(block=False)
 	input("Press ENTER to quit\n> ")

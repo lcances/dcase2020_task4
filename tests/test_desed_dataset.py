@@ -30,7 +30,7 @@ def test():
 	manager.add_subset("synthetic20")
 	# manager.add_subset("unlabel_in_domain")
 
-	augments = (TimeStretch(1.0),)
+	augments = ()  # (TimeStretch(1.0),)
 	dataset = DESEDDataset(manager, train=True, val=False, augments=augments, cached=False, weak=True, strong=True)
 
 	print("len : ", len(dataset))  # weak = 11808, synthetic20 = 2584
