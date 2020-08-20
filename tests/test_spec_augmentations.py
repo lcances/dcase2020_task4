@@ -22,7 +22,7 @@ def test():
 	ratio = 1.0
 	augms = [
 		IdentitySpec(),
-		Transform(ratio, scale=(1.1, 1.1)),
+		# Transform(ratio, scale=(1.1, 1.1)),
 		# Transform(ratio, rotation=(0.2, 0.2)),
 		# Transform(ratio, rotation=(0.6, 0.6)),
 		# Transform(ratio, rotation=(-np.pi / 4.0, np.pi / 4.0)),
@@ -35,7 +35,7 @@ def test():
 		# Noise2(ratio, noise_factor=(10.0, 10.0)),
 		# Noise2(ratio, noise_factor=(5.0, 5.0)),
 		# Occlusion(ratio, max_size=1.0),
-		RandomFreqDropout(ratio, dropout=0.01),
+		# RandomFreqDropout(ratio, dropout=0.01),
 		# RandomTimeDropout(ratio, dropout=0.25),
 		# RandCropSpec(ratio, fill_value=-80),
 		# VerticalFlip(ratio),
