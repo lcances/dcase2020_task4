@@ -15,7 +15,7 @@ bn_momentum = 0.1  # 0.1, 0.999
 
 
 class BasicBlock(nn.Module):
-	def __init__(self, in_planes, out_planes, stride, dropout=0.0):
+	def __init__(self, in_planes, out_planes, stride, dropout: float = 0.0):
 		super(BasicBlock, self).__init__()
 		self.bn1 = nn.BatchNorm2d(in_planes, momentum=bn_momentum)
 		self.relu1 = relu_fn(inplace=True)
@@ -44,11 +44,11 @@ class BasicBlock(nn.Module):
 
 
 class NetworkBlock(nn.Module):
-	def __init__(self, nb_layers, in_planes, out_planes, block, stride, dropout=0.0):
+	def __init__(self, nb_layers, in_planes, out_planes, block, stride, dropout: float = 0.0):
 		super(NetworkBlock, self).__init__()
 		self.layer = self._make_layer(block, in_planes, out_planes, nb_layers, stride, dropout)
 
-	def _make_layer(self, block, in_planes, out_planes, nb_layers, stride, dropout):
+	def _make_layer(self, block, in_planes, out_planes, nb_layers, stride, dropout: float):
 		layers = []
 		for i in range(int(nb_layers)):
 			layers.append(block(i == 0 and in_planes or out_planes, out_planes, i == 0 and stride or 1, dropout))
@@ -62,7 +62,7 @@ class WideResNet(nn.Module):
 	def __init__(self, depth: int = 28, num_classes: int = 10, widen_factor: int = 2, dropout: float = 0.5):
 		# TODO : old widen_factor = 1
 		super(WideResNet, self).__init__()
-		n_channels = [16, 16*widen_factor, 32*widen_factor, 64*widen_factor]
+		n_channels = [16, 16 * widen_factor, 32 * widen_factor, 64 * widen_factor]
 		assert((depth - 4) % 6 == 0)
 		n = (depth - 4) / 6
 		block = BasicBlock
@@ -116,7 +116,7 @@ class WideResNet(nn.Module):
 
 class WideResNetRot(WideResNet):
 	def __init__(
-		self, depth: int, num_classes: int = 10, widen_factor: int = 2, dropout: float = 0.0, rot_output_size: int = 4
+		self, depth: int, num_classes: int = 10, widen_factor: int = 2, dropout: float = 0.5, rot_output_size: int = 4
 	):
 		super().__init__(depth, num_classes, widen_factor, dropout)
 		classifier_input_size = 64 * widen_factor

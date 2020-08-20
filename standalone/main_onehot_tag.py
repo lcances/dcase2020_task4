@@ -175,7 +175,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--fold_val", type=int, default=10,
 						help="Fold used for validation in UBS8K dataset. This parameter is unused if cross validation is True.")
 
-	parser.add_argument("--ra_magnitude", type=str_to_optional_int, default=2,
+	parser.add_argument("--ra_magnitude", type=str_to_optional_int, default=None,
 						help="Magnitude used in RandAugment. Use \"None\" for generate a random "
 							 "magnitude each time the augmentation is called.")
 	parser.add_argument("--ra_nb_choices", type=int, default=1,
@@ -209,6 +209,9 @@ def create_args() -> Namespace:
 						help="Apply identity, weak or strong augment on supervised train dataset.")
 	parser.add_argument("--standardize", type=str_to_bool, default=False,
 						help="Normalize CIFAR10 data. Currently unused on UBS8K.")
+	parser.add_argument("--self_supervised_component", type=str_to_optional_str, default="flips",
+						choices=[None, "flips"],
+						help="Self supervised component applied in ReMixMatch training.")
 
 	return parser.parse_args()
 
@@ -478,17 +481,14 @@ def main():
 
 			acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
 
-			# TODO : change conditions
-			if args.dataset_name == "CIFAR10":
+			if args.self_supervised_component == "flips":
 				ss_transform = SelfSupervisedFlips()
-			elif args.dataset_name == "UBS8K":
-				ss_transform = SelfSupervisedFlips()
+			elif args.self_supervised_component is None:
+				ss_transform = None
 			else:
-				raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (
-					args.dataset_name, " or ".join(("CIFAR10", "UBS8K"))
-				))
+				raise RuntimeError("Invalid argument \"self_supervised_component = %s\"." % args.self_supervised_component)
 
-			if ss_transform.get_nb_classes() != args.nb_classes_self_supervised:
+			if ss_transform is not None and ss_transform.get_nb_classes() != args.nb_classes_self_supervised:
 				raise RuntimeError("Invalid self supervised transform.")
 
 			if not args.rampup_each_epoch:
@@ -669,8 +669,10 @@ def get_cifar10_datasets(
 	# Add postprocessing after each augmentation (shape : [32, 32, 3] -> [3, 32, 32])
 	post_process_fn = lambda img: img.transpose()
 	if args.standardize:
+		# TODO : always normalize ?
+		normalize_fn = Normalize(original_range=(0, 255), target_range=(0, 1))
 		standardize_fn = Standardize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])
-		post_process_fn = Compose([standardize_fn, post_process_fn])
+		post_process_fn = Compose([normalize_fn, standardize_fn, post_process_fn])
 
 	# Prepare TRAIN data
 	transforms_train = [pre_process_fn, post_process_fn]
@@ -706,7 +708,6 @@ def get_ubs8k_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	ratio_augm_strong = 1.0
 	augm_list_strong = [
 		TimeStretch(ratio_augm_strong),
-		# PitchShiftRandom(ratio_augm_strong, steps=(-1, 1)),
 		Noise(ratio_augm_strong, target_snr=15),
 		CutOutSpec(ratio_augm_strong, rect_width_scale_range=(0.1, 0.25), rect_height_scale_range=(0.1, 0.25)),
 		RandomTimeDropout(ratio_augm_strong, dropout=0.01),

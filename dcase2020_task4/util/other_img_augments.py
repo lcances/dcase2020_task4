@@ -26,6 +26,17 @@ class ImgRGBAugmentation(ABC, ImgAugmentation):
 		return self.apply_helper(data)
 
 
+class Normalize(ImgRGBAugmentation):
+	def __init__(self, original_range: tuple = (0, 255), target_range: tuple = (0, 1), ratio: float = 1.0):
+		super().__init__(ratio)
+		self.original_range = original_range
+		self.target_range = target_range
+
+	def apply_helper(self, data: (Tensor, np.ndarray)) -> (Tensor, np.ndarray):
+		normalized = (data - self.original_range[0]) / (self.original_range[1] - self.original_range[0])
+		return normalized * (self.target_range[1] - self.target_range[0]) + self.target_range[0]
+
+
 class Standardize(ImgRGBAugmentation):
 	def __init__(self, means: List[float], stds: List[float], ratio: float = 1.0):
 		super().__init__(ratio)

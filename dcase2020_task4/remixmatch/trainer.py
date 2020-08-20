@@ -2,9 +2,8 @@ import torch
 
 from torch.nn import Module
 from torch.optim.optimizer import Optimizer
-from torch.utils.data import DataLoader
 from torch.utils.tensorboard import SummaryWriter
-from typing import Callable, Collection, Dict, List, Optional
+from typing import Callable, Dict, List, Optional
 
 from metric_utils.metrics import Metrics
 
@@ -36,7 +35,7 @@ class ReMixMatchTrainer(TrainerABC):
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
 		distributions: Optional[AvgDistributions],
-		ss_transform: SelfSupervisedABC,
+		ss_transform: Optional[SelfSupervisedABC],
 		steppables: Optional[list],
 	):
 		"""
@@ -102,7 +101,10 @@ class ReMixMatchTrainer(TrainerABC):
 				s_batch_mixed, s_labels_mixed, u_batch_mixed, u_labels_mixed = \
 					self.mixer(s_batch_augm_strong, s_labels, u_batch_augm_weak, u_batch_augm_strongs, u_label_guessed)
 
-				u1_batch_self_super, u1_label_self_super = self.ss_transform.create_batch_label(u1_batch)
+				if self.ss_transform is not None:
+					u1_batch_self_super, u1_label_self_super = self.ss_transform.create_batch_label(u1_batch)
+				else:
+					u1_batch_self_super, u1_label_self_super = None, None
 
 			# Predict labels for x (mixed), u (mixed) and u1 (strong augment)
 			s_logits_mixed = self.model(s_batch_mixed)
@@ -113,9 +115,12 @@ class ReMixMatchTrainer(TrainerABC):
 			u_pred_mixed = self.acti_fn(u_logits_mixed, dim=1)
 			u1_pred = self.acti_fn(u1_logits, dim=1)
 
-			# Predict rotation for strong augment u1
-			u1_logits_self_super = self.model.forward_rot(u1_batch_self_super)
-			u1_pred_self_super = self.acti_rot_fn(u1_logits_self_super, dim=1)
+			if u1_batch_self_super is not None:
+				# Predict rotation for strong augment u1
+				u1_logits_self_super = self.model.forward_rot(u1_batch_self_super)
+				u1_pred_self_super = self.acti_rot_fn(u1_logits_self_super, dim=1)
+			else:
+				u1_pred_self_super = None
 
 			# Update model
 			loss, loss_s, loss_u, loss_u1, loss_r = self.criterion(

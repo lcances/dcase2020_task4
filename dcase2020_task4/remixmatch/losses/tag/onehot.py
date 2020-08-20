@@ -1,4 +1,6 @@
+import torch
 from torch import Tensor
+from typing import Optional
 
 from dcase2020_task4.remixmatch.losses.abc import ReMixMatchLossTagABC
 from dcase2020_task4.util.utils_match import cross_entropy
@@ -27,7 +29,7 @@ class ReMixMatchLossOneHot(ReMixMatchLossTagABC):
 		pred_s: Tensor, targets_x: Tensor,
 		pred_u: Tensor, targets_u: Tensor,
 		pred_u1: Tensor, targets_u1: Tensor,
-		pred_r: Tensor, targets_r: Tensor,
+		pred_r: Optional[Tensor], targets_r: Optional[Tensor],
 	) -> (Tensor, Tensor, Tensor, Tensor, Tensor):
 		# Supervised loss
 		loss_s = self.criterion_s(pred_s, targets_x)
@@ -41,11 +43,16 @@ class ReMixMatchLossOneHot(ReMixMatchLossTagABC):
 		loss_u1 = self.criterion_u1(pred_u1, targets_u1)
 		loss_u1 = loss_u1.mean()
 
-		# Rotation loss
-		loss_r = self.criterion_r(pred_r, targets_r)
-		loss_r = loss_r.mean()
+		loss = self.lambda_s * loss_s + self.lambda_u * loss_u + self.lambda_u1 * loss_u1
 
-		loss = self.lambda_s * loss_s + self.lambda_u * loss_u + self.lambda_u1 * loss_u1 + self.lambda_r * loss_r
+		if pred_r is not None and targets_r is not None:
+			# Rotation loss
+			loss_r = self.criterion_r(pred_r, targets_r)
+			loss_r = loss_r.mean()
+
+			loss += self.lambda_r * loss_r
+		else:
+			loss_r = torch.zeros(1)
 
 		return loss, loss_s, loss_u, loss_u1, loss_r
 

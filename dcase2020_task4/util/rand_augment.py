@@ -27,6 +27,11 @@ RAND_AUGMENT_CLS_LIST = [
 
 class RandAugment(ImgRGBAugmentation):
 	def __init__(self, ratio: float = 1.0, magnitude_m: Optional[float] = 2.0, nb_choices_n: int = 1):
+		"""
+			@param ratio: probability of applying RandAugment.
+			@param magnitude_m: Global magnitude constant. Use None for random magnitude.
+			@param nb_choices_n: Nb augmentations applied.
+		"""
 		super().__init__(ratio)
 		sub_ratio = 1.0
 
