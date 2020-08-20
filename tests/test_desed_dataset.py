@@ -10,7 +10,7 @@ from dcase2020.datasets import DESEDDataset
 
 def create_args() -> Namespace:
 	parser = ArgumentParser()
-	parser.add_argument("--dataset_path", type=str, default="../dataset/DESED/")
+	parser.add_argument("--dataset_path", type=str, default="/projets/samova/leocances/dcase2020/DESED/")
 	return parser.parse_args()
 
 
@@ -21,16 +21,16 @@ def test():
 
 	manager = DESEDManager(
 		desed_metadata_root, desed_audio_root,
-		from_disk=True,
+		from_disk=False,
 		sampling_rate=22050,
-		verbose=1,
+		verbose=1
 	)
 
 	# manager.add_subset("weak")
 	manager.add_subset("synthetic20")
 	# manager.add_subset("unlabel_in_domain")
 
-	augments = (TimeStretch(1.0))
+	augments = (TimeStretch(1.0),)
 	dataset = DESEDDataset(manager, train=True, val=False, augments=augments, cached=False, weak=True, strong=True)
 
 	print("len : ", len(dataset))  # weak = 11808, synthetic20 = 2584

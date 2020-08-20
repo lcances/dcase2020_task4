@@ -21,3 +21,4 @@ notes.txt
 .tmp_sbatch.sh
 spec.json
 img.json
+spec_time_stretch.json
