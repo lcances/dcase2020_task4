@@ -42,9 +42,9 @@ def test():
 	print("y[0] = ", y[0].shape)  # (10,)
 	print("y[1] = ", y[1].shape)  # (10, 431)
 
-	data = {"x": x.tolist(), "y_weak": y[0].tolist(), "y_strong": y[1].tolist(), "index": idx}
-	with open("spec_time_stretch.json", "w") as file:
-		json.dump(data, file, indent="\t")
+	# data = {"x": x.tolist(), "y_weak": y[0].tolist(), "y_strong": y[1].tolist(), "index": idx}
+	# with open("../results/spec.json", "w") as file:
+	# 	json.dump(data, file, indent="\t")
 
 
 def test_signal_spec():
@@ -74,7 +74,7 @@ def test_signal_spec():
 		"spec": spec.tolist(),
 		"labels": [label.tolist() for label in labels],
 	}
-	with open("signal_spec.json", "w") as file:
+	with open("../results/signal_spec.json", "w") as file:
 		json.dump(data, file, indent="\t")
 
 

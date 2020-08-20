@@ -56,7 +56,7 @@ def get_demo_image():
 
 
 def get_saved_img():
-	filepath = "img.json"
+	filepath = "../results/img.json"
 	with open(filepath, "r") as file:
 		data = json.load(file)
 		x = data["x"]
@@ -70,7 +70,7 @@ def save_cifar_img():
 	rd = np.random.randint(0, len(dataset))
 	img, label = dataset[rd]
 	data = {"x": img.tolist(), "y": label, "index": rd}
-	with open("img.json", "w") as file:
+	with open("../results/img.json", "w") as file:
 		json.dump(data, file, indent="\t")
 
 

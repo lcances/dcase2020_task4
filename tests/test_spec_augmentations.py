@@ -10,7 +10,7 @@ from dcase2020_task4.util.other_spec_augments import IdentitySpec, CutOutSpec, I
 
 
 def get_spec():
-	filepath = "spec.json"
+	filepath = "../results/spec.json"
 	with open(filepath, "r") as file:
 		data = json.load(file)
 		x = data["x"]
@@ -18,7 +18,7 @@ def get_spec():
 
 
 def get_spec_ts():
-	filepath = "spec_time_stretch.json"
+	filepath = "../results/spec_time_stretch.json"
 	with open(filepath, "r") as file:
 		data = json.load(file)
 		x = data["x"]
