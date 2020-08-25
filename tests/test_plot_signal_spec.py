@@ -15,7 +15,7 @@ def main():
 
 	plt.figure()
 	plt.title("Spectrogramme")
-	plt.imshow(spec)
+	plt.imshow(spec, origin="lower")
 
 	plt.show(block=False)
 	input("Press ENTER to quit\n> ")

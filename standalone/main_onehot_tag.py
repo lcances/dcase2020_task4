@@ -611,7 +611,7 @@ def main():
 		print("Cross-validation mean : ", mean_)
 
 		if args.write_results:
-			filepath = osp.join(args.logdir, "cross_val_results_%s.json" % start_date)
+			filepath = osp.join(args.logdir, "cross_val_results_%s_%s.json" % (args.suffix, start_date))
 			content = {"results": cross_validation_results, "mean": mean_}
 			with open(filepath, "w") as file:
 				json.dump(content, file)
