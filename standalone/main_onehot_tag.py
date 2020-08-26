@@ -115,6 +115,8 @@ def create_args() -> Namespace:
 						help="Learning rate used.")
 	parser.add_argument("--weight_decay", "--wd", type=float, default=0.0,
 						help="Weight decay used.")
+	parser.add_argument("--momentum", type=float, default=0.9,
+						help="Momentum used in SGD optimizer.")
 
 	parser.add_argument("--write_results", type=str_to_bool, default=True,
 						help="Write results in a tensorboard SummaryWriter.")

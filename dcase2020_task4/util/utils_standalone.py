@@ -122,7 +122,7 @@ def get_optim_from_args(args: Namespace, model: Module) -> Optimizer:
 	if name == "adam":
 		optim = Adam(**kwargs)
 	elif name == "sgd":
-		optim = SGD(**kwargs)
+		optim = SGD(**kwargs, momentum=args.momentum)
 	elif name == "radam":
 		optim = RAdam(**kwargs)
 	elif name == "plainradam":
