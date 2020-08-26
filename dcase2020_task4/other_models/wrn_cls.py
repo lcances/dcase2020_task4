@@ -1,15 +1,15 @@
 from torch import Tensor
 from torch.nn import Module
 from torch.nn import functional as F
+from typing import Callable
 
 from dcase2020_task4.other_models.wrn import resnet
 from dcase2020_task4.other_models import wrn_utils as utils
 
 
-class WideResNet(Module):
-	def __init__(self, depth: int = 28, width: int = 2, nb_classes: int = 10):
+class WideResNetABC(Module):
+	def __init__(self, f: Callable, params: dict):
 		super().__init__()
-		f, params = resnet(depth, width, nb_classes)
 		self.f = f
 		self.params = params
 
@@ -23,16 +23,17 @@ class WideResNet(Module):
 		return [v for v in self.params.values() if v.requires_grad]
 
 
-class WideResNetRot(Module):
-	def __init__(self, depth: int = 28, width: int = 2, nb_classes: int = 10, num_rot: int = 4):
-		super().__init__()
-		f, f_rot, params = WideResNetRot.resnet_rot(depth, width, nb_classes, num_rot)
-		self.f = f
-		self.f_rot = f_rot
-		self.params = params
+class WideResNet(WideResNetABC):
+	def __init__(self, depth: int = 28, width: int = 2, nb_classes: int = 10):
+		f, params = resnet(depth, width, nb_classes)
+		super().__init__(f, params)
 
-	def forward(self, x: Tensor) -> Tensor:
-		return self.f(x, self.params, self.get_mode())
+
+class WideResNetRot(WideResNetABC):
+	def __init__(self, depth: int = 28, width: int = 2, nb_classes: int = 10, num_rot: int = 4):
+		f, f_rot, params = WideResNetRot.resnet_rot(depth, width, nb_classes, num_rot)
+		super().__init__(f, params)
+		self.f_rot = f_rot
 
 	def forward_rot(self, x: Tensor) -> Tensor:
 		return self.f_rot(x, self.params, self.get_mode())
@@ -106,17 +107,17 @@ class WideResNetRot(Module):
 
 		return f, f_rot, flat_params
 
-	def get_mode(self) -> bool:
-		return self.training
-
-	def parameters(self, recurse: bool = True) -> list:
-		return [v for v in self.params.values() if v.requires_grad]
-
 
 def test():
 	from dcase2020_task4.util.utils_standalone import get_nb_parameters, get_nb_trainable_parameters
 
 	wrn = WideResNet()
+	print(wrn.__class__.__name__)
+	print("Nb params   : ", get_nb_parameters(wrn))
+	print("Nb trainable: ", get_nb_trainable_parameters(wrn))
+
+	wrn = WideResNetRot()
+	print(wrn.__class__.__name__)
 	print("Nb params   : ", get_nb_parameters(wrn))
 	print("Nb trainable: ", get_nb_trainable_parameters(wrn))
 
