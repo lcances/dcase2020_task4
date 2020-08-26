@@ -11,10 +11,10 @@ path_script="$HOME/root/task4/standalone/main_onehot_tag.py"
 $path_py $path_script \
 	--run "$run" \
 	--suffix "$suffix" \
-	--nb_epochs 10 \
-	--experimental "None" \
+	--nb_epochs 300 \
+	--experimental "none" \
 	--optimizer "Adam" \
-	--scheduler "None" \
+	--scheduler "none" \
 	--use_rampup false \
 	--nb_rampup_steps 10 \
 	--cross_validation false \
@@ -34,7 +34,10 @@ $path_py $path_script \
 	--use_wlu false \
 	--wlu_on_epoch true \
 	--wlu_steps 10 \
-	--dropout 0.0 \
+	--dropout 0.5 \
+	--supervised_augment "none" \
+	--standardize false \
+	--self_supervised_component "flips" \
 	--dataset_path "/projets/samova/leocances/CIFAR10/" \
 	--logdir "$HOME/root/tensorboard/CIFAR10/default/" \
 	--checkpoint_path "$HOME/root/task4/models/" \
@@ -45,9 +48,7 @@ $path_py $path_script \
 	--num_workers_s 4 \
 	--num_workers_u 4 \
 	--checkpoint_metric_name "acc" \
-	--write_results false \
-	--debug_mode true \
+	--write_results true \
+	--debug_mode false \
 	--wrn_depth 28 \
 	--wrn_widen_factor 2 \
-	--supervised_augment "none" \
-	--standardize false \

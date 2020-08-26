@@ -1,7 +1,7 @@
 #!/bin/sh
 
 run="sf"
-suffix="SF_cosine_smooth_strong"
+suffix="SF_normalize_standardize"
 
 path_torch="/logiciels/containerCollections/CUDA10/pytorch.sif"
 path_py="$HOME/miniconda3/envs/dcase2020/bin/python"
@@ -35,7 +35,7 @@ srun singularity exec $path_torch $path_py $path_script \
 	--nb_epochs 300 \
 	--experimental "none" \
 	--optimizer "Adam" \
-	--scheduler "Cosine" \
+	--scheduler "none" \
 	--use_rampup false \
 	--nb_rampup_steps 10 \
 	--cross_validation false \
@@ -48,7 +48,7 @@ srun singularity exec $path_torch $path_py $path_script \
 	--lambda_r 0.5 \
 	--batch_size_s 64 \
 	--batch_size_u 64 \
-	--label_smoothing 0.001 \
+	--label_smoothing 0.000 \
 	--rampup_each_epoch true \
 	--shuffle_s_with_u true \
 	--criterion_name_u "cross_entropy" \
@@ -56,8 +56,8 @@ srun singularity exec $path_torch $path_py $path_script \
 	--wlu_on_epoch true \
 	--wlu_steps 10 \
 	--dropout 0.5 \
-	--supervised_augment "strong" \
-	--standardize false \
+	--supervised_augment "none" \
+	--standardize true \
 	--self_supervised_component "flips" \
 	--dataset_path "/projets/samova/leocances/CIFAR10/" \
 	--logdir "$HOME/root/tensorboard/CIFAR10/default/" \

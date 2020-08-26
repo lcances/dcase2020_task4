@@ -4,8 +4,8 @@ path_torch="/logiciels/containerCollections/CUDA10/pytorch.sif"
 path_py="$HOME/miniconda3/envs/dcase2020/bin/python"
 path_script="$HOME/root/task4/standalone/main_onehot_tag.py"
 
-run="sf"
-suffix="SF"
+run="rmm"
+suffix="RMMV3_cross_val"
 
 tmp_file=".tmp_sbatch.sh"
 name="UT$suffix"
@@ -36,12 +36,12 @@ srun singularity exec $path_torch $path_py $path_script \
 	--optimizer "Adam" \
 	--scheduler "None" \
 	--use_rampup false \
-	--nb_rampup_steps 10 \
-	--cross_validation false \
+	--nb_rampup_steps 20 \
+	--cross_validation true \
 	--threshold_confidence 0.9 \
 	--lr 1e-3 \
 	--nb_augms 2 \
-	--nb_augms_strong 2 \
+	--nb_augms_strong 4 \
 	--lambda_u 1.0 \
 	--lambda_u1 0.5 \
 	--lambda_r 0.5 \
@@ -50,7 +50,7 @@ srun singularity exec $path_torch $path_py $path_script \
 	--label_smoothing 0.000 \
 	--rampup_each_epoch true \
 	--shuffle_s_with_u true \
-	--criterion_name_u "cross_entropy" \
+	--criterion_name_u "ce" \
 	--use_wlu false \
 	--wlu_on_epoch true \
 	--wlu_steps 10 \
