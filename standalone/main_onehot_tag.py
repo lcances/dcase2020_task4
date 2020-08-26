@@ -13,6 +13,7 @@ os.environ["OMP_NUM_THREADS"] = "2"
 from argparse import ArgumentParser
 from time import time
 from torch.utils.data import DataLoader, Dataset, Subset
+from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose, ToTensor, Normalize
 from typing import Dict
@@ -651,9 +652,16 @@ def get_default_metrics(args: Namespace) -> List[Dict[str, Metrics]]:
 
 def get_cifar10_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	ratio_augm_weak = 0.5
+	"""
+	transforms.Pad(4, padding_mode='reflect'),
+	transforms.RandomHorizontalFlip(),
+	transforms.RandomCrop(32),
+	"""
 	augm_list_weak = [
 		HorizontalFlip(ratio_augm_weak),
 		CutOut(ratio_augm_weak, rect_width_scale_range=(0.1, 0.1), rect_height_scale_range=(0.1, 0.1), fill_value=0),
+		Compose([transforms.ToPILImage(), transforms.RandomCrop(32), transforms.ToTensor()]),
+		Compose([transforms.ToPILImage(), transforms.Pad(4, padding_mode='reflect'), transforms.ToTensor()]),
 		# VerticalFlip(ratio_augm_weak),
 		# Transform(ratio_augm_weak, scale=(0.75, 1.25)),
 	]
@@ -667,7 +675,8 @@ def get_cifar10_augms(args: Namespace) -> (List[Callable], List[Callable]):
 
 
 def get_cifar10_datasets(
-	args: Namespace, augm_list_weak: List[Callable], augm_list_strong: List[Callable]) -> (Dataset, Dataset, Dataset, Dataset):
+	args: Namespace, augm_list_weak: List[Callable], augm_list_strong: List[Callable]
+) -> (Dataset, Dataset, Dataset, Dataset):
 	# Add preprocessing before each augmentation
 	pre_process_fn = lambda img: np.array(img)
 	# Add postprocessing after each augmentation (shape : [32, 32, 3] -> [3, 32, 32])
