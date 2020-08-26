@@ -1,5 +1,6 @@
 """
 	CODE IMPORTED FROM https://github.com/xternalz/WideResNet-pytorch/blob/master/wideresnet.py
+	Has been modified : Yes
 """
 
 import torch
@@ -58,10 +59,10 @@ class NetworkBlock(nn.Module):
 		return self.layer(x)
 
 
-class WideResNet(nn.Module):
+class WideResNetUnofficial(nn.Module):
 	def __init__(self, depth: int = 28, num_classes: int = 10, widen_factor: int = 2, dropout: float = 0.5):
 		# TODO : old widen_factor = 1
-		super(WideResNet, self).__init__()
+		super(WideResNetUnofficial, self).__init__()
 		n_channels = [16, 16 * widen_factor, 32 * widen_factor, 64 * widen_factor]
 		assert((depth - 4) % 6 == 0)
 		n = (depth - 4) / 6
@@ -90,8 +91,8 @@ class WideResNet(nn.Module):
 				m.bias.data.zero_()
 
 	@staticmethod
-	def from_args(args: Namespace) -> 'WideResNet':
-		return WideResNet(
+	def from_args(args: Namespace) -> 'WideResNetUnofficial':
+		return WideResNetUnofficial(
 			depth=args.wrn_depth,
 			num_classes=args.nb_classes,
 			widen_factor=args.wrn_widen_factor,
@@ -114,7 +115,7 @@ class WideResNet(nn.Module):
 		return out
 
 
-class WideResNetRot(WideResNet):
+class WideResNetUnofficialRot(WideResNetUnofficial):
 	def __init__(
 		self, depth: int, num_classes: int = 10, widen_factor: int = 2, dropout: float = 0.5, rot_output_size: int = 4
 	):
@@ -123,8 +124,8 @@ class WideResNetRot(WideResNet):
 		self.classifier_rot = nn.Linear(classifier_input_size, rot_output_size)
 
 	@staticmethod
-	def from_args(args: Namespace) -> 'WideResNetRot':
-		return WideResNetRot(
+	def from_args(args: Namespace) -> 'WideResNetUnofficialRot':
+		return WideResNetUnofficialRot(
 			depth=args.wrn_depth,
 			num_classes=args.nb_classes,
 			widen_factor=args.wrn_widen_factor,

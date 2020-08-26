@@ -13,9 +13,9 @@ from torch.nn import Module
 from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
-from typing import Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
-from dcase2020_task4.other_models import cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wide_resnet
+from dcase2020_task4.other_models import cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wide_resnet_unofficial
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.util.radam import RAdam, PlainRAdam, AdamW
 
@@ -98,7 +98,7 @@ def get_model_from_args(args: Namespace, case_sensitive: bool = False, modules: 
 	"""
 	if modules is None:
 		modules = []
-	modules += [cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wide_resnet]
+	modules += [cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wide_resnet_unofficial]
 
 	model_class = get_model_from_name(args.model, case_sensitive, modules)
 

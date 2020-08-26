@@ -1,5 +1,5 @@
 # CODE IMPORTED FROM https://github.com/kuangliu/pytorch-cifar/blob/master/models/vgg.py
-# Note: it has been modified for compute rotation prediction for ReMixMatch.
+# Has been modified : Yes
 
 import torch
 import torch.nn as nn
