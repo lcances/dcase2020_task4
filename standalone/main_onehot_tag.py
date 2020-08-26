@@ -653,13 +653,13 @@ def get_cifar10_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	ratio_augm_weak = 0.5
 	augm_list_weak = [
 		HorizontalFlip(ratio_augm_weak),
-		CutOut(ratio_augm_weak, rect_width_scale_range=(0.5, 1.0), rect_height_scale_range=(0.5, 1.0)),
+		CutOut(ratio_augm_weak, rect_width_scale_range=(0.1, 0.5), rect_height_scale_range=(0.1, 0.5), fill_value=0),
 		# VerticalFlip(ratio_augm_weak),
 		# Transform(ratio_augm_weak, scale=(0.75, 1.25)),
 	]
 	ratio_augm_strong = 1.0
 	augm_list_strong = [
-		CutOut(ratio_augm_strong),
+		CutOut(ratio_augm_strong, rect_width_scale_range=(0.25, 0.75), rect_height_scale_range=(0.25, 0.75), fill_value=0),
 		RandAugment(ratio=ratio_augm_strong, magnitude_m=args.ra_magnitude, nb_choices_n=args.ra_nb_choices),
 	]
 
