@@ -31,6 +31,9 @@ class WideResNetRot(Module):
 		self.f_rot = f_rot
 		self.params = params
 
+	def forward(self, x: Tensor) -> Tensor:
+		return self.f(x, self.params, self.get_mode())
+
 	def forward_rot(self, x: Tensor) -> Tensor:
 		return self.f_rot(x, self.params, self.get_mode())
 
