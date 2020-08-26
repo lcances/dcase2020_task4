@@ -1,3 +1,4 @@
+from argparse import Namespace
 from torch import Tensor
 from torch.nn import Module
 from torch.nn import functional as F
@@ -28,12 +29,20 @@ class WideResNet(WideResNetABC):
 		f, params = resnet(depth, width, nb_classes)
 		super().__init__(f, params)
 
+	@staticmethod
+	def from_args(self, args: Namespace) -> 'WideResNet':
+		return WideResNet(args.wrn_depth, args.wrn_widen_factor, args.nb_classes)
+
 
 class WideResNetRot(WideResNetABC):
 	def __init__(self, depth: int = 28, width: int = 2, nb_classes: int = 10, num_rot: int = 4):
 		f, f_rot, params = WideResNetRot.resnet_rot(depth, width, nb_classes, num_rot)
 		super().__init__(f, params)
 		self.f_rot = f_rot
+
+	@staticmethod
+	def from_args(args: Namespace) -> 'WideResNetRot':
+		return WideResNetRot(args.wrn_depth, args.wrn_widen_factor, args.nb_classes, args.nb_classes_self_supervised)
 
 	def forward_rot(self, x: Tensor) -> Tensor:
 		return self.f_rot(x, self.params, self.get_mode())

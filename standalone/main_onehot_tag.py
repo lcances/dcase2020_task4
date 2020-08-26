@@ -653,7 +653,7 @@ def get_cifar10_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	ratio_augm_weak = 0.5
 	augm_list_weak = [
 		HorizontalFlip(ratio_augm_weak),
-		CutOut(ratio_augm_weak, rect_width_scale_range=(0.1, 0.5), rect_height_scale_range=(0.1, 0.5), fill_value=0),
+		CutOut(ratio_augm_weak, rect_width_scale_range=(0.1, 0.1), rect_height_scale_range=(0.1, 0.1), fill_value=0),
 		# VerticalFlip(ratio_augm_weak),
 		# Transform(ratio_augm_weak, scale=(0.75, 1.25)),
 	]
