@@ -30,7 +30,7 @@ class WideResNet(WideResNetABC):
 		super().__init__(f, params)
 
 	@staticmethod
-	def from_args(self, args: Namespace) -> 'WideResNet':
+	def from_args(args: Namespace) -> 'WideResNet':
 		return WideResNet(args.wrn_depth, args.wrn_widen_factor, args.nb_classes)
 
 
