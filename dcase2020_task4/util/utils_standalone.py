@@ -115,13 +115,10 @@ def get_optim_from_args(args: Namespace, model: Module) -> Optimizer:
 	"""
 		Instantiate optimizer from args and model.
 		Args must be an Namespace containing the attributes "optimizer", "lr" and "weight_decay".
-		Available optimizers :
-		- Adam,
-		- SGD,
 	"""
 	name = args.optimizer.lower()
-
 	kwargs = dict(params=model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
 	if name == "adam":
 		optim = Adam(**kwargs)
 	elif name == "sgd":

@@ -19,6 +19,9 @@ class WideResNet(Module):
 	def get_mode(self) -> bool:
 		return self.training
 
+	def parameters(self, recurse: bool = True) -> list:
+		return [v for v in self.params.values() if v.requires_grad]
+
 
 class WideResNetRot(Module):
 	def __init__(self, depth: int = 28, width: int = 2, nb_classes: int = 10, num_rot: int = 4):
@@ -99,3 +102,21 @@ class WideResNetRot(Module):
 			return o
 
 		return f, f_rot, flat_params
+
+	def get_mode(self) -> bool:
+		return self.training
+
+	def parameters(self, recurse: bool = True) -> list:
+		return [v for v in self.params.values() if v.requires_grad]
+
+
+def test():
+	from dcase2020_task4.util.utils_standalone import get_nb_parameters, get_nb_trainable_parameters
+
+	wrn = WideResNet()
+	print("Nb params   : ", get_nb_parameters(wrn))
+	print("Nb trainable: ", get_nb_trainable_parameters(wrn))
+
+
+if __name__ == "__main__":
+	test()
