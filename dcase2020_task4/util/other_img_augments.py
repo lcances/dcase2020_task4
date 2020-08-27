@@ -4,6 +4,7 @@ import torch
 from abc import ABC
 from PIL import Image, ImageOps, ImageEnhance, ImageFilter
 from torch import Tensor
+from torchvision.transforms import RandomHorizontalFlip, RandomVerticalFlip
 from typing import List, Optional, Tuple
 
 from augmentation_utils.augmentations import ImgAugmentation
@@ -165,6 +166,24 @@ class Blend(ImgPILAugmentation):
 	def apply_helper(self, data: Image.Image) -> Image.Image:
 		level = np.random.uniform(*self.levels)
 		return Image.blend(data, self.augment.apply_helper(data), level)
+
+
+class HorizontalFlip(ImgPILAugmentation):
+	def __init__(self, ratio: float = 1.0):
+		super().__init__(ratio)
+		self.flip_h = RandomHorizontalFlip(1.0)
+
+	def apply_helper(self, data: Image.Image) -> Image.Image:
+		return self.flip_h(data)
+
+
+class VerticalFlip(ImgPILAugmentation):
+	def __init__(self, ratio: float = 1.0):
+		super().__init__(ratio)
+		self.flip_v = RandomVerticalFlip(1.0)
+
+	def apply_helper(self, data: Image.Image) -> Image.Image:
+		return self.flip_v(data)
 
 
 class AutoContrast(ImgPILAugmentation):

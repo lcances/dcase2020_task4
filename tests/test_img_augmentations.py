@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 import os.path as osp
 
 from torchvision.datasets import CIFAR10
+from augmentation_utils.spec_augmentations import HorizontalFlip
 from dcase2020_task4.util.other_img_augments import *
 
 
@@ -56,7 +57,7 @@ def get_demo_image():
 
 
 def get_saved_img():
-	filepath = "../results/img.json"
+	filepath = "../results/img_%d.json" % 908
 	with open(filepath, "r") as file:
 		data = json.load(file)
 		x = data["x"]
@@ -67,25 +68,29 @@ def save_cifar_img():
 	dataset_path = osp.join("..", "dataset", "CIFAR10")
 	dataset = CIFAR10(dataset_path, train=False, download=False, transform=np.array)
 
-	rd = np.random.randint(0, len(dataset))
-	img, label = dataset[rd]
-	data = {"x": img.tolist(), "y": label, "index": rd}
-	with open("../results/img.json", "w") as file:
+	idx = np.random.randint(0, len(dataset))
+	img, label = dataset[idx]
+	data = {"x": img.tolist(), "y": label, "index": idx}
+	filepath = "../results/img_%d.json" % idx
+	with open(filepath, "w") as file:
 		json.dump(data, file, indent="\t")
 
 
 def test():
+	# save_cifar_img()
 	img = get_saved_img()
 
 	augms = [
 		Identity(),
+		Invert(ratio=1.0),
+		HorizontalFlip(ratio=1.0),
 		# AutoContrast(),
 		# Rotation(ratio=ratio, angles=(-30, 30)),
 		# Inversion(),
 		# UniColor(),
 		# CutOut(),
 		# Gray(),
-		Posterize(ratio=ratio, nbs_bits=(3, 4)),
+		# Posterize(ratio=ratio, nbs_bits=(3, 4)),
 	]
 	print("Img original shape = %s (type=%s)" % (img.shape, img.dtype))
 

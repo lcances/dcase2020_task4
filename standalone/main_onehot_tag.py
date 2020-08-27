@@ -9,6 +9,7 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
+import numpy as np
 
 from argparse import ArgumentParser
 from time import time
@@ -52,7 +53,7 @@ from dcase2020_task4.util.datasets.random_choice_dataset import RandomChoiceData
 from dcase2020_task4.util.datasets.smooth_dataset import SmoothOneHotDataset
 from dcase2020_task4.util.datasets.to_tensor_dataset import ToTensorDataset
 from dcase2020_task4.util.guessers.batch import *
-from dcase2020_task4.util.other_img_augments import *
+from dcase2020_task4.util.other_img_augments import CutOut as CutOutImg
 from dcase2020_task4.util.other_spec_augments import CutOutSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.ramp_up import RampUp
@@ -618,7 +619,7 @@ def main():
 			filepath = osp.join(args.logdir, "cross_val_results_%s_%s.json" % (args.suffix, start_date))
 			content = {"results": cross_validation_results, "mean": mean_}
 			with open(filepath, "w") as file:
-				json.dump(content, file)
+				json.dump(content, file, indent="\t")
 
 	exec_time = time() - start_time
 	print("")
@@ -659,7 +660,7 @@ def get_cifar10_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	"""
 	augm_list_weak = [
 		HorizontalFlip(ratio_augm_weak),
-		CutOut(ratio_augm_weak, rect_width_scale_range=(0.1, 0.1), rect_height_scale_range=(0.1, 0.1), fill_value=0),
+		CutOutImg(ratio_augm_weak, rect_width_scale_range=(0.1, 0.1), rect_height_scale_range=(0.1, 0.1), fill_value=0),
 		Compose([transforms.ToPILImage(), transforms.RandomCrop(32), transforms.ToTensor()]),
 		Compose([transforms.ToPILImage(), transforms.Pad(4, padding_mode='reflect'), transforms.ToTensor()]),
 		# VerticalFlip(ratio_augm_weak),
@@ -667,7 +668,7 @@ def get_cifar10_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	]
 	ratio_augm_strong = 1.0
 	augm_list_strong = [
-		CutOut(ratio_augm_strong, rect_width_scale_range=(0.25, 0.75), rect_height_scale_range=(0.25, 0.75), fill_value=0),
+		CutOutImg(ratio_augm_strong, rect_width_scale_range=(0.25, 0.75), rect_height_scale_range=(0.25, 0.75), fill_value=0),
 		RandAugment(ratio=ratio_augm_strong, magnitude_m=args.ra_magnitude, nb_choices_n=args.ra_nb_choices),
 	]
 

@@ -1,12 +1,13 @@
 import json
 import matplotlib.pyplot as plt
 import numpy as np
+import os.path as osp
 
 from torchvision.transforms import RandomChoice, Compose
 from augmentation_utils.img_augmentations import Transform
 from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2
-from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, Noise, RandomTimeDropout, RandomFreqDropout
-from dcase2020_task4.util.other_spec_augments import IdentitySpec, CutOutSpec, InversionSpec
+from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, RandomTimeDropout, RandomFreqDropout
+from dcase2020_task4.util.other_spec_augments import Identity, CutOutSpec, InversionSpec, NoiseSpec
 
 
 def get_spec():
@@ -28,11 +29,16 @@ def get_spec_ts():
 def test():
 	spec = get_spec()
 	spec_ts = get_spec_ts()
-	specs = [spec, spec_ts]
+	specs = [spec_ts]
 
 	ratio = 1.0
 	augms = [
-		IdentitySpec(),
+		Identity(),
+		# NoiseSpec(ratio, snr=15),
+		# RandomFreqDropout(ratio),
+		# RandomTimeDropout(ratio),
+		# CutOutSpec(ratio),
+		# HorizontalFlip(ratio),
 		# Transform(ratio, scale=(1.1, 1.1)),
 		# Transform(ratio, rotation=(0.2, 0.2)),
 		# Transform(ratio, rotation=(0.6, 0.6)),
@@ -56,15 +62,20 @@ def test():
 		# InversionSpec(ratio),
 	]
 
+	prefix = "spec"
+	dirpath = osp.join("..", "results", "img")
 	for spec in specs:
 		print(spec.shape)
 
 		for augm in augms:
 			spec_a = augm(spec.copy())
+			name = "TimeStretch" # augm.__class__.__name__  # "TimeStretch"
 
-			plt.figure()
-			plt.title(augm.__class__.__name__)
-			plt.imshow(spec_a)
+			fig = plt.figure(frameon=False)
+			plt.title(name)
+			plt.imshow(spec_a, origin="lower")
+			filepath = osp.join(dirpath, "%s_%s.png" % (prefix, name))
+			fig.savefig(filepath, bbox_inches='tight', transparent=True, pad_inches=0)
 
 	plt.show(block=False)
 	input("Press ENTER to quit\n> ")

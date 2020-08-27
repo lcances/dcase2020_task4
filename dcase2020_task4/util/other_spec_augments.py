@@ -8,7 +8,7 @@ from augmentation_utils.spec_augmentations import Noise
 from dcase2020_task4.util.utils_match import random_rect
 
 
-class IdentitySpec(SpecAugmentation):
+class Identity(SpecAugmentation):
 	def __init__(self):
 		super().__init__(1.0)
 

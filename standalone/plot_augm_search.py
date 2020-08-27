@@ -8,7 +8,7 @@ from matplotlib import pyplot as plt
 def create_args() -> Namespace:
 	parser = ArgumentParser()
 	# results_augm_ubs8k, results_augm_cifar10
-	parser.add_argument("--filepath", "-fp", type=str, default="../labbeti_osirim/results_augm_ubs8k.json")
+	parser.add_argument("--filepath", "-fp", type=str, default="../results/results_augm_ubs8k.json")
 	return parser.parse_args()
 
 
@@ -49,7 +49,7 @@ def main():
 		ax.annotate(
 			"{:.4f}".format(value),
 			xy=(rect.get_width(), rect.get_y() + rect.get_height() / 4),
-			xytext=(15, 0),  # horizontal offset
+			xytext=(20, -2),  # horizontal & vertical offset
 			textcoords="offset points",
 			ha="center",
 			va="bottom"

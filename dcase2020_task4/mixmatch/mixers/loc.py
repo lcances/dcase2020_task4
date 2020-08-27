@@ -8,8 +8,7 @@ from dcase2020_task4.util.utils_match import same_shuffle, merge_first_dimension
 
 class MixMatchMixerMultiHotLoc(Callable):
 	"""
-		MixMatch class.
-		Store hyperparameters and apply mixmatch_fn with call() or mix().
+		MixMatch mixer class for multihot with localization.
 	"""
 	def __init__(self, mixup_mixer: Callable):
 		self.mixup_mixer = mixup_mixer

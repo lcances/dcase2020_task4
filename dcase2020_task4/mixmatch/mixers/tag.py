@@ -9,8 +9,7 @@ from dcase2020_task4.util.utils_match import same_shuffle, merge_first_dimension
 
 class MixMatchMixer(Callable):
 	"""
-		MixMatch class.
-		Store hyperparameters and apply mixmatch_fn with call() or mix().
+		MixMatch mixer class for onehot or multihot tagging.
 	"""
 	def __init__(self, mixup_mixer: MixUpMixerTagABC, shuffle_s_with_u: bool = True):
 		self.mixup_mixer = mixup_mixer
