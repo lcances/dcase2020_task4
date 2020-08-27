@@ -690,7 +690,7 @@ def get_cifar10_datasets(
 
 		post_process_fn = Compose([
 			ToTensor(),
-			Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0),
+			transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0),
 		])
 
 	# Prepare TRAIN data
