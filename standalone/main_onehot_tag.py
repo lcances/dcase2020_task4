@@ -350,16 +350,16 @@ def main():
 
 			if args.experimental != "V11":
 				if args.label_smoothing > 0.0:
-					guesser = GuesserModelBinarizeSmooth(model, acti_fn, args.label_smoothing, args.nb_classes)
+					guesser = GuesserModelArgmaxSmooth(model, acti_fn, args.label_smoothing, args.nb_classes)
 				else:
-					guesser = GuesserModelBinarize(model, acti_fn)
+					guesser = GuesserModelArgmax(model, acti_fn)
 
 				trainer = FixMatchTrainer(
 					model, acti_fn, optim, loader, criterion, guesser, metrics_s, metrics_u,
 					writer, steppables_iteration
 				)
 			else:
-				guesser = GuesserMeanModelBinarize(model, acti_fn)
+				guesser = GuesserMeanModelArgmax(model, acti_fn)
 				trainer = FixMatchTrainerV11(
 					model, acti_fn, optim, loader, criterion, guesser, metrics_s, metrics_u,
 					writer, steppables_iteration

@@ -8,6 +8,9 @@ EPSILON = 1e-10
 
 
 class RandomChoiceDataset(Dataset):
+	"""
+		Select randomly a item from a list of datasets of same size.
+	"""
 	def __init__(self, datasets: List[Dataset], distribution: Optional[List[float]] = None):
 		self.datasets = datasets
 		self.distribution = distribution

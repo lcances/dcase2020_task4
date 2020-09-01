@@ -4,7 +4,7 @@ from dcase2020_task4.util.guessers.abc import GuesserPredABC
 from dcase2020_task4.util.utils_labels import binarize_pred_to_onehot, onehot_to_smooth_onehot, multihot_to_smooth_multihot
 
 
-class GuesserBinarizeOneHot(GuesserPredABC):
+class GuesserArgmax(GuesserPredABC):
 	def __call__(self, pred: Tensor, dim: int) -> Tensor:
 		return binarize_pred_to_onehot(pred)
 

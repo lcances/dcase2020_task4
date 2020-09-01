@@ -58,6 +58,11 @@ def split_classes_idx(classes_idx: List[List[int]], ratios: List[float]) -> List
 
 
 def collapse_classes_idx(classes_idx: List[List[int]]) -> List[int]:
+	"""
+		Resize classes indexes in a single list of indexes.
+		@param classes_idx: A list of sublist of int. Every sublist "i" contains the indexes of elements in the classes "i".
+		@return: A list of indexes.
+	"""
 	indexes = []
 	for idx in classes_idx:
 		indexes += idx
@@ -65,6 +70,14 @@ def collapse_classes_idx(classes_idx: List[List[int]]) -> List[int]:
 
 
 def get_reduced_dataset(dataset: Dataset, nb_classes: int, ratio: float) -> Dataset:
+	"""
+		Reduce dataset size by ratio but keep the same class distribution.
+		@param dataset: The original dataset.
+		@param nb_classes: The number of classes in the original dataset.
+		@param ratio: The ratio in [0, 1] used to reduce the dataset size.
+		@return: The reduced dataset.
+	"""
+	assert 0.0 <= ratio <= 1.0
 	cls_idx_all = get_classes_idx(dataset, nb_classes)
 	cls_idx_all = shuffle_classes_idx(cls_idx_all)
 	cls_idx_all = reduce_classes_idx(cls_idx_all, ratio)
@@ -73,6 +86,14 @@ def get_reduced_dataset(dataset: Dataset, nb_classes: int, ratio: float) -> Data
 
 
 def get_split_datasets(dataset: Dataset, nb_classes: int, sub_loaders_ratios: List[float]) -> List[Dataset]:
+	"""
+		Split dataset in several sub-datasets by using a list of ratios.
+		Also keep the original class distribution in every sub-dataset.
+		@param dataset: The original dataset.
+		@param nb_classes: The number of classes in the original dataset.
+		@param sub_loaders_ratios: Ratios used to split the dataset. The sum must be 1.
+		@return: A list of sub-datasets.
+	"""
 	cls_idx_all = get_classes_idx(dataset, nb_classes)
 	cls_idx_all = shuffle_classes_idx(cls_idx_all)
 	idx_split = split_classes_idx(cls_idx_all, sub_loaders_ratios)

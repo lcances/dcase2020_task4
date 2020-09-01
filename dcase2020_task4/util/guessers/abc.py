@@ -4,6 +4,9 @@ from typing import Callable, Optional
 
 
 class GuesserABC(ABC, Callable):
+	"""
+		Abstract class for all guessers.
+	"""
 	def __call__(self, x: Tensor, dim: int) -> Tensor:
 		raise NotImplementedError("Abstract method")
 
@@ -24,11 +27,17 @@ class GuesserModelABC(GuesserABC):
 
 
 class GuesserPredABC(GuesserABC):
+	"""
+		Guesser that use a model prediction to compute a artificial label.
+	"""
 	def __call__(self, x: Tensor, dim: int) -> Tensor:
 		raise NotImplementedError("Abstract method")
 
 
 class GuesserCompose(GuesserABC):
+	"""
+		Guesser that compose other guessers to compute a artificial label.
+	"""
 	def __init__(self, *args):
 		self.guessers = list(args)
 
