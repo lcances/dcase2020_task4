@@ -57,7 +57,8 @@ def get_demo_image():
 
 
 def get_saved_img():
-	filepath = "../results/img_%d.json" % 908
+	idx = 8957  # 908
+	filepath = "../results/img_%d.json" % idx
 	with open(filepath, "r") as file:
 		data = json.load(file)
 		x = data["x"]
@@ -88,19 +89,26 @@ def test():
 		# Rotation(ratio=ratio, angles=(-30, 30)),
 		# Inversion(),
 		# UniColor(),
-		# CutOut(),
+		CutOut(),
 		# Gray(),
 		# Posterize(ratio=ratio, nbs_bits=(3, 4)),
 	]
 	print("Img original shape = %s (type=%s)" % (img.shape, img.dtype))
 
+	dirpath = osp.join("..", "results", "img")
+	prefix = "img"
+
 	for augm in augms:
 		img_a = augm(img.copy())
 		print("Img augm shape = %s (type=%s)" % (img_a.shape, img_a.dtype))
 
-		plt.figure()
-		plt.title(augm.__class__.__name__)
+		name = augm.__class__.__name__
+
+		fig = plt.figure(frameon=False)
+		plt.title(name)
 		plt.imshow(np.array(img_a, dtype=int))
+		filepath = osp.join(dirpath, "%s_%s.png" % (prefix, name))
+		fig.savefig(filepath, bbox_inches='tight', transparent=True, pad_inches=0)
 
 	plt.show(block=False)
 	input("Press ENTER to quit\n> ")
