@@ -61,13 +61,13 @@ class RandAugment(ImgRGBAugmentation):
 		self.nb_choices_n = nb_choices_n
 
 	def apply_helper(self, data: Image.Image) -> Image.Image:
-		chosen = np.random.choice(self.augments_list, self.nb_choices_n)
-		if self.magnitude is not None:
-			chosen = self._apply_magnitude(chosen)
-		return Compose(chosen)(data)
+		self.magnitude = np.random.uniform(self.magnitude_range[0], self.magnitude_range[1])
+		augms_selected = np.random.choice(self.augments_list, self.nb_choices_n)
+		augms_selected = self._apply_magnitude(augms_selected)
+		return Compose(augms_selected)(data)
 
-	def _apply_magnitude(self, chosen: List[Callable]) -> List[Callable]:
-		for augm in chosen:
+	def _apply_magnitude(self, augms_selected: List[Callable]) -> List[Callable]:
+		for augm in augms_selected:
 			if hasattr(augm, "enhance"):
 				augm.enhance.levels = duplicate(to_range(self.magnitude, *self.enhance_range, *self.magnitude_range))
 			elif hasattr(augm, "angles"):
@@ -84,7 +84,7 @@ class RandAugment(ImgRGBAugmentation):
 				pass
 			else:
 				raise RuntimeError("Unknown augmentation \"%s\"." % augm.__name__)
-		return chosen
+		return augms_selected
 
 	def _reset_ranges(self):
 		for augm in self.augments_list:
@@ -106,7 +106,7 @@ class RandAugment(ImgRGBAugmentation):
 				raise RuntimeError("Unknown augmentation.")
 
 
-def to_range(value, new_min, new_max, old_min = 0, old_max = 1):
+def to_range(value, new_min, new_max, old_min, old_max):
 	return (value - old_min) / (old_max - old_min) * (new_max - new_min) + new_min
 
 

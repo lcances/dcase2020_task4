@@ -57,7 +57,7 @@ def post_process_args(args: Namespace) -> Namespace:
 	if args.nb_rampup_steps == "nb_epochs":
 		args.nb_rampup_steps = args.nb_epochs
 
-	args.train_name = get_train_name(args.run)
+	args.train_name = get_full_train_name(args.run)
 	args.git_hash = get_current_git_hash()
 	args.args_file = args_file
 
@@ -153,60 +153,48 @@ def get_sched_from_args(args: Namespace, optim: Optimizer) -> Optional[object]:
 	return scheduler
 
 
-def get_train_name(run: str) -> str:
+def get_full_train_name(run: str) -> str:
+	"""
+		Returns full train name from a acronym.
+		@param run: The acronym of the train chosen by the user.
+		@return: The full name.
+	"""
 	if run in ["fixmatch", "fm"]:
-		return "FixMatch"
+		full_name = "FixMatch"
 	elif run in ["mixmatch", "mm"]:
-		return "MixMatch"
+		full_name = "MixMatch"
 	elif run in ["remixmatch", "rmm"]:
-		return "ReMixMatch"
+		full_name = "ReMixMatch"
 	elif run in ["supervised_full", "sf"]:
-		return "Supervised_Full"
+		full_name = "Supervised_Full"
 	elif run in ["supervised_part", "sp"]:
-		return "Supervised_Part"
+		full_name = "Supervised_Part"
 	elif run in ["supervised", "su"]:
-		return "Supervised"
+		full_name = "Supervised"
 	else:
-		return ""
+		full_name = ""
+	return full_name
 
 
 def get_nb_parameters(model: Module) -> int:
+	"""
+		Return the number of parameters in a model.
+		@param model: Pytorch Module to check.
+		@return: The number of parameters.
+	"""
 	return sum(p.numel() for p in model.parameters())
 
 
 def get_nb_trainable_parameters(model: Module) -> int:
+	"""
+		Return the number of trainable parameters in a model.
+		@param model: Pytorch Module to check.
+		@return: The number of trainable parameters.
+	"""
 	return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def get_hparams_ordered_OLD() -> List[Tuple[str, str]]:
-	# TODO
-	ordered = []
-
-	ordered += [("%s", "model")]
-	ordered += [("%s", "train_name")]
-
-	ordered += [("%d", "batch_size_s")]
-	ordered += [("%d", "batch_size_u")]
-	ordered += [("%s", "optimizer")]
-	ordered += [(FLOAT_FORMAT, "lr")]
-
-	ordered += [("%s", "scheduler")]
-	ordered += [(FLOAT_FORMAT, "lambda_u")]
-	ordered += [(FLOAT_FORMAT, "lambda_u1")]
-	ordered += [(FLOAT_FORMAT, "lambda_r")]
-
-	ordered += [("%d", "use_rampup")]
-	ordered += [("%d", "nb_rampup_steps")]
-	ordered += [("%d", "shuffle_s_with_u")]
-	ordered += [(FLOAT_FORMAT, "threshold_confidence")]
-
-	ordered += [("%s", "criterion_name_u")]
-
-	return ordered
-
-
 def get_hparams_ordered() -> List[Tuple[str, str]]:
-	# TODO
 	ordered = []
 
 	ordered += [("%s", "model")]

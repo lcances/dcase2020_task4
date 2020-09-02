@@ -1,4 +1,5 @@
 # CODE IMPORTED FROM https://github.com/WilyZhao8/Radam_pytorch_classification/blob/master/RAdam.py
+# MODIFIED : Yes
 # no licence ?
 
 # -*- coding: utf-8 -*-
@@ -8,7 +9,7 @@
 # @Software: PyCharm Community Edition
 import math
 import torch
-from torch.optim.optimizer import Optimizer, required
+from torch.optim.optimizer import Optimizer
 
 
 class RAdam(Optimizer):

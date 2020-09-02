@@ -44,7 +44,7 @@ from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 
-from dcase2020_task4.util.avg_distributions import AvgDistributions
+from dcase2020_task4.util.avg_distributions import DistributionAlignment
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.datasets.fn_dataset import FnDataset
 from dcase2020_task4.util.datasets.multiple_dataset import MultipleDataset
@@ -372,7 +372,7 @@ def main():
 		else:
 			sharpen_fn = lambda x, dim: x
 
-		distributions = AvgDistributions.from_edict(args)
+		distributions = DistributionAlignment.from_edict(args)
 		acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
 		ss_transform = SelfSupervisedFlips()
 

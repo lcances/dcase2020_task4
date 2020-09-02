@@ -1,11 +1,11 @@
 import torch
 
-from dcase2020_task4.util.avg_distributions import AvgDistributions
+from dcase2020_task4.util.avg_distributions import DistributionAlignment
 
 
 def test():
 	nb_classes = 10
-	distributions = AvgDistributions(
+	distributions = DistributionAlignment(
 		history_size=10, shape=[nb_classes], names=["labeled", "unlabeled"], mode="multihot"
 	)
 

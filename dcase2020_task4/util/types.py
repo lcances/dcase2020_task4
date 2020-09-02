@@ -39,6 +39,11 @@ def str_to_optional_str(x: str) -> Optional[str]:
 
 
 def str_to_optional_int(x: str) -> Optional[int]:
+	"""
+		Convert string to optional integer value. Case insensitive.
+		@param x: Any string value.
+		@return: None if x == "None", integer value if x represent it otherwise throw an ValueError exception.
+	"""
 	x = str(x)
 	if x.lower() == "none":
 		return None
@@ -47,8 +52,14 @@ def str_to_optional_int(x: str) -> Optional[int]:
 
 
 def str_to_union_str_int(x: str) -> Union[str, int]:
+	"""
+		Convert string to integer value or string value.
+		@param x: Any string value.
+		@return: If x is digit, return a integer value, otherwise returns a the same string value.
+	"""
 	x = str(x)
-	if x.isdigit():
-		return int(x)
-	else:
+	try:
+		x_int = int(x)
+		return x_int
+	except ValueError:
 		return x

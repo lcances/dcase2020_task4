@@ -4,11 +4,23 @@ from typing import Callable, List, Tuple, Union
 
 
 class ConstantEpochUniloss:
+	"""
+		Activate and deactivate (put 0) 1 hyperparameters in objects with a given constant probability.
+		Method "step()" must be called at each epoch end.
+	"""
+
 	def __init__(
 		self,
 		attributes: Union[List[Tuple[object, str]], List[Tuple[object, str, Callable]]],
 		ratios_range: List[Tuple[List[float], int, int]],
 	):
+		"""
+			@param attributes: A list of (object to update, attribute name to update, [function to get the current value]).
+			@param ratios_range: A list of ratios to determine the behaviour between ranges of epochs.
+				Ex : [[0.9, 0.1], 10, 20] =>
+					the first object of attributes is activated with a probability of 0.9 between the epochs 10 and 20 and
+					the second object is activated with a probability of 0.1 between the epochs 10 and 20.
+		"""
 		self.attributes = attributes
 		self.ratios_range = ratios_range
 
@@ -43,6 +55,11 @@ class ConstantEpochUniloss:
 
 
 class WeightLinearUniloss:
+	"""
+		Increase/decrease linearly the probability to apply a loss hyperparameter.
+		The method "step()" must be called at the end of an iteration.
+	"""
+
 	def __init__(
 		self,
 		targets: List[Tuple[object, str, float, float, float]],
@@ -52,6 +69,7 @@ class WeightLinearUniloss:
 		"""
 			@param targets: List of tuples (object to update, attribute name, constant value, probability at start, probability at end)
 			@param nb_steps: Nb of steps max. Can be the number of iterations multiply by the number of epochs.
+			@param update_idx_on_step: Update the internal
 		"""
 		self.targets = targets
 		self.nb_steps = nb_steps
@@ -74,6 +92,9 @@ class WeightLinearUniloss:
 			ratio = self.index_step / self.nb_steps * (ratio_end - ratio_start) + ratio_start
 			ratios.append(ratio)
 		return ratios
+
+	def get_nb_steps(self) -> int:
+		return self.nb_steps
 
 	def _update_objects(self):
 		ratios = self.get_current_ratios()

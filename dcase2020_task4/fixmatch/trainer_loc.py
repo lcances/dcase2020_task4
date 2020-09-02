@@ -11,7 +11,7 @@ from dcase2020_task4.fixmatch.losses.abc import FixMatchLossLocABC
 from dcase2020_task4.trainer_abc import TrainerABC
 from dcase2020_task4.metrics_recorder import MetricsRecorder
 
-from dcase2020_task4.util.avg_distributions import AvgDistributions
+from dcase2020_task4.util.avg_distributions import DistributionAlignment
 from dcase2020_task4.util.types import IterableSized
 from dcase2020_task4.util.utils_match import get_lr
 
@@ -29,7 +29,7 @@ class FixMatchTrainerLoc(TrainerABC):
 		metrics_s_strong: Dict[str, Metrics],
 		metrics_u_strong: Dict[str, Metrics],
 		writer: Optional[SummaryWriter],
-		distributions: Optional[AvgDistributions],
+		distributions: Optional[DistributionAlignment],
 		threshold_multihot: float,
 		steppables: Optional[list],
 	):

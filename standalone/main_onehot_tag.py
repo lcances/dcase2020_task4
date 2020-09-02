@@ -43,7 +43,7 @@ from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 
-from dcase2020_task4.util.avg_distributions import AvgDistributions
+from dcase2020_task4.util.avg_distributions import DistributionAlignment
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.datasets.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
 from dcase2020_task4.util.datasets.multiple_dataset import MultipleDataset
@@ -431,8 +431,8 @@ def main():
 					(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
 					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
 				]
-				wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu, False)
-				wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, nb_steps_wlu, wlu)
+				wlu = WeightLinearUniloss(targets_wlu, args.nb_epochs, False)
+				wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, wlu.get_nb_steps(), wlu)
 
 				if not args.wlu_on_epoch:
 					steppables_iteration.append(wlu_stepper)
@@ -481,7 +481,7 @@ def main():
 			mixer = ReMixMatchMixer(mixup_mixer, args.shuffle_s_with_u)
 
 			sharpen_fn = Sharpen(args.sharpen_temperature)
-			distributions = AvgDistributions.from_edict(args)
+			distributions = DistributionAlignment.from_edict(args)
 			guesser = GuesserModelAlignmentSharpen(model, acti_fn, distributions, sharpen_fn)
 
 			acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)

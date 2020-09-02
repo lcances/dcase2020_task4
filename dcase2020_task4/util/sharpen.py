@@ -6,6 +6,9 @@ from dcase2020_task4.util.utils_match import normalized
 
 
 class Sharpen(Callable):
+	"""
+		Sharpening function class.
+	"""
 	def __init__(self, temperature: float):
 		self.temperature = temperature
 
@@ -29,6 +32,13 @@ def sharpen(batch: Tensor, temperature: float, dim: int) -> Tensor:
 
 
 def sharpen_multi(batch: Tensor, temperature: float, threshold: float) -> Tensor:
+	"""
+		Experimental multi-hot sharpening function.
+		@param batch: The batch to sharpen.
+		@param temperature: Temperature of the sharpen function.
+		@param threshold: Threshold used to determine if a probability must be increased or decreased.
+		@return: The batch sharpened.
+	"""
 	result = batch.clone()
 	nb_dim = len(batch.shape)
 

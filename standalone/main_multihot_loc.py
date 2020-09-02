@@ -40,7 +40,7 @@ from dcase2020_task4.learner import Learner
 from dcase2020_task4.supervised.losses.loc import SupervisedLossLoc
 from dcase2020_task4.supervised.trainer_loc import SupervisedTrainerLoc
 
-from dcase2020_task4.util.avg_distributions import AvgDistributions
+from dcase2020_task4.util.avg_distributions import DistributionAlignment
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.datasets.fn_dataset import FnDataset
 from dcase2020_task4.util.datasets.multiple_dataset import MultipleDataset
@@ -279,7 +279,7 @@ def main():
 		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
 		if args.use_alignment:
-			distributions = AvgDistributions.from_edict(args)
+			distributions = DistributionAlignment.from_edict(args)
 		else:
 			distributions = None
 

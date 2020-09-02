@@ -12,7 +12,7 @@ from dcase2020_task4.remixmatch.losses.abc import ReMixMatchLossTagABC
 from dcase2020_task4.remixmatch.self_label import SelfSupervisedABC
 from dcase2020_task4.trainer_abc import TrainerABC
 
-from dcase2020_task4.util.avg_distributions import AvgDistributions
+from dcase2020_task4.util.avg_distributions import DistributionAlignment
 from dcase2020_task4.util.guessers.abc import GuesserModelABC
 from dcase2020_task4.util.types import IterableSized
 from dcase2020_task4.util.utils_match import get_lr
@@ -34,7 +34,7 @@ class ReMixMatchTrainer(TrainerABC):
 		metrics_r: Dict[str, Metrics],
 		writer: Optional[SummaryWriter],
 		mixer: Callable,
-		distributions: Optional[AvgDistributions],
+		distributions: Optional[DistributionAlignment],
 		ss_transform: Optional[SelfSupervisedABC],
 		steppables: Optional[list],
 	):

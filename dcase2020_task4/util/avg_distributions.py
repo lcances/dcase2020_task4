@@ -7,18 +7,18 @@ from typing import List, Union
 from dcase2020_task4.util.utils_match import normalized
 
 
-class AvgDistributions:
+class DistributionAlignment:
 	"""
-		Compute mean output distributions of a model.
+		Compute mean output distributions of a model and use it to modify a prediction.
 	"""
 
 	def __init__(
 		self, history_size: int, shape: List[int], mode: str, names: List[str]
 	):
 		if mode == "onehot":
-			distributions_priori = AvgDistributions.uniform_distribution_onehot(history_size, shape)
+			distributions_priori = DistributionAlignment.uniform_distribution_onehot(history_size, shape)
 		elif mode == "multihot":
-			distributions_priori = AvgDistributions.uniform_distribution_multihot(history_size, shape)
+			distributions_priori = DistributionAlignment.uniform_distribution_multihot(history_size, shape)
 		else:
 			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (mode, " or ".join(("onehot", "multihot"))))
 
@@ -30,8 +30,8 @@ class AvgDistributions:
 		self.reset()
 
 	@staticmethod
-	def from_edict(hparams) -> 'AvgDistributions':
-		return AvgDistributions(
+	def from_edict(hparams) -> 'DistributionAlignment':
+		return DistributionAlignment(
 			history_size=hparams.history_size,
 			shape=[hparams.nb_classes],
 			mode=hparams.mode,
