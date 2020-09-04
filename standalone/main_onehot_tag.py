@@ -676,8 +676,8 @@ def get_cifar10_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	augm_list_weak = [
 		HorizontalFlip(ratio_augm_weak),
 		CutOutImg(ratio_augm_weak, rect_width_scale_range=(0.1, 0.1), rect_height_scale_range=(0.1, 0.1), fill_value=0),
-		Compose([transforms.ToPILImage(), transforms.RandomCrop(32), transforms.ToTensor()]),
-		Compose([transforms.ToPILImage(), transforms.Pad(4, padding_mode='reflect'), transforms.ToTensor()]),
+		Compose([transforms.ToPILImage(), transforms.RandomCrop(32), np.asarray]),
+		Compose([transforms.ToPILImage(), transforms.Pad(4, padding_mode='reflect'), np.asarray]),
 		# VerticalFlip(ratio_augm_weak),
 		# Transform(ratio_augm_weak, scale=(0.75, 1.25)),
 	]
