@@ -93,7 +93,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--logdir", type=str, default=osp.join("..", "..", "tensorboard"))
 	parser.add_argument("--model", type=str, default="VGG11Rot",
-						choices=["VGG11Rot", "ResNet18Rot", "WideResNetRot", "UBS8KBaselineRot", "CNN03Rot", "CNN03MishRot"])
+						choices=["VGG11Rot", "ResNet18Rot", "WideResNet28_2", "UBS8KBaselineRot", "CNN03Rot", "CNN03MishRot"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--confidence", type=float, default=0.5,
 						help="Confidence threshold used in VALIDATION.")
@@ -222,6 +222,7 @@ def create_args() -> Namespace:
 
 
 def main():
+	# Initialisation
 	start_time = time()
 	start_date = get_datetime()
 
@@ -239,12 +240,16 @@ def main():
 	reset_seed(args.seed)
 	torch.autograd.set_detect_anomaly(args.debug_mode)
 
+	# Get default metrics used in training
 	metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val = get_default_metrics(args)
 
+	# Get default activation function
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
 	cross_validation_results = {}
 
+	# Main function for running training on CIFAR10 or UrbanSound8K (UBS8K)
 	def run(fold_val_ubs8k: int):
+		# Get datasets and augments
 		if args.dataset_name.lower() == "cifar10":
 			augm_list_weak, augm_list_strong = get_cifar10_augms(args)
 			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong = \
@@ -254,11 +259,11 @@ def main():
 			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong = \
 				get_ubs8k_datasets(args, fold_val_ubs8k, augm_list_weak, augm_list_strong)
 		else:
-			raise RuntimeError("Unknown dataset %s" % args.dataset_name)
+			raise RuntimeError("Unknown dataset \"%s\"" % args.dataset_name)
 
 		sub_loaders_ratios = [args.supervised_ratio, 1.0 - args.supervised_ratio]
 
-		# Compute sub-indexes for split train dataset
+		# Compute sub-indexes for split train dataset in labeled/unlabeled dataset
 		cls_idx_all = get_classes_idx(dataset_train, args.nb_classes)
 		cls_idx_all = shuffle_classes_idx(cls_idx_all)
 		cls_idx_all = reduce_classes_idx(cls_idx_all, args.dataset_ratio)
@@ -268,6 +273,7 @@ def main():
 
 		print("%s: %d train examples supervised, %d train examples unsupervised, %d validation examples" % (args.dataset_name, len(idx_train_s), len(idx_train_u), len(idx_val)))
 
+		# Convert labels from index to one-hot
 		dataset_train = OneHotDataset(dataset_train, args.nb_classes)
 		dataset_val = OneHotDataset(dataset_val, args.nb_classes)
 		dataset_train_augm_weak = OneHotDataset(dataset_train_augm_weak, args.nb_classes)
@@ -287,9 +293,11 @@ def main():
 		args_loader_train_u = dict(
 			batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
+		# Create model, optimizer and learning rate scheduler.
 		model = get_model_from_args(args)
 		optim = get_optim_from_args(args, model)
 		sched = get_sched_from_args(args, optim)
+
 		print("Model selected : %s (%d parameters)." % (args.model, get_nb_parameters(model)))
 
 		if args.write_results:
@@ -297,21 +305,31 @@ def main():
 		else:
 			writer = None
 
+		steppables_iteration = []
+		steppables_epoch = []
+		targets_wlu = []
+
+		# Create RampUp object for warm up an hyperparameter.
+		# Must set a target object and be called at each end of epoch or iteration.
 		if args.use_rampup:
 			rampup_lambda_u = RampUp(args.nb_rampup_steps, args.lambda_u, obj=None, attr_name="lambda_u")
 			rampup_lambda_u1 = RampUp(args.nb_rampup_steps, args.lambda_u1, obj=None, attr_name="lambda_u1")
 			rampup_lambda_r = RampUp(args.nb_rampup_steps, args.lambda_r, obj=None, attr_name="lambda_r")
+
+			if args.rampup_each_epoch:
+				steppables_epoch.append(rampup_lambda_u)
+				steppables_epoch.append(rampup_lambda_u1)
+				steppables_epoch.append(rampup_lambda_r)
+			else:
+				steppables_iteration.append(rampup_lambda_u)
+				steppables_iteration.append(rampup_lambda_u1)
+				steppables_iteration.append(rampup_lambda_r)
 		else:
 			rampup_lambda_u = None
 			rampup_lambda_u1 = None
 			rampup_lambda_r = None
 
-		steppables_iteration = []
-		steppables_epoch = []
-		wlu_stepper = None
-
-		if not args.rampup_each_epoch:
-			steppables_iteration.append(rampup_lambda_u)
+		steppables_epoch.append(sched)
 
 		if args.run in ["fm", "fixmatch"]:
 			dataset_train_s_augm_weak = Subset(dataset_train_augm_weak, idx_train_s)
@@ -336,17 +354,10 @@ def main():
 				rampup_lambda_u.set_obj(criterion)
 
 			if args.use_wlu:
-				nb_steps_wlu = args.nb_epochs * len(idx_train_u) * args.batch_size_u if not args.wlu_on_epoch else args.wlu_steps
 				targets_wlu = [
 					(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
 					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
 				]
-				wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu, False)
-				wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, nb_steps_wlu, wlu)
-
-				if not args.wlu_on_epoch:
-					steppables_iteration.append(wlu_stepper)
-				steppables_iteration.append(wlu)
 
 			if args.experimental != "V11":
 				if args.label_smoothing > 0.0:
@@ -426,17 +437,10 @@ def main():
 				steppables_epoch.append(constant_epoch_uniloss)
 
 			if args.use_wlu:
-				nb_steps_wlu = args.nb_epochs * len(idx_train_u) * args.batch_size_u if not args.wlu_on_epoch else args.wlu_steps
 				targets_wlu = [
 					(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
 					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
 				]
-				wlu = WeightLinearUniloss(targets_wlu, args.nb_epochs, False)
-				wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, wlu.get_nb_steps(), wlu)
-
-				if not args.wlu_on_epoch:
-					steppables_iteration.append(wlu_stepper)
-				steppables_iteration.append(wlu)
 
 			if args.experimental != "V3":
 				trainer = MixMatchTrainer(
@@ -502,19 +506,12 @@ def main():
 				steppables_iteration.append(rampup_lambda_r)
 
 			if args.use_wlu:
-				nb_steps_wlu = args.nb_epochs * len(idx_train_u) * args.batch_size_u if not args.wlu_on_epoch else args.wlu_steps
 				targets_wlu = [
 					(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
 					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0 / 3.0),
 					(criterion, "lambda_u1", args.lambda_u1, 0.0, 1.0 / 3.0),
 					(criterion, "lambda_r", args.lambda_r, 0.0, 1.0 / 3.0),
 				]
-				wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu, False)
-				wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, nb_steps_wlu, wlu)
-
-				if not args.wlu_on_epoch:
-					steppables_iteration.append(wlu_stepper)
-				steppables_iteration.append(wlu)
 
 			trainer = ReMixMatchTrainer(
 				model, acti_fn, acti_rot_fn, optim, loader, criterion, guesser,
@@ -563,6 +560,20 @@ def main():
 		else:
 			raise RuntimeError("Unknown run %s" % args.run)
 
+		# Create Weight Linear uniloss classes
+		if args.use_wlu and len(targets_wlu) > 0:
+			nb_steps_wlu = args.wlu_steps if args.wlu_on_epoch else args.nb_epochs * len(idx_train_u) * args.batch_size_u
+
+			wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu)
+			wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, nb_steps_wlu, wlu)
+
+			if args.wlu_on_epoch:
+				steppables_epoch.append(wlu_stepper)
+			else:
+				steppables_iteration.append(wlu_stepper)
+			steppables_iteration.append(wlu)
+
+		# Prepare checkpoint for saving best model during training
 		if args.write_results:
 			filename_model = "%s_%s_%s.torch" % (args.model, args.train_name, args.suffix)
 			filepath_model = osp.join(args.checkpoint_path, filename_model)
@@ -574,15 +585,8 @@ def main():
 			model, acti_fn, loader_val, metrics_val, writer, checkpoint, args.checkpoint_metric_name
 		)
 
-		steppables_epoch.append(sched)
-		if args.use_wlu and args.wlu_on_epoch:
-			steppables_epoch.append(wlu_stepper)
-		if args.use_rampup and args.rampup_each_epoch:
-			steppables_epoch.append(rampup_lambda_u)
-			steppables_epoch.append(rampup_lambda_u1)
-			steppables_epoch.append(rampup_lambda_r)
+		# Filter steppables that are None
 		steppables_epoch = [steppable for steppable in steppables_epoch if steppable is not None]
-
 		learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables_epoch)
 		learner.start()
 

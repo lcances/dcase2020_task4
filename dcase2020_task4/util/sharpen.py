@@ -7,7 +7,7 @@ from dcase2020_task4.util.utils_match import normalized
 
 class Sharpen(Callable):
 	"""
-		Sharpening function class.
+		One-hot sharpening class.
 	"""
 	def __init__(self, temperature: float):
 		self.temperature = temperature
@@ -17,6 +17,9 @@ class Sharpen(Callable):
 
 
 class SharpenMulti(Callable):
+	"""
+		Experimental multi-hot sharpening class.
+	"""
 	def __init__(self, temperature: float, threshold: float):
 		self.temperature = temperature
 		self.threshold = threshold

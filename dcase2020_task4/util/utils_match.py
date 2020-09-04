@@ -45,25 +45,37 @@ def cross_entropy(pred: Tensor, targets: Tensor, dim: Union[int, tuple] = 1) -> 
 
 
 def get_lrs(optim: Optimizer) -> List[float]:
+	""" Get the learning rates of an optimizer. """
 	return [group["lr"] for group in optim.param_groups]
 
 
 def get_lr(optim: Optimizer, idx: int = 0) -> float:
+	""" Get the learning rate of an optimizer. """
 	return get_lrs(optim)[idx]
 
 
 def set_lr(optim: Optimizer, new_lr: float):
+	""" Set the learning rate of an optimizer. """
 	for group in optim.param_groups:
 		group["lr"] = new_lr
 
 
 def sq_diff(a: Tensor, b: Tensor) -> Tensor:
+	""" Squared root distance (difference) """
 	return (a - b) ** 2
 
 
 def random_rect(
 	width: int, height: int, width_range: Tuple[float, float], height_range: Tuple[float, float]
 ) -> (int, int, int, int):
+	"""
+		Create a random rectangle inside an area.
+		@param width: The maximal width.
+		@param height: The maximal height.
+		@param width_range: The width ratio range of the rectangle. Ex: (0.1, 0.5) => width is sampled from (0.1 * width, 0.5 * width).
+		@param height_range: The height ratio range of the rectangle. Ex: (0, 1) => width is sampled from (0, height).
+		@return: The limits (left, right, top, down) of the rectangle created.
+	"""
 
 	r_width = np.random.randint(max(1.0, width_range[0] * width), max(2.0, width_range[1] * width))
 	r_height = np.random.randint(max(1.0, height_range[0] * height), max(2.0, height_range[1] * height))

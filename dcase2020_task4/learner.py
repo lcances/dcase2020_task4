@@ -13,6 +13,9 @@ class LearnerABC(ABC):
 
 
 class Learner(LearnerABC):
+	"""
+		Class used to
+	"""
 	def __init__(
 		self,
 		name: str,

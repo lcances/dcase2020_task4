@@ -13,17 +13,29 @@ from torch.nn import Module
 from torch.optim import Adam, SGD
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, Optional, Union
 
-from dcase2020_task4.other_models import cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wide_resnet_unofficial, wrn_cls
+from dcase2020_task4.other_models import cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wrn28_2
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.util.radam import RAdam, PlainRAdam, AdamW
 
 
 FLOAT_FORMAT = "%.3f"
 
+# Full train names constants
+FN_FIXMATCH = "FixMatch"
+FN_MIXMATCH = "MixMatch"
+FN_REMIXMATCH = "ReMixMatch"
+FN_SUPERVISED_FULL = "Supervised_Full"
+FN_SUPERVISED_PART = "Supervised_Part"
+FN_SUPERVISED = "Supervised"
+
 
 def check_args(args: Namespace):
+	"""
+		Check arguments (mainly directories and files)
+		@param args: argparse arguments.
+	"""
 	if not osp.isdir(args.dataset_path):
 		raise RuntimeError("Invalid dirpath \"%s\"" % args.dataset_path)
 
@@ -47,6 +59,11 @@ def check_args(args: Namespace):
 
 
 def post_process_args(args: Namespace) -> Namespace:
+	"""
+		Update arguments by adding some parameters inside.
+		@param args: argparse arguments.
+		@return: The updated argparse arguments.
+	"""
 	args.train_name = None
 	args.git_hash = None
 	args_file = args.args_file
@@ -65,6 +82,10 @@ def post_process_args(args: Namespace) -> Namespace:
 
 
 def get_current_git_hash() -> str:
+	"""
+		Return the current git hash in the current directory.
+		@return: The git hash.
+	"""
 	try:
 		git_hash = subprocess.check_output(["git", "describe", "--always"])
 		git_hash = git_hash.decode("UTF-8").replace("\n", "")
@@ -74,6 +95,13 @@ def get_current_git_hash() -> str:
 
 
 def get_model_from_name(model_name: str, case_sensitive: bool = False, modules: list = None) -> Callable:
+	"""
+		Return a model from models available in several modules.
+		@param model_name: The name of the model to get.
+		@param case_sensitive: Use case sensitive check for model name with model available.
+		@param modules: The python modules where to search models classes or functions.
+		@return: The class or function of the model selected.
+	"""
 	if modules is None:
 		modules = []
 
@@ -87,7 +115,7 @@ def get_model_from_name(model_name: str, case_sensitive: bool = False, modules: 
 			if obj_name == model_name or (not case_sensitive and obj_name.lower() == model_name.lower()):
 				return obj
 
-	raise AttributeError("This model does not exist: %s " % model_name)
+	raise AttributeError("This model does not exist: \"%s\" " % model_name)
 
 
 def get_model_from_args(args: Namespace, case_sensitive: bool = False, modules: list = None) -> Module:
@@ -98,7 +126,7 @@ def get_model_from_args(args: Namespace, case_sensitive: bool = False, modules: 
 	"""
 	if modules is None:
 		modules = []
-	modules += [cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wide_resnet_unofficial, wrn_cls]
+	modules += [cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wrn28_2]
 
 	model_class = get_model_from_name(args.model, case_sensitive, modules)
 
@@ -160,17 +188,17 @@ def get_full_train_name(run: str) -> str:
 		@return: The full name.
 	"""
 	if run in ["fixmatch", "fm"]:
-		full_name = "FixMatch"
+		full_name = FN_FIXMATCH
 	elif run in ["mixmatch", "mm"]:
-		full_name = "MixMatch"
+		full_name = FN_MIXMATCH
 	elif run in ["remixmatch", "rmm"]:
-		full_name = "ReMixMatch"
+		full_name = FN_REMIXMATCH
 	elif run in ["supervised_full", "sf"]:
-		full_name = "Supervised_Full"
+		full_name = FN_SUPERVISED_FULL
 	elif run in ["supervised_part", "sp"]:
-		full_name = "Supervised_Part"
+		full_name = FN_SUPERVISED_PART
 	elif run in ["supervised", "su"]:
-		full_name = "Supervised"
+		full_name = FN_SUPERVISED
 	else:
 		full_name = ""
 	return full_name
@@ -194,29 +222,45 @@ def get_nb_trainable_parameters(model: Module) -> int:
 	return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def get_hparams_ordered() -> List[Tuple[str, str]]:
-	ordered = []
-
-	ordered += [("%s", "model")]
-	ordered += [("%s", "train_name")]
-
-	return ordered
-
-
 def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> SummaryWriter:
-	dirname = ""
-
-	dirname += "%s_%s_" % (args.dataset_name, start_date)
-	dirname += "%s_" % "_".join([(format_ % args.__dict__[name]) for format_, name in get_hparams_ordered()])
-	dirname += "%s_%s" % (pre_suffix, args.suffix)
-
+	"""
+		Build the tensorboard writer object with a specific name and directory.
+		@param args: argparse arguments.
+		@param start_date: Date of the start of the program.
+		@param pre_suffix: An additional suffix added before the real suffix given by "args.suffix".
+		@return: The SummaryWriter object.
+	"""
+	dirname = "%s_%s_%s_%s_%s_%s" % (args.dataset_name, start_date, args.model, args.train_name, pre_suffix, args.suffix)
 	dirpath = osp.join(args.logdir, dirname)
 	writer = SummaryWriter(log_dir=dirpath, comment=args.train_name)
 	return writer
 
 
 def save_and_close_writer(writer: SummaryWriter, args: Namespace, augments: Any):
-	writer.add_hparams(hparam_dict=_filter_args(args), metric_dict={})
+	"""
+		Save hyperparameters and augments in writer and close it.
+		@param writer: The tensorboard SummaryWriter.
+		@param args: argparse arguments.
+		@param augments: A dictionary or list of augments used.
+	"""
+
+	def filter_args(args: Namespace) -> dict:
+		""" Modify args values for storing them in SummaryWriter. """
+
+		def filter_item(v):
+			if v is None:
+				return str(v)
+			elif isinstance(v, list):
+				return " ".join(v)
+			else:
+				return v
+
+		hparams = args.__dict__
+		for key_, val_ in hparams.items():
+			hparams[key_] = filter_item(val_)
+		return hparams
+
+	writer.add_hparams(hparam_dict=filter_args(args), metric_dict={})
 	writer.add_text("args", json.dumps(args.__dict__, indent="\t"))
 	writer.add_text("augments", json.dumps(to_dict_rec(augments), indent="\t"))
 	writer.close()
@@ -224,6 +268,11 @@ def save_and_close_writer(writer: SummaryWriter, args: Namespace, augments: Any)
 
 
 def save_args(filepath: str, args: Namespace):
+	"""
+		Save arguments in JSON file.
+		@param filepath: The filepath where to save the arguments.
+		@param args: argparse arguments.
+	"""
 	content = {"args": args.__dict__}
 	with open(filepath, "w") as file:
 		json.dump(content, file, indent="\t")
@@ -231,6 +280,13 @@ def save_args(filepath: str, args: Namespace):
 
 
 def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namespace:
+	"""
+		Load arguments from a JSON file.
+		@param filepath: The path to JSON file.
+		@param args: argparse arguments to update.
+		@param check_keys: If True, check if keys of JSON file are inside args keys.
+		@return: The argparse arguments updated.
+	"""
 	with open(filepath, "r") as file:
 		file_dict = json.load(file)
 		if "args" not in file_dict.keys():
@@ -249,6 +305,11 @@ def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namesp
 
 
 def save_augms(filepath: str, augms: Any):
+	"""
+		Save augments to JSON file.
+		@param filepath: The path to JSON file.
+		@param augms: A dictionary or list of augments used.
+	"""
 	content = {"augments": to_dict_rec(augms, "__class__")}
 	with open(filepath, "w") as file:
 		json.dump(content, file, indent="\t")
@@ -256,6 +317,12 @@ def save_augms(filepath: str, augms: Any):
 
 
 def to_dict_rec(obj: Any, class_name_key: Optional[str] = "__class__") -> Union[dict, list]:
+	"""
+		Convert variable to dictionary.
+		@param obj: The object to convert.
+		@param class_name_key: Key used to save the class name if we convert an object.
+		@return:
+	"""
 	# Code imported from (with small changes) :
 	# https://stackoverflow.com/questions/1036409/recursively-convert-python-object-graph-to-dictionary
 
@@ -280,20 +347,3 @@ def to_dict_rec(obj: Any, class_name_key: Optional[str] = "__class__") -> Union[
 		return data
 	else:
 		return obj
-
-
-def _filter_args(args: Namespace) -> dict:
-	""" Modify args values for storing them in SummaryWriter. """
-
-	def filter_item(v):
-		if v is None:
-			return str(v)
-		elif isinstance(v, list):
-			return " ".join(v)
-		else:
-			return v
-
-	hparams = args.__dict__
-	for key_, val_ in hparams.items():
-		hparams[key_] = filter_item(val_)
-	return hparams

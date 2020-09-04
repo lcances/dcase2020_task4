@@ -4,6 +4,9 @@ from typing_extensions import Protocol
 
 
 class IterableSized(Iterable, Sized, Protocol):
+	"""
+		Abstract class for an Iterable and Sized type.
+	"""
 	pass
 
 

@@ -69,17 +69,17 @@ class RandAugment(ImgRGBAugmentation):
 	def _apply_magnitude(self, augms_selected: List[Callable]) -> List[Callable]:
 		for augm in augms_selected:
 			if hasattr(augm, "enhance"):
-				augm.enhance.levels = duplicate(to_range(self.magnitude, *self.enhance_range, *self.magnitude_range))
+				augm.enhance.levels = _duplicate(_to_range(self.magnitude, *self.enhance_range, *self.magnitude_range))
 			elif hasattr(augm, "angles"):
-				augm.angles = duplicate(to_range(self.magnitude, *self.angles_range, *self.magnitude_range))
+				augm.angles = _duplicate(_to_range(self.magnitude, *self.angles_range, *self.magnitude_range))
 			elif hasattr(augm, "nbs_bits"):
-				augm.nbs_bits = duplicate(int(to_range(self.magnitude, *self.posterize_range, *self.magnitude_range)))
+				augm.nbs_bits = _duplicate(int(_to_range(self.magnitude, *self.posterize_range, *self.magnitude_range)))
 			elif hasattr(augm, "shears"):
-				augm.shears = duplicate(to_range(self.magnitude, *self.transforms_range, *self.magnitude_range))
+				augm.shears = _duplicate(_to_range(self.magnitude, *self.transforms_range, *self.magnitude_range))
 			elif hasattr(augm, "thresholds"):
-				augm.thresholds = duplicate(int(to_range(self.magnitude, *self.thresholds_range, *self.magnitude_range)))
+				augm.thresholds = _duplicate(int(_to_range(self.magnitude, *self.thresholds_range, *self.magnitude_range)))
 			elif hasattr(augm, "deltas"):
-				augm.deltas = duplicate(to_range(self.magnitude, *self.transforms_range, *self.magnitude_range))
+				augm.deltas = _duplicate(_to_range(self.magnitude, *self.transforms_range, *self.magnitude_range))
 			elif isinstance(augm, AutoContrast) or isinstance(augm, Equalize):
 				pass
 			else:
@@ -105,10 +105,14 @@ class RandAugment(ImgRGBAugmentation):
 			else:
 				raise RuntimeError("Unknown augmentation.")
 
+	@staticmethod
+	def get_augments_classes_list() -> list:
+		return RAND_AUGMENT_CLS_LIST
 
-def to_range(value, new_min, new_max, old_min, old_max):
+
+def _to_range(value, new_min, new_max, old_min, old_max):
 	return (value - old_min) / (old_max - old_min) * (new_max - new_min) + new_min
 
 
-def duplicate(value) -> tuple:
+def _duplicate(value) -> tuple:
 	return value, value

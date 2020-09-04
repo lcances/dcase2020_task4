@@ -64,12 +64,12 @@ class WeightLinearUniloss:
 		self,
 		targets: List[Tuple[object, str, float, float, float]],
 		nb_steps: int,
-		update_idx_on_step: bool,
+		update_idx_on_step: bool = False,
 	):
 		"""
 			@param targets: List of tuples (object to update, attribute name, constant value, probability at start, probability at end)
 			@param nb_steps: Nb of steps max. Can be the number of iterations multiply by the number of epochs.
-			@param update_idx_on_step: Update the internal
+			@param update_idx_on_step: Update the internal index at each step or not.
 		"""
 		self.targets = targets
 		self.nb_steps = nb_steps
@@ -114,8 +114,11 @@ class WeightLinearUnilossStepper:
 		self.local_index = 0
 
 	def step(self):
-		if self.local_index < self.nb_epochs / self.nb_steps_wlu:
+		if self.local_index < self.get_nb_steps_between_probabilities_update():
 			self.local_index += 1
 		else:
 			self.local_index = 0
 			self.wlu.index_step += 1
+
+	def get_nb_steps_between_probabilities_update(self) -> int:
+		return int(self.nb_epochs / self.nb_steps_wlu)
