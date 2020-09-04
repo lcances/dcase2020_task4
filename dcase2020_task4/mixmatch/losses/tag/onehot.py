@@ -1,4 +1,5 @@
 
+from argparse import Namespace
 from torch import Tensor
 
 from dcase2020_task4.mixmatch.losses.abc import MixMatchLossTagABC
@@ -28,7 +29,7 @@ class MixMatchLossOneHot(MixMatchLossTagABC):
 			raise RuntimeError("Invalid argument \"mode = %s\". Use %s." % (criterion_name_u, " or ".join(("sq_diff", "cross_entropy"))))
 
 	@staticmethod
-	def from_edict(hparams) -> 'MixMatchLossOneHot':
+	def from_args(args: Namespace) -> 'MixMatchLossOneHot':
 		return MixMatchLossOneHot(hparams.lambda_s, hparams.lambda_u, hparams.criterion_name_u)
 
 	def __call__(self, s_pred: Tensor, s_target: Tensor, u_pred: Tensor, u_target: Tensor) -> (Tensor, Tensor, Tensor):

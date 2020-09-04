@@ -1,3 +1,5 @@
+
+from argparse import Namespace
 from torch import Tensor
 from typing import Optional
 
@@ -21,7 +23,7 @@ class FixMatchLossOneHot(FixMatchLossTagABC):
 		self.last_mask = None
 
 	@staticmethod
-	def from_edict(hparams) -> 'FixMatchLossOneHot':
+	def from_args(args: Namespace) -> 'FixMatchLossOneHot':
 		return FixMatchLossOneHot(hparams.lambda_s, hparams.lambda_u, hparams.threshold_confidence)
 
 	def __call__(

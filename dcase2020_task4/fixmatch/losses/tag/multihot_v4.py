@@ -1,5 +1,6 @@
 import torch
 
+from argparse import Namespace
 from torch import Tensor
 from torch.nn import BCELoss
 from typing import Callable, Optional
@@ -26,7 +27,7 @@ class FixMatchLossMultiHotV4(Callable):
 		self.last_mask = None
 
 	@staticmethod
-	def from_edict(hparams) -> 'FixMatchLossMultiHotV4':
+	def from_args(args: Namespace) -> 'FixMatchLossMultiHotV4':
 		return FixMatchLossMultiHotV4(hparams.lambda_s, hparams.lambda_u, hparams.threshold_confidence, hparams.threshold_multihot)
 
 	def __call__(

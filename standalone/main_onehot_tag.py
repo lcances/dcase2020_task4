@@ -43,7 +43,7 @@ from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 
-from dcase2020_task4.util.avg_distributions import DistributionAlignment
+from dcase2020_task4.util.avg_distributions import DistributionAlignmentOnehot
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.datasets.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
 from dcase2020_task4.util.datasets.multiple_dataset import MultipleDataset
@@ -84,8 +84,6 @@ def create_args() -> Namespace:
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
 
-	parser.add_argument("--mode", type=str, default="onehot",
-						choices=["onehot"])
 	parser.add_argument("--dataset_path", type=str, default=osp.join("..", "dataset", "CIFAR10"), required=True)
 	parser.add_argument("--dataset_name", type=str, default="CIFAR10",
 						choices=["CIFAR10", "UBS8K"])
@@ -93,7 +91,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--logdir", type=str, default=osp.join("..", "..", "tensorboard"))
 	parser.add_argument("--model", type=str, default="VGG11Rot",
-						choices=["VGG11Rot", "ResNet18Rot", "WideResNet28_2", "UBS8KBaselineRot", "CNN03Rot", "CNN03MishRot"])
+						choices=["WideResNet28Rot", "CNN03Rot"])
 	parser.add_argument("--nb_epochs", type=int, default=100)
 	parser.add_argument("--confidence", type=float, default=0.5,
 						help="Confidence threshold used in VALIDATION.")
@@ -281,8 +279,6 @@ def main():
 
 		idx_val = list(range(int(len(dataset_val) * args.dataset_ratio)))
 
-		print("%s: %d train examples supervised, %d train examples unsupervised, %d validation examples" % (args.dataset_name, len(idx_train_s), len(idx_train_u), len(idx_val)))
-
 		# Convert labels from index to one-hot
 		dataset_train = OneHotDataset(dataset_train, args.nb_classes)
 		dataset_val = OneHotDataset(dataset_val, args.nb_classes)
@@ -308,6 +304,8 @@ def main():
 		optim = get_optim_from_args(args, model)
 		sched = get_sched_from_args(args, optim)
 
+		print("%s: %d train examples supervised, %d train examples unsupervised, %d validation examples" % (
+			args.dataset_name, len(idx_train_s), len(idx_train_u), len(idx_val)))
 		print("Model selected : %s (%d parameters)." % (args.model, get_nb_parameters(model)))
 
 		if args.write_results:
@@ -317,7 +315,6 @@ def main():
 
 		steppables_iteration = []
 		steppables_epoch = []
-		targets_wlu = []
 
 		# Create RampUp object for warm up an hyperparameter.
 		# Must set a target object and be called at each end of epoch or iteration.
@@ -339,6 +336,21 @@ def main():
 			rampup_lambda_u1 = None
 			rampup_lambda_r = None
 
+		if args.use_wlu:
+			# Create Weight Linear uniloss classes
+			nb_steps_wlu = args.wlu_steps if args.wlu_on_epoch else args.nb_epochs * len(idx_train_u) * args.batch_size_u
+
+			wlu = WeightLinearUniloss(nb_steps_wlu, None)
+			wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, nb_steps_wlu, wlu)
+
+			if args.wlu_on_epoch:
+				steppables_epoch.append(wlu_stepper)
+			else:
+				steppables_iteration.append(wlu_stepper)
+			steppables_iteration.append(wlu)
+		else:
+			wlu = None
+
 		steppables_epoch.append(sched)
 
 		if args.run in ["fm", "fixmatch"]:
@@ -359,7 +371,7 @@ def main():
 			loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 			loader = ZipCycle([loader_train_s_augm_weak, loader_train_u_augms_weak_strong])
 
-			criterion = FixMatchLossOneHot.from_edict(args)
+			criterion = FixMatchLossOneHot.from_args(args)
 			if rampup_lambda_u is not None:
 				rampup_lambda_u.set_obj(criterion)
 
@@ -368,6 +380,7 @@ def main():
 					(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
 					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
 				]
+				wlu.set_targets(targets_wlu)
 
 			if not args.mean_guesser:
 				if args.label_smoothing > 0.0:
@@ -407,10 +420,10 @@ def main():
 				raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 					loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
 
-			criterion = MixMatchLossOneHot.from_edict(args)
+			criterion = MixMatchLossOneHot.from_args(args)
 			if rampup_lambda_u is not None:
 				rampup_lambda_u.set_obj(criterion)
-			mixup_mixer = MixUpMixerTag.from_edict(args)
+			mixup_mixer = MixUpMixerTag.from_args(args)
 			mixer = MixMatchMixer(mixup_mixer, args.shuffle_s_with_u)
 
 			sharpen_fn = Sharpen(args.sharpen_temperature)
@@ -452,6 +465,7 @@ def main():
 					(criterion, "lambda_s", args.lambda_s, 1.0, 0.0),
 					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
 				]
+				wlu.set_targets(targets_wlu)
 
 			if not args.direct_labelisation:
 				trainer = MixMatchTrainer(
@@ -484,7 +498,7 @@ def main():
 					loader_train_s_strong.batch_size, loader_train_u_augms_weak_strongs.batch_size)
 				)
 
-			criterion = ReMixMatchLossOneHot.from_edict(args)
+			criterion = ReMixMatchLossOneHot.from_args(args)
 			if rampup_lambda_u is not None:
 				rampup_lambda_u.set_obj(criterion)
 			if rampup_lambda_u1 is not None:
@@ -492,11 +506,11 @@ def main():
 			if rampup_lambda_r is not None:
 				rampup_lambda_r.set_obj(criterion)
 
-			mixup_mixer = MixUpMixerTag.from_edict(args)
+			mixup_mixer = MixUpMixerTag.from_args(args)
 			mixer = ReMixMatchMixer(mixup_mixer, args.shuffle_s_with_u)
 
 			sharpen_fn = Sharpen(args.sharpen_temperature)
-			distributions = DistributionAlignment.from_edict(args)
+			distributions = DistributionAlignmentOnehot.from_args(args)
 			guesser = GuesserModelAlignmentSharpen(model, acti_fn, distributions, sharpen_fn)
 
 			acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
@@ -523,6 +537,7 @@ def main():
 					(criterion, "lambda_u1", args.lambda_u1, 0.0, 1.0 / 3.0),
 					(criterion, "lambda_r", args.lambda_r, 0.0, 1.0 / 3.0),
 				]
+				wlu.set_targets(targets_wlu)
 
 			trainer = ReMixMatchTrainer(
 				model, acti_fn, acti_rot_fn, optim, loader, criterion, guesser,
@@ -571,19 +586,6 @@ def main():
 		else:
 			raise RuntimeError("Unknown run %s" % args.run)
 
-		# Create Weight Linear uniloss classes
-		if args.use_wlu and len(targets_wlu) > 0:
-			nb_steps_wlu = args.wlu_steps if args.wlu_on_epoch else args.nb_epochs * len(idx_train_u) * args.batch_size_u
-
-			wlu = WeightLinearUniloss(targets_wlu, nb_steps_wlu)
-			wlu_stepper = WeightLinearUnilossStepper(args.nb_epochs, nb_steps_wlu, wlu)
-
-			if args.wlu_on_epoch:
-				steppables_epoch.append(wlu_stepper)
-			else:
-				steppables_iteration.append(wlu_stepper)
-			steppables_iteration.append(wlu)
-
 		# Prepare checkpoint for saving best model during training
 		if args.write_results:
 			filename_model = "%s_%s_%s.torch" % (args.model, args.train_name, args.suffix)
@@ -598,9 +600,12 @@ def main():
 
 		# Filter steppables that are None
 		steppables_epoch = [steppable for steppable in steppables_epoch if steppable is not None]
+
+		# Build Learner and start the main loop for training and validation
 		learner = Learner(args.train_name, trainer, validator, args.nb_epochs, steppables_epoch)
 		learner.start()
 
+		# Save results
 		if writer is not None:
 			augments_dict = {"augm_weak": augm_list_weak, "augm_strong": augm_list_strong}
 
@@ -668,11 +673,6 @@ def get_default_metrics(args: Namespace) -> List[Dict[str, Metrics]]:
 
 def get_cifar10_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	ratio_augm_weak = 0.5
-	"""
-	transforms.Pad(4, padding_mode='reflect'),
-	transforms.RandomHorizontalFlip(),
-	transforms.RandomCrop(32),
-	"""
 	augm_list_weak = [
 		HorizontalFlip(ratio_augm_weak),
 		CutOutImg(ratio_augm_weak, rect_width_scale_range=(0.1, 0.1), rect_height_scale_range=(0.1, 0.1), fill_value=0),

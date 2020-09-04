@@ -1,4 +1,5 @@
 
+from argparse import Namespace
 from torch import Tensor
 from torch.nn.functional import binary_cross_entropy
 
@@ -17,7 +18,7 @@ class MixMatchLossMultiHotLoc(MixMatchLossLocABC):
 		self.criterion_u_strong = binary_cross_entropy
 
 	@staticmethod
-	def from_edict(hparams) -> 'MixMatchLossMultiHotLoc':
+	def from_args(args: Namespace) -> 'MixMatchLossMultiHotLoc':
 		return MixMatchLossMultiHotLoc(hparams.lambda_u)
 
 	def __call__(

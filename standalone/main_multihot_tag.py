@@ -279,15 +279,15 @@ def main():
 		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
 		if args.experimental is None:
-			criterion = FixMatchLossMultiHotV1.from_edict(args)
+			criterion = FixMatchLossMultiHotV1.from_args(args)
 		elif args.experimental == "V1":
-			criterion = FixMatchLossMultiHotV1.from_edict(args)
+			criterion = FixMatchLossMultiHotV1.from_args(args)
 		elif args.experimental == "V2":
-			criterion = FixMatchLossMultiHotV2.from_edict(args)
+			criterion = FixMatchLossMultiHotV2.from_args(args)
 		elif args.experimental == "V3":
-			criterion = FixMatchLossMultiHotV3.from_edict(args)
+			criterion = FixMatchLossMultiHotV3.from_args(args)
 		elif args.experimental == "V4":
-			criterion = FixMatchLossMultiHotV4.from_edict(args)
+			criterion = FixMatchLossMultiHotV4.from_args(args)
 		else:
 			raise RuntimeError("Unknown experimental mode \"%s\"." % args.experimental)
 
@@ -320,11 +320,11 @@ def main():
 			raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 				loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
 
-		criterion = MixMatchLossMultiHot.from_edict(args)
+		criterion = MixMatchLossMultiHot.from_args(args)
 		if args.experimental != "V2":
-			mixup_mixer = MixUpMixerTag.from_edict(args)
+			mixup_mixer = MixUpMixerTag.from_args(args)
 		else:
-			mixup_mixer = MixUpMixerTagV2.from_edict(args)
+			mixup_mixer = MixUpMixerTagV2.from_args(args)
 		mixer = MixMatchMixer(mixup_mixer, args.shuffle_s_with_u)
 
 		if args.use_sharpen_multihot:
@@ -359,20 +359,20 @@ def main():
 			raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 				loader_train_s_augm_strong.batch_size, loader_train_u_augms_weak_strongs.batch_size))
 
-		criterion = ReMixMatchLossMultiHot.from_edict(args)
+		criterion = ReMixMatchLossMultiHot.from_args(args)
 		if rampup_lambda_u1 is not None:
 			rampup_lambda_u1.set_obj(criterion)
 		if rampup_lambda_r is not None:
 			rampup_lambda_r.set_obj(criterion)
 
-		mixup_mixer = MixUpMixerTag.from_edict(args)
+		mixup_mixer = MixUpMixerTag.from_args(args)
 		mixer = ReMixMatchMixer(mixup_mixer, args.shuffle_s_with_u)
 		if args.use_sharpen_multihot:
 			sharpen_fn = SharpenMulti(args.sharpen_temperature, args.sharpen_threshold_multihot)
 		else:
 			sharpen_fn = lambda x, dim: x
 
-		distributions = DistributionAlignment.from_edict(args)
+		distributions = DistributionAlignment.from_args(args)
 		acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
 		ss_transform = SelfSupervisedFlips()
 

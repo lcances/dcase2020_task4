@@ -1,3 +1,5 @@
+
+from argparse import Namespace
 from torch import Tensor
 from torch.nn.functional import binary_cross_entropy
 
@@ -24,7 +26,7 @@ class ReMixMatchLossMultiHot(ReMixMatchLossTagABC):
 		self.criterion_r = cross_entropy
 
 	@staticmethod
-	def from_edict(hparams) -> 'ReMixMatchLossMultiHot':
+	def from_args(args: Namespace) -> 'ReMixMatchLossMultiHot':
 		return ReMixMatchLossMultiHot(hparams.lambda_s, hparams.lambda_u, hparams.lambda_u1, hparams.lambda_r)
 
 	def __call__(

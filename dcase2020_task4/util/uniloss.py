@@ -1,6 +1,6 @@
 import numpy as np
 
-from typing import Callable, List, Tuple, Union
+from typing import Callable, List, Optional, Tuple, Union
 
 
 class ConstantEpochUniloss:
@@ -62,8 +62,8 @@ class WeightLinearUniloss:
 
 	def __init__(
 		self,
-		targets: List[Tuple[object, str, float, float, float]],
 		nb_steps: int,
+		targets: Optional[List[Tuple[object, str, float, float, float]]],
 		update_idx_on_step: bool = False,
 	):
 		"""
@@ -71,7 +71,7 @@ class WeightLinearUniloss:
 			@param nb_steps: Nb of steps max. Can be the number of iterations multiply by the number of epochs.
 			@param update_idx_on_step: Update the internal index at each step or not.
 		"""
-		self.targets = targets
+		self.targets = targets if targets is not None else []
 		self.nb_steps = nb_steps
 		self.update_idx_on_step = update_idx_on_step
 
@@ -80,6 +80,9 @@ class WeightLinearUniloss:
 
 	def reset(self):
 		self.index_step = 0
+
+	def set_targets(self, targets: Optional[List[Tuple[object, str, float, float, float]]]):
+		self.targets = targets if targets is not None else []
 
 	def step(self):
 		if self.update_idx_on_step:

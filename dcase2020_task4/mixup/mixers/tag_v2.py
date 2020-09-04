@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+from argparse import Namespace
 from torch import Tensor
 from dcase2020_task4.mixup.mixers.abc import MixUpMixerTagABC
 
@@ -20,7 +21,7 @@ class MixUpMixerTagV2(MixUpMixerTagABC):
 			raise RuntimeError("Unknown distribution name %s" % distribution)
 
 	@staticmethod
-	def from_edict(hparams) -> 'MixUpMixerTagV2':
+	def from_args(args: Namespace) -> 'MixUpMixerTagV2':
 		return MixUpMixerTagV2(hparams.mixup_alpha, True, hparams.mixup_distribution_name)
 
 	def __call__(self, batch_1: Tensor, labels_1: Tensor, batch_2: Tensor, labels_2: Tensor) -> (Tensor, Tensor):

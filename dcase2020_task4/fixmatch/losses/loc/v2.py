@@ -1,5 +1,6 @@
 import torch
 
+from argparse import Namespace
 from torch import Tensor
 from torch.nn import BCELoss
 from typing import Union
@@ -27,7 +28,7 @@ class FixMatchLossMultiHotLocV2(FixMatchLossLocABC):
 		self.criterion_u_strong = BCELoss(reduction="none")
 
 	@staticmethod
-	def from_edict(hparams) -> 'FixMatchLossMultiHotLocV2':
+	def from_args(args: Namespace) -> 'FixMatchLossMultiHotLocV2':
 		return FixMatchLossMultiHotLocV2(hparams.lambda_u, hparams.threshold_confidence, hparams.threshold_multihot)
 
 	def __call__(

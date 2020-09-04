@@ -279,20 +279,20 @@ def main():
 		loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
 
 		if args.use_alignment:
-			distributions = DistributionAlignment.from_edict(args)
+			distributions = DistributionAlignment.from_args(args)
 		else:
 			distributions = None
 
 		if args.experimental is None:
-			criterion = FixMatchLossMultiHotLocV1.from_edict(args)
+			criterion = FixMatchLossMultiHotLocV1.from_args(args)
 		elif args.experimental == "V1":
-			criterion = FixMatchLossMultiHotLocV1.from_edict(args)
+			criterion = FixMatchLossMultiHotLocV1.from_args(args)
 		elif args.experimental == "V2":
-			criterion = FixMatchLossMultiHotLocV2.from_edict(args)
+			criterion = FixMatchLossMultiHotLocV2.from_args(args)
 		elif args.experimental == "V3":
-			criterion = FixMatchLossMultiHotLocV3.from_edict(args)
+			criterion = FixMatchLossMultiHotLocV3.from_args(args)
 		elif args.experimental == "V5":
-			criterion = FixMatchLossMultiHotLocV5.from_edict(args)
+			criterion = FixMatchLossMultiHotLocV5.from_args(args)
 		else:
 			raise RuntimeError("Unknown experimental mode \"%s\"." % args.experimental)
 
@@ -318,8 +318,8 @@ def main():
 			raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
 				loader_train_s_augm.batch_size, loader_train_u_augms.batch_size))
 
-		criterion = MixMatchLossMultiHotLoc.from_edict(args)
-		mixup_mixer = MixUpMixerLoc.from_edict(args)
+		criterion = MixMatchLossMultiHotLoc.from_args(args)
+		mixup_mixer = MixUpMixerLoc.from_args(args)
 		mixer = MixMatchMixerMultiHotLoc(mixup_mixer)
 
 		if args.use_sharpen_multihot:

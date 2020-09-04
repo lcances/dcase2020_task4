@@ -14,7 +14,8 @@ class LearnerABC(ABC):
 
 class Learner(LearnerABC):
 	"""
-		Class used to
+		Class used to train and validate a model on a dataset.
+		Start this main loop of epochs when the method "start()" is called.
 	"""
 	def __init__(
 		self,
@@ -45,6 +46,12 @@ class Learner(LearnerABC):
 				steppable.step()
 
 		self._on_end()
+
+	def get_trainer(self) -> TrainerABC:
+		return self.trainer
+
+	def get_validator(self) -> ValidatorABC:
+		return self.validator
 
 	def _on_start(self):
 		if self.verbose > 0:

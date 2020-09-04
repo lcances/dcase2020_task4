@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 
+from argparse import Namespace
 from torch import Tensor
 from typing import Callable, List
 
@@ -11,7 +12,7 @@ class MixUpMixerLoc(Callable):
 		self.apply_max = apply_max
 
 	@staticmethod
-	def from_edict(hparams) -> 'MixUpMixerLoc':
+	def from_args(args: Namespace) -> 'MixUpMixerLoc':
 		return MixUpMixerLoc(hparams.mixup_alpha, True)
 
 	def __call__(

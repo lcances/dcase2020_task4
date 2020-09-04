@@ -1,3 +1,5 @@
+
+from argparse import Namespace
 from torch import Tensor
 from torch.nn import BCELoss
 from typing import Optional, Union
@@ -23,7 +25,7 @@ class FixMatchLossMultiHotV2(FixMatchLossTagABC):
 		self.last_mask = None
 
 	@staticmethod
-	def from_edict(hparams) -> 'FixMatchLossMultiHotV2':
+	def from_args(args: Namespace) -> 'FixMatchLossMultiHotV2':
 		return FixMatchLossMultiHotV2(hparams.lambda_s, hparams.lambda_u, hparams.threshold_confidence, hparams.threshold_multihot)
 
 	def __call__(
