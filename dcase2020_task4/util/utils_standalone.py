@@ -46,7 +46,7 @@ def check_args(args: Namespace):
 			raise RuntimeError("Invalid dirpath \"%s\"" % args.checkpoint_path)
 
 	if args.dataset_name == "CIFAR10":
-		if args.model not in ["VGG11", "ResNet18", "VGG11Rot", "ResNet18Rot", "WideResNet", "WideResNetRot"]:
+		if args.model not in ["VGG11", "ResNet18", "VGG11Rot", "ResNet18Rot", "WideResNet", "WideResNetRot", "WideResNet28", "WideResNet28Rot"]:
 			raise RuntimeError("Invalid model \"%s\" for dataset \"%s\"" % (args.model, args.dataset_name))
 		if args.cross_validation:
 			raise RuntimeError("Cross-validation on \"%s\" dataset is not supported." % args.dataset_name)
