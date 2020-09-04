@@ -17,7 +17,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose, ToTensor, Normalize
-from typing import Dict
+from typing import Dict, List
 
 from augmentation_utils.signal_augmentations import TimeStretch, Occlusion, Noise, Noise2
 from augmentation_utils.spec_augmentations import HorizontalFlip, RandomTimeDropout, RandomFreqDropout
@@ -186,28 +186,13 @@ def create_args() -> Namespace:
 	parser.add_argument("--ra_nb_choices", type=int, default=1,
 						help="Nb augmentations composed for RandAugment. ")
 
-	parser.add_argument("--experimental", type=str_to_optional_str, default=None,
-						choices=[None, "None", "V3", "V8", "V9", "V11", "V12"],
-						help="Experimental mode activated.")
-
 	parser.add_argument("--label_smoothing", type=float, default=0.0,
 						help="Label smoothing value for supervised trainings. Use 0.0 for deactivate label smoothing.")
 	parser.add_argument("--nb_classes_self_supervised", type=int, default=4,
 						help="Nb classes in rotation loss (Self-Supervised part) of ReMixMatch.")
 
-	parser.add_argument("--use_wlu", "--use_weight_linear_uniloss", type=str_to_bool, default=False,
-						help="Activate Weight Linear Uniloss experimental mode.")
-	parser.add_argument("--wlu_on_epoch", type=str_to_bool, default=True,
-						help="Update WLU on iteration or on epoch.")
-	parser.add_argument("--wlu_steps", type=int, default=10,
-						help="Weight Linear Uniloss nb steps.")
-
 	parser.add_argument("--dropout", type=float, default=0.5,
-						help="Dropout used in model.")
-	parser.add_argument("--wrn_depth", type=int, default=28,
-						help="WideResNet widen factor.")
-	parser.add_argument("--wrn_widen_factor", "--wrn_width", type=int, default=2,
-						help="WideResNet widen factor.")
+						help="Dropout used in model. WARNING: All models does not use this dropout argument.")
 
 	parser.add_argument("--supervised_augment", type=str_to_optional_str, default=None,
 						choices=[None, "weak", "strong"],
@@ -217,6 +202,31 @@ def create_args() -> Namespace:
 	parser.add_argument("--self_supervised_component", type=str_to_optional_str, default="flips",
 						choices=[None, "flips"],
 						help="Self supervised component applied in ReMixMatch training.")
+
+	# Experimental modes
+	# FMV11
+	parser.add_argument("--mean_guesser", type=str_to_bool, default=False,
+						help="Experimental mode for FixMatch training (FMV11). "
+							"Use a mean of predictions to compute artificial label.")
+	# MMV8
+	parser.add_argument("--use_ceu_1", type=str_to_bool, default=False,
+						help="Experimental mode for MixMatch training (MMV8). "
+							"Use Constant Epoch Uniloss (ceu) for only 1 loss per epoch : supervised-mixed.")
+	# MMV9
+	parser.add_argument("--use_ceu_2", type=str_to_bool, default=False,
+						help="Experimental mode for MixMatch training (MMV9). "
+							"Use Constant Epoch Uniloss (ceu) for only 1 loss per epoch : supervised-mixed-unsupervised.")
+	parser.add_argument("--direct_labelisation", type=str_to_bool, default=False,
+						help="Experimental mode for MixMatch training (MMV3). "
+							"Use artificial label with non-augmented batch unsupervised.")
+
+	# MMV18, FMV14
+	parser.add_argument("--use_wlu", "--use_weight_linear_uniloss", type=str_to_bool, default=False,
+						help="Activate Weight Linear Uniloss experimental mode.")
+	parser.add_argument("--wlu_on_epoch", type=str_to_bool, default=True,
+						help="Update WLU on iteration or on epoch.")
+	parser.add_argument("--wlu_steps", type=int, default=10,
+						help="Weight Linear Uniloss nb steps.")
 
 	return parser.parse_args()
 
@@ -340,7 +350,7 @@ def main():
 			dataset_train_u_augm_strong = Subset(dataset_train_augm_strong, idx_train_u)
 			dataset_train_u_augm_strong = NoLabelDataset(dataset_train_u_augm_strong)
 
-			if args.experimental == "V11":
+			if args.mean_guesser:
 				dataset_train_u_augm_weak = MultipleDataset([dataset_train_u_augm_weak] * args.nb_augms)
 
 			dataset_train_u_augms_weak_strong = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augm_strong])
@@ -359,7 +369,7 @@ def main():
 					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
 				]
 
-			if args.experimental != "V11":
+			if not args.mean_guesser:
 				if args.label_smoothing > 0.0:
 					guesser = GuesserModelArgmaxSmooth(model, acti_fn, args.label_smoothing, args.nb_classes)
 				else:
@@ -370,6 +380,7 @@ def main():
 					writer, steppables_iteration
 				)
 			else:
+				# FMV11
 				guesser = GuesserMeanModelArgmax(model, acti_fn)
 				trainer = FixMatchTrainerV11(
 					model, acti_fn, optim, loader, criterion, guesser, metrics_s, metrics_u,
@@ -383,7 +394,7 @@ def main():
 			dataset_train_u_augm = NoLabelDataset(dataset_train_u_augm_weak)
 			dataset_train_u_augms = MultipleDataset([dataset_train_u_augm] * args.nb_augms)
 
-			if args.experimental == "V3":
+			if args.direct_labelisation:
 				dataset_train_u = Subset(dataset_train, idx_train_u)
 				dataset_train_u = NoLabelDataset(dataset_train_u)
 				dataset_train_u_augms = MultipleDataset([dataset_train_u_augms, dataset_train_u])
@@ -407,7 +418,7 @@ def main():
 			if not args.rampup_each_epoch:
 				steppables_iteration.append(rampup_lambda_u)
 
-			if args.experimental == "V8" or args.experimental == "V9":
+			if args.use_ceu_1 or args.use_ceu_2:
 				if args.use_rampup:
 					raise RuntimeError("Experimental MMV8 (or MMV9) cannot be used with RampUp.")
 				if args.nb_epochs < 10:
@@ -419,19 +430,19 @@ def main():
 
 				attributes = [(criterion, "lambda_s"), (criterion, "lambda_u")]
 
-				if args.experimental == "V8":
+				if args.use_ceu_1:
 					ratios_range = [
 						([1.0, 0.0], begin_only_s, begin_uniform_s_u - 1),
 						([0.5, 0.5], begin_uniform_s_u, begin_only_u - 1),
 						([0.0, 1.0], begin_only_u, args.nb_epochs),
 					]
-				elif args.experimental == "V9":
+				elif args.use_ceu_2:
 					ratios_range = [
 						([1.0, 0.0], begin_only_s, begin_uniform_s_u - 1),
 						([0.5, 0.5], begin_uniform_s_u, args.nb_epochs),
 					]
 				else:
-					raise RuntimeError("Invalid experimental mode %s" % args.experimental)
+					raise RuntimeError("Invalid ConstantEpochUniloss mode.")
 
 				constant_epoch_uniloss = ConstantEpochUniloss(attributes, ratios_range)
 				steppables_epoch.append(constant_epoch_uniloss)
@@ -442,7 +453,7 @@ def main():
 					(criterion, "lambda_u", args.lambda_u, 0.0, 1.0),
 				]
 
-			if args.experimental != "V3":
+			if not args.direct_labelisation:
 				trainer = MixMatchTrainer(
 					model, acti_fn, optim, loader, criterion, guesser, metrics_s, metrics_u,
 					writer, mixer, steppables_iteration
