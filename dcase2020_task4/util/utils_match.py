@@ -76,9 +76,20 @@ def random_rect(
 		@param height_range: The height ratio range of the rectangle. Ex: (0, 1) => width is sampled from (0, height).
 		@return: The limits (left, right, top, down) of the rectangle created.
 	"""
+	assert width_range[0] <= width_range[1] and height_range[0] <= height_range[1]
 
-	r_width = np.random.randint(max(1.0, width_range[0] * width), max(2.0, width_range[1] * width))
-	r_height = np.random.randint(max(1.0, height_range[0] * height), max(2.0, height_range[1] * height))
+	width_min, width_max = max(int(width_range[0] * width), 1), max(int(width_range[1] * width), 2)
+	height_min, height_max = max(int(height_range[0] * height), 1), max(int(height_range[1] * height), 2)
+
+	if width_min != width_max:
+		r_width = np.random.randint(width_min, width_max)
+	else:
+		r_width = width_min
+
+	if height_min != height_max:
+		r_height = np.random.randint(height_min, height_max)
+	else:
+		r_height = height_min
 
 	r_left = np.random.randint(0, width - r_width)
 	r_top = np.random.randint(0, height - r_height)
