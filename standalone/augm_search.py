@@ -1,13 +1,12 @@
 import json
 import os
 import os.path as osp
-import torch
 
 from argparse import ArgumentParser, Namespace
 from torch.utils.data import DataLoader, Dataset
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import Compose
-from typing import Callable, List
+from typing import Callable
 
 from augmentation_utils.signal_augmentations import TimeStretch, Noise, Noise2, Occlusion, PitchShiftRandom
 from augmentation_utils.spec_augmentations import RandomTimeDropout, RandomFreqDropout, HorizontalFlip, VerticalFlip
@@ -20,8 +19,8 @@ from dcase2020_task4.validator import ValidatorTag
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.datasets.fn_dataset import FnDataset
 from dcase2020_task4.util.datasets.onehot_dataset import OneHotDataset
-from dcase2020_task4.util.other_img_augments import *
-from dcase2020_task4.util.other_spec_augments import CutOutSpec, InversionSpec
+from dcase2020_task4.util.augments.img_augments import *
+from dcase2020_task4.util.augments.spec_augments import CutOutSpec, InversionSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import get_model_from_args, get_optim_from_args, get_sched_from_args

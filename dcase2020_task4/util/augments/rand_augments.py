@@ -4,7 +4,7 @@ from PIL import Image
 from torchvision.transforms import Compose
 from typing import Callable, List, Optional
 
-from dcase2020_task4.util.other_img_augments import ImgRGBAugmentation, AutoContrast, Brightness, Color, Contrast, \
+from dcase2020_task4.util.augments.img_augments import ImgRGBAugmentation, AutoContrast, Brightness, Color, Contrast, \
 	Equalize, Posterize, Rotation, Sharpness, ShearX, ShearY, Solarize, TranslateX, TranslateY
 
 

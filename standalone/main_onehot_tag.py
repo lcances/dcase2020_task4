@@ -16,10 +16,10 @@ from time import time
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
-from torchvision.transforms import RandomChoice, Compose, ToTensor, Normalize
+from torchvision.transforms import RandomChoice, Compose, ToTensor
 from typing import Dict, List
 
-from augmentation_utils.signal_augmentations import TimeStretch, Occlusion, Noise, Noise2
+from augmentation_utils.signal_augmentations import TimeStretch, Occlusion, Noise
 from augmentation_utils.spec_augmentations import HorizontalFlip, RandomTimeDropout, RandomFreqDropout
 from augmentation_utils.spec_augmentations import Noise as NoiseSpec
 
@@ -43,6 +43,9 @@ from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
 
+from dcase2020_task4.util.augments.img_augments import CutOut as CutOutImg, TranslateX, TranslateY
+from dcase2020_task4.util.augments.rand_augments import RandAugment
+from dcase2020_task4.util.augments.spec_augments import CutOutSpec
 from dcase2020_task4.util.avg_distributions import DistributionAlignmentOnehot
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.datasets.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
@@ -53,11 +56,8 @@ from dcase2020_task4.util.datasets.random_choice_dataset import RandomChoiceData
 from dcase2020_task4.util.datasets.smooth_dataset import SmoothOneHotDataset
 from dcase2020_task4.util.datasets.to_tensor_dataset import ToTensorDataset
 from dcase2020_task4.util.guessers.batch import *
-from dcase2020_task4.util.other_img_augments import CutOut as CutOutImg
-from dcase2020_task4.util.other_spec_augments import CutOutSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.ramp_up import RampUp
-from dcase2020_task4.util.rand_augment import RandAugment
 from dcase2020_task4.util.sharpen import Sharpen
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int, str_to_optional_int
 from dcase2020_task4.util.uniloss import ConstantEpochUniloss, WeightLinearUniloss, WeightLinearUnilossStepper
@@ -676,10 +676,8 @@ def get_cifar10_augms(args: Namespace) -> (List[Callable], List[Callable]):
 	augm_list_weak = [
 		HorizontalFlip(ratio_augm_weak),
 		CutOutImg(ratio_augm_weak, rect_width_scale_range=(0.1, 0.1), rect_height_scale_range=(0.1, 0.1), fill_value=0),
-		Compose([transforms.ToPILImage(), transforms.RandomCrop(32), np.asarray]),
-		Compose([transforms.ToPILImage(), transforms.Pad(4, padding_mode='reflect'), np.asarray]),
-		# VerticalFlip(ratio_augm_weak),
-		# Transform(ratio_augm_weak, scale=(0.75, 1.25)),
+		TranslateX(ratio_augm_weak, deltas=(2/32, 6/32)),
+		TranslateY(ratio_augm_weak, deltas=(2/32, 6/32)),
 	]
 	ratio_augm_strong = 1.0
 	augm_list_strong = [

@@ -1,11 +1,9 @@
 import json
 
-from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2, Noise
-from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, RandomTimeDropout, RandomFreqDropout
+from augmentation_utils.signal_augmentations import TimeStretch, Occlusion, Noise2, Noise
+from augmentation_utils.spec_augmentations import HorizontalFlip, RandomTimeDropout, RandomFreqDropout
 from augmentation_utils.spec_augmentations import Noise as NoiseSpec
-from torchvision.transforms import RandomChoice, Compose
-from dcase2020_task4.util.other_spec_augments import CutOutSpec
-from dcase2020_task4.util.rand_augment import RandAugment
+from dcase2020_task4.util.augments.spec_augments import CutOutSpec
 from dcase2020_task4.util.utils_standalone import get_model_from_name, to_dict_rec
 
 

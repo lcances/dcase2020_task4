@@ -3,11 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os.path as osp
 
-from torchvision.transforms import RandomChoice, Compose
-from augmentation_utils.img_augmentations import Transform
-from augmentation_utils.signal_augmentations import TimeStretch, PitchShiftRandom, Occlusion, Noise2
-from augmentation_utils.spec_augmentations import HorizontalFlip, VerticalFlip, RandomTimeDropout, RandomFreqDropout
-from dcase2020_task4.util.other_spec_augments import Identity, CutOutSpec, InversionSpec, NoiseSpec
+from dcase2020_task4.util.augments.spec_augments import Identity
 
 
 def get_spec():

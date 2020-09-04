@@ -346,21 +346,29 @@ class Solarize(ImgPILAugmentation):
 
 class TranslateX(ImgPILAugmentation):
 	def __init__(self, ratio: float = 1.0, deltas: Tuple[float, float] = (0.0, 0.0)):
+		"""
+			@param ratio: Probability to apply the augmentation.
+			@param deltas: Ratios min and max for translate image along X axis.
+		"""
 		super().__init__(ratio)
 		self.deltas = deltas
 
 	def apply_helper(self, data: Image.Image) -> Image.Image:
 		delta = np.random.uniform(*self.deltas)
-		delta *= data.size[1]
+		delta = np.floor(delta * data.size[0])
 		return data.transform(data.size, Image.AFFINE, (1, 0, delta, 0, 1, 0))
 
 
 class TranslateY(ImgPILAugmentation):
 	def __init__(self, ratio: float = 1.0, deltas: Tuple[float, float] = (0.0, 0.0)):
+		"""
+			@param ratio: Probability to apply the augmentation.
+			@param deltas: Ratios min and max for translate image along Y axis.
+		"""
 		super().__init__(ratio)
 		self.deltas = deltas
 
 	def apply_helper(self, data: Image.Image) -> Image.Image:
 		delta = np.random.uniform(*self.deltas)
-		delta *= data.size[1]
+		delta = np.floor(delta * data.size[1])
 		return data.transform(data.size, Image.AFFINE, (1, 0, 0, 0, 1, delta))

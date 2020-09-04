@@ -4,7 +4,7 @@ import os.path as osp
 
 from torchvision.datasets import CIFAR10
 from augmentation_utils.spec_augmentations import HorizontalFlip
-from dcase2020_task4.util.other_img_augments import *
+from dcase2020_task4.util.augments.img_augments import *
 
 
 ratio = 1.0
