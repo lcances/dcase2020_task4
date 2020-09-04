@@ -18,17 +18,20 @@ from typing import Any, Callable, Optional, Union
 from dcase2020_task4.other_models import cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wrn28_2
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.util.radam import RAdam, PlainRAdam, AdamW
+from dcase2020_task4.util.step_scheduler import StepLRScheduler
 
 
 FLOAT_FORMAT = "%.3f"
 
+
 # Full train names constants
-FN_FIXMATCH = "FixMatch"
-FN_MIXMATCH = "MixMatch"
-FN_REMIXMATCH = "ReMixMatch"
-FN_SUPERVISED_FULL = "Supervised_Full"
-FN_SUPERVISED_PART = "Supervised_Part"
-FN_SUPERVISED = "Supervised"
+class FULLNAME:
+	FIXMATCH = "FixMatch"
+	MIXMATCH = "MixMatch"
+	REMIXMATCH = "ReMixMatch"
+	SUPERVISED_FULL = "Supervised_Full"
+	SUPERVISED_PART = "Supervised_Part"
+	SUPERVISED = "Supervised"
 
 
 def check_args(args: Namespace):
@@ -175,6 +178,8 @@ def get_sched_from_args(args: Namespace, optim: Optimizer) -> Optional[object]:
 
 	if name in ["cosinelrscheduler", "cosine"]:
 		scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
+	elif name in ["steplrscheduler", "step"]:
+		scheduler = StepLRScheduler(optim, lr0=args.lr, lr_decay_ratio=args.lr_decay_ratio, epoch_steps=args.epoch_steps)
 	else:
 		scheduler = None
 
@@ -188,17 +193,17 @@ def get_full_train_name(run: str) -> str:
 		@return: The full name.
 	"""
 	if run in ["fixmatch", "fm"]:
-		full_name = FN_FIXMATCH
+		full_name = FULLNAME.FIXMATCH
 	elif run in ["mixmatch", "mm"]:
-		full_name = FN_MIXMATCH
+		full_name = FULLNAME.MIXMATCH
 	elif run in ["remixmatch", "rmm"]:
-		full_name = FN_REMIXMATCH
+		full_name = FULLNAME.REMIXMATCH
 	elif run in ["supervised_full", "sf"]:
-		full_name = FN_SUPERVISED_FULL
+		full_name = FULLNAME.SUPERVISED_FULL
 	elif run in ["supervised_part", "sp"]:
-		full_name = FN_SUPERVISED_PART
+		full_name = FULLNAME.SUPERVISED_PART
 	elif run in ["supervised", "su"]:
-		full_name = FN_SUPERVISED
+		full_name = FULLNAME.SUPERVISED
 	else:
 		full_name = ""
 	return full_name

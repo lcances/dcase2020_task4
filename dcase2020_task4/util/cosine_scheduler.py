@@ -6,7 +6,7 @@ from dcase2020_task4.util.utils_match import set_lr, get_lr
 
 class CosineLRScheduler:
 	"""
-		Scheduler that decrease learning from lr0 to almost 0 by using :
+		Scheduler that decrease learning rate from lr0 to almost 0 by using :
 		lr = lr0 * cos(7 * pi * n / (16 * N)), where "n" is the current epoch and "N" the total number of epochs.
 	"""
 	def __init__(self, optim: Optimizer, nb_epochs: int, lr0: float = 3e-3):

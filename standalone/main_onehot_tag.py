@@ -9,9 +9,11 @@ os.environ["MKL_NUM_THREADS"] = "2"
 os.environ["NUMEXPR_NU M_THREADS"] = "2"
 os.environ["OMP_NUM_THREADS"] = "2"
 
+import json
 import numpy as np
+import os.path as osp
 
-from argparse import ArgumentParser
+from argparse import ArgumentParser, Namespace
 from time import time
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
@@ -62,7 +64,8 @@ from dcase2020_task4.util.sharpen import Sharpen
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int, str_to_optional_int
 from dcase2020_task4.util.uniloss import ConstantEpochUniloss, WeightLinearUniloss, WeightLinearUnilossStepper
 from dcase2020_task4.util.utils_match import cross_entropy
-from dcase2020_task4.util.utils_standalone import *
+from dcase2020_task4.util.utils_standalone import post_process_args, check_args, build_writer, save_and_close_writer, \
+	save_args, save_augms, get_model_from_args, get_optim_from_args, get_sched_from_args, get_nb_parameters
 from dcase2020_task4.util.zip_cycle import ZipCycle
 
 from dcase2020_task4.learner import Learner
@@ -109,14 +112,20 @@ def create_args() -> Namespace:
 						choices=["Adam", "SGD", "RAdam", "PlainRAdam", "AdamW"],
 						help="Optimizer used.")
 	parser.add_argument("--scheduler", type=str_to_optional_str, default="Cosine",
-						choices=[None, "CosineLRScheduler", "Cosine"],
+						choices=[None, "CosineLRScheduler", "Cosine", "StepLRScheduler", "Step"],
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
+
 	parser.add_argument("--lr", "--learning_rate", type=float, default=1e-3,
 						help="Learning rate used.")
 	parser.add_argument("--weight_decay", "--wd", type=float, default=0.0,
 						help="Weight decay used.")
 	parser.add_argument("--momentum", type=float, default=0.9,
 						help="Momentum used in SGD optimizer.")
+
+	parser.add_argument("--lr_decay_ratio", type=float, default=0.2,
+						help="Learning rate decay ratio used in StepLRScheduler.")
+	parser.add_argument("--epoch_steps", type=int, nargs="+", default=[60, 120, 160],
+						help="Epochs where we decrease the learning rate. Used in StepLRScheduler.")
 
 	parser.add_argument("--write_results", type=str_to_bool, default=True,
 						help="Write results in a tensorboard SummaryWriter.")
