@@ -41,7 +41,7 @@ from dcase2020_task4.mixup.mixers.tag import MixUpMixerTag
 
 from dcase2020_task4.remixmatch.losses.tag.onehot import ReMixMatchLossOneHot
 from dcase2020_task4.remixmatch.mixers.tag import ReMixMatchMixer
-from dcase2020_task4.remixmatch.self_label import SelfSupervisedFlips
+from dcase2020_task4.remixmatch.self_label import SelfSupervisedFlips, SelfSupervisedRotation
 from dcase2020_task4.remixmatch.trainer import ReMixMatchTrainer
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
@@ -90,25 +90,22 @@ def create_args() -> Namespace:
 	parser.add_argument("--suffix", type=str, default="",
 						help="Suffix to Tensorboard log dir.")
 
-	parser.add_argument("--dataset_path", type=str, default=osp.join("..", "dataset", "CIFAR10"), required=True)
-	parser.add_argument("--dataset_name", type=str, default="CIFAR10",
-						choices=["CIFAR10", "UBS8K"])
+	parser.add_argument("--dataset_path", type=str, default=osp.join("..", "dataset", "CIFAR10"))
+	parser.add_argument("--dataset_name", type=str, default="CIFAR10", choices=["CIFAR10", "UBS8K"])
 	parser.add_argument("--nb_classes", type=int, default=10)
 
 	parser.add_argument("--logdir", type=str, default=osp.join("..", "..", "tensorboard"))
-	parser.add_argument("--model", type=str, default="VGG11Rot",
-						choices=["WideResNet28Rot", "CNN03Rot"])
-	parser.add_argument("--nb_epochs", type=int, default=100)
-	parser.add_argument("--confidence", type=float, default=0.5,
-						help="Confidence threshold used in VALIDATION.")
+	parser.add_argument("--model", type=str, default="WideResNet28Rot",
+						choices=["WideResNet28Rot", "CNN03Rot", "VGG11Rot"])
+	parser.add_argument("--nb_epochs", type=int, default=300)
 
 	parser.add_argument("--batch_size_s", type=int, default=64,
 						help="Batch size used for supervised loader.")
 	parser.add_argument("--batch_size_u", type=int, default=64,
 						help="Batch size used for unsupervised loader.")
-	parser.add_argument("--num_workers_s", type=int, default=1,
+	parser.add_argument("--num_workers_s", type=int, default=4,
 						help="Number of workers created by supervised loader.")
-	parser.add_argument("--num_workers_u", type=int, default=1,
+	parser.add_argument("--num_workers_u", type=int, default=4,
 						help="Number of workers created by unsupervised loader.")
 
 	parser.add_argument("--optimizer", type=str, default="Adam",
@@ -159,7 +156,7 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--nb_augms", type=int, default=2,
 						help="Nb of augmentations used in MixMatch.")
-	parser.add_argument("--nb_augms_strong", type=int, default=2,
+	parser.add_argument("--nb_augms_strong", type=int, default=8,
 						help="Nb of strong augmentations used in ReMixMatch.")
 	parser.add_argument("--history_size", type=int, default=128 * 64,
 						help="Nb of predictions kept in AvgDistributions used in ReMixMatch.")
@@ -210,7 +207,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--standardize", type=str_to_bool, default=False,
 						help="Normalize CIFAR10 data. Currently unused on UBS8K.")
 	parser.add_argument("--self_supervised_component", type=str_to_optional_str, default="flips",
-						choices=[None, "flips"],
+						choices=[None, "rotation", "flips"],
 						help="Self supervised component applied in ReMixMatch training.")
 
 	# Experimental modes
@@ -528,7 +525,9 @@ def main():
 
 			acti_rot_fn = lambda batch, dim: batch.softmax(dim=dim).clamp(min=2e-30)
 
-			if args.self_supervised_component == "flips":
+			if args.self_supervised_component == "rotation":
+				ss_transform = SelfSupervisedRotation()
+			elif args.self_supervised_component == "flips":
 				ss_transform = SelfSupervisedFlips()
 			elif args.self_supervised_component is None:
 				ss_transform = None
@@ -666,11 +665,9 @@ def main():
 def get_default_metrics(args: Namespace) -> List[Dict[str, Metrics]]:
 	metrics_s = {
 		"s_acc": CategoricalAccuracyOnehot(dim=1),
-		"s_max": MaxMetric(dim=1),
 	}
 	metrics_u = {
 		"u_acc": CategoricalAccuracyOnehot(dim=1),
-		"u_max": MaxMetric(dim=1),
 	}
 	metrics_u1 = {
 		"u1_acc": CategoricalAccuracyOnehot(dim=1),
@@ -681,8 +678,6 @@ def get_default_metrics(args: Namespace) -> List[Dict[str, Metrics]]:
 	metrics_val = {
 		"acc": CategoricalAccuracyOnehot(dim=1),
 		"ce": FnMetric(cross_entropy),
-		"eq": EqConfidenceMetric(args.confidence, dim=1),
-		"max": MaxMetric(dim=1),
 	}
 	return [metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val]
 
