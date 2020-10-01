@@ -1,5 +1,5 @@
 
-from typing import Iterable, Optional, Sized, Union
+from typing import Iterable, List, Optional, Sized, Union
 from typing_extensions import Protocol
 
 
@@ -45,13 +45,26 @@ def str_to_optional_int(x: str) -> Optional[int]:
 	"""
 		Convert string to optional integer value. Case insensitive.
 		@param x: Any string value.
-		@return: None if x == "None", integer value if x represent it otherwise throw an ValueError exception.
+		@return: Integer value, None or throw ValueError exception.
 	"""
 	x = str(x)
 	if x.lower() == "none":
 		return None
 	else:
 		return int(x)
+
+
+def str_to_optional_float(x: str) -> Optional[float]:
+	"""
+		Convert string to optional float value. Case insensitive.
+		@param x: Any string value.
+		@return: Float value, None or throw ValueError exception.
+	"""
+	x = str(x)
+	if x.lower() == "none":
+		return None
+	else:
+		return float(x)
 
 
 def str_to_union_str_int(x: str) -> Union[str, int]:

@@ -12,6 +12,7 @@ os.environ["OMP_NUM_THREADS"] = "2"
 import json
 import numpy as np
 import os.path as osp
+import torch
 
 from argparse import ArgumentParser, Namespace
 from time import time
@@ -19,7 +20,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import RandomChoice, Compose, ToTensor
-from typing import Dict, List
+from typing import Callable, Dict, List
 
 from augmentation_utils.signal_augmentations import TimeStretch, Occlusion, Noise
 from augmentation_utils.spec_augmentations import HorizontalFlip, RandomTimeDropout, RandomFreqDropout
@@ -57,11 +58,13 @@ from dcase2020_task4.util.datasets.onehot_dataset import OneHotDataset
 from dcase2020_task4.util.datasets.random_choice_dataset import RandomChoiceDataset
 from dcase2020_task4.util.datasets.smooth_dataset import SmoothOneHotDataset
 from dcase2020_task4.util.datasets.to_tensor_dataset import ToTensorDataset
-from dcase2020_task4.util.guessers.batch import *
+from dcase2020_task4.util.guessers.batch import GuesserModelArgmax, GuesserModelArgmaxSmooth, GuesserMeanModelArgmax, \
+	GuesserModelAlignmentSharpen, GuesserMeanModelSharpen
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import Sharpen
-from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int, str_to_optional_int
+from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int, str_to_optional_int, \
+	str_to_optional_float
 from dcase2020_task4.util.uniloss import ConstantEpochUniloss, WeightLinearUniloss, WeightLinearUnilossStepper
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import post_process_args, check_args, build_writer, save_and_close_writer, \
@@ -99,9 +102,9 @@ def create_args() -> Namespace:
 	parser.add_argument("--confidence", type=float, default=0.5,
 						help="Confidence threshold used in VALIDATION.")
 
-	parser.add_argument("--batch_size_s", type=int, default=8,
+	parser.add_argument("--batch_size_s", type=int, default=64,
 						help="Batch size used for supervised loader.")
-	parser.add_argument("--batch_size_u", type=int, default=8,
+	parser.add_argument("--batch_size_u", type=int, default=64,
 						help="Batch size used for unsupervised loader.")
 	parser.add_argument("--num_workers_s", type=int, default=1,
 						help="Number of workers created by supervised loader.")
@@ -117,9 +120,9 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--lr", "--learning_rate", type=float, default=1e-3,
 						help="Learning rate used.")
-	parser.add_argument("--weight_decay", "--wd", type=float, default=0.0,
+	parser.add_argument("--weight_decay", "--wd", type=str_to_optional_float, default=None,
 						help="Weight decay used.")
-	parser.add_argument("--momentum", type=float, default=0.9,
+	parser.add_argument("--momentum", type=str_to_optional_float, default=None,
 						help="Momentum used in SGD optimizer.")
 
 	parser.add_argument("--lr_decay_ratio", type=float, default=0.2,
@@ -129,8 +132,8 @@ def create_args() -> Namespace:
 
 	parser.add_argument("--write_results", type=str_to_bool, default=True,
 						help="Write results in a tensorboard SummaryWriter.")
-	parser.add_argument("--args_file", type=str_to_optional_str, default=None,
-						help="Filepath to args file. Values in this JSON will overwrite other options in terminal.")
+	parser.add_argument("--args_filepaths", type=str, nargs="*", default=None,
+						help="List of filepaths to arguments file. Values in this JSON will overwrite other options in terminal.")
 	parser.add_argument("--checkpoint_path", type=str, default=osp.join("..", "models"),
 						help="Directory path where checkpoint models will be saved.")
 	parser.add_argument("--checkpoint_metric_name", type=str, default="acc",
@@ -146,13 +149,13 @@ def create_args() -> Namespace:
 						help="If true, update RampUp each epoch, otherwise step each iteration.")
 
 	parser.add_argument("--lambda_s", type=float, default=1.0,
-						help="MixMatch, FixMatch and ReMixMatch \"lambda_s\" hyperparameter.")
+						help="MixMatch, FixMatch and ReMixMatch \"lambda_s\" hyperparameter. Coefficient of supervised loss component.")
 	parser.add_argument("--lambda_u", type=float, default=1.0,
-						help="MixMatch, FixMatch and ReMixMatch \"lambda_u\" hyperparameter.")
+						help="MixMatch, FixMatch and ReMixMatch \"lambda_u\" hyperparameter. Coefficient of unsupervised loss component.")
 	parser.add_argument("--lambda_u1", type=float, default=0.5,
-						help="ReMixMatch \"lambda_u1\" hyperparameter.")
+						help="ReMixMatch \"lambda_u1\" hyperparameter. Coefficient of direct unsupervised loss component.")
 	parser.add_argument("--lambda_r", type=float, default=0.5,
-						help="ReMixMatch \"lambda_r\" hyperparameter.")
+						help="ReMixMatch \"lambda_r\" hyperparameter. Coefficient of rotation loss component.")
 
 	parser.add_argument("--nb_augms", type=int, default=2,
 						help="Nb of augmentations used in MixMatch.")
@@ -261,6 +264,7 @@ def main():
 	metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val = get_default_metrics(args)
 
 	# Get default activation function
+	# Use clamp for avoiding floating precision problems causing NaN loss
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
 	cross_validation_results = {}
 
@@ -635,15 +639,17 @@ def main():
 	if not args.cross_validation:
 		run(args.fold_val)
 	else:
-		for fold_val_ubs8k_ in range(1, 11):
-			run(fold_val_ubs8k_)
+		for fold_val_i_ubs8k_ in range(1, 11):
+			run(fold_val_i_ubs8k_)
 
-		content = [(" %d: %f" % (fold, value)) for fold, value in cross_validation_results.items()]
+		# Print cross-val results
+		cross_val_results_messages = [(" %d: %f" % (fold, value)) for fold, value in cross_validation_results.items()]
 		mean_ = np.mean(list(cross_validation_results.values()))
 		print("\n")
-		print("Cross-validation results : \n", "\n".join(content))
+		print("Cross-validation results : \n", "\n".join(cross_val_results_messages))
 		print("Cross-validation mean : ", mean_)
 
+		# Save cross-val results
 		if args.write_results:
 			filepath = osp.join(args.logdir, "cross_val_results_%s_%s.json" % (args.suffix, start_date))
 			content = {"results": cross_validation_results, "mean": mean_}
@@ -654,6 +660,7 @@ def main():
 	print("")
 	print("Program started at \"%s\" and terminated at \"%s\"." % (start_date, get_datetime()))
 	print("Total execution time: %.2fs" % exec_time)
+	# End of main()
 
 
 def get_default_metrics(args: Namespace) -> List[Dict[str, Metrics]]:

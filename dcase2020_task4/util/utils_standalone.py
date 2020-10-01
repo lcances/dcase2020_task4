@@ -49,16 +49,24 @@ def check_args(args: Namespace):
 			raise RuntimeError("Invalid dirpath \"%s\"" % args.checkpoint_path)
 
 	if args.dataset_name == "CIFAR10":
-		if args.model not in ["VGG11", "ResNet18", "VGG11Rot", "ResNet18Rot", "WideResNet", "WideResNetRot", "WideResNet28", "WideResNet28Rot"]:
+		if args.model not in ["VGG11", "VGG11Rot",
+							  "ResNet18", "ResNet18Rot",
+							  "WideResNet", "WideResNetRot",
+							  "WideResNet28", "WideResNet28Rot"]:
 			raise RuntimeError("Invalid model \"%s\" for dataset \"%s\"" % (args.model, args.dataset_name))
 		if args.cross_validation:
 			raise RuntimeError("Cross-validation on \"%s\" dataset is not supported." % args.dataset_name)
 
 	elif args.dataset_name == "UBS8K":
-		if args.model not in ["UBS8KBaseline", "CNN03", "UBS8KBaselineRot", "CNN03Rot"]:
+		if args.model not in ["UBS8KBaseline", "UBS8KBaselineRot", "CNN03", "CNN03Rot"]:
 			raise RuntimeError("Invalid model \"%s\" for dataset \"%s\"" % (args.model, args.dataset_name))
-		if not(1 <= args.fold_val <= 10):
-			raise RuntimeError("Invalid fold %d (must be in [%d,%d])" % (args.fold_val, 1, 10))
+		if args.fold_val is not None and not(1 <= args.fold_val <= 10):
+			raise RuntimeError("Invalid fold \"%d\" (must be in [%d,%d])" % (args.fold_val, 1, 10))
+
+	if args.args_filepaths is not None:
+		for filepath in args.args_filepaths:
+			if not osp.isfile(filepath):
+				raise RuntimeError("Invalid filepath \"%s\"." % filepath)
 
 
 def post_process_args(args: Namespace) -> Namespace:
@@ -69,17 +77,18 @@ def post_process_args(args: Namespace) -> Namespace:
 	"""
 	args.train_name = None
 	args.git_hash = None
-	args_file = args.args_file
+	args_filepaths = args.args_filepaths
 
-	if args.args_file is not None:
-		args = load_args(args.args_file, args)
+	if args.args_filepaths is not None:
+		for filepath in args.args_filepaths:
+			args = load_args(filepath, args)
 
 	if args.nb_rampup_steps == "nb_epochs":
 		args.nb_rampup_steps = args.nb_epochs
 
 	args.train_name = get_full_train_name(args.run)
 	args.git_hash = get_current_git_hash()
-	args.args_file = args_file
+	args.args_filepaths = args_filepaths
 
 	return args
 
@@ -148,12 +157,19 @@ def get_optim_from_args(args: Namespace, model: Module) -> Optimizer:
 		Args must be an Namespace containing the attributes "optimizer", "lr" and "weight_decay".
 	"""
 	name = args.optimizer.lower()
-	kwargs = dict(params=model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
+
+	if args.weight_decay is None:
+		kwargs = dict(params=model.parameters(), lr=args.lr)
+	else:
+		kwargs = dict(params=model.parameters(), lr=args.lr, weight_decay=args.weight_decay)
 
 	if name == "adam":
 		optim = Adam(**kwargs)
 	elif name == "sgd":
-		optim = SGD(**kwargs, momentum=args.momentum)
+		if args.momentum is None:
+			optim = SGD(**kwargs)
+		else:
+			optim = SGD(**kwargs, momentum=args.momentum)
 	elif name == "radam":
 		optim = RAdam(**kwargs)
 	elif name == "plainradam":
@@ -161,7 +177,7 @@ def get_optim_from_args(args: Namespace, model: Module) -> Optimizer:
 	elif name == "adamw":
 		optim = AdamW(**kwargs)
 	else:
-		raise RuntimeError("Unknown optimizer \"%s\"" % str(args.optimizer))
+		raise RuntimeError("Unknown optimizer \"%s\"." % str(args.optimizer))
 
 	return optim
 
@@ -221,7 +237,7 @@ def get_nb_parameters(model: Module) -> int:
 def get_nb_trainable_parameters(model: Module) -> int:
 	"""
 		Return the number of trainable parameters in a model.
-		@param model: Pytorch Module to check.
+		@param model: Pytorch Module.
 		@return: The number of trainable parameters.
 	"""
 	return sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -302,7 +318,7 @@ def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namesp
 		if check_keys:
 			differences = set(args_file_dict.keys()).difference(args.__dict__.keys())
 			if len(differences) > 0:
-				raise RuntimeError("Found unknown(s) key(s) in JSON file : \"%s\"." % ", ".join(differences))
+				print("WARNING: Found unknown(s) key(s) in JSON file : \"%s\"." % ", ".join(differences))
 
 		args.__dict__.update(args_file_dict)
 
