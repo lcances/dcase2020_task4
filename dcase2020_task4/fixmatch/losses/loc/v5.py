@@ -29,7 +29,7 @@ class FixMatchLossMultiHotLocV5(FixMatchLossLocABC):
 
 	@staticmethod
 	def from_args(args: Namespace) -> 'FixMatchLossMultiHotLocV5':
-		return FixMatchLossMultiHotLocV5(hparams.lambda_u, hparams.threshold_confidence, hparams.threshold_multihot)
+		return FixMatchLossMultiHotLocV5(args.lambda_u, args.threshold_confidence, args.threshold_multihot)
 
 	def __call__(
 		self,

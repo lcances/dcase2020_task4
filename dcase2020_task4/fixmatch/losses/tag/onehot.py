@@ -24,7 +24,7 @@ class FixMatchLossOneHot(FixMatchLossTagABC):
 
 	@staticmethod
 	def from_args(args: Namespace) -> 'FixMatchLossOneHot':
-		return FixMatchLossOneHot(hparams.lambda_s, hparams.lambda_u, hparams.threshold_confidence)
+		return FixMatchLossOneHot(args.lambda_s, args.lambda_u, args.threshold_confidence)
 
 	def __call__(
 		self,

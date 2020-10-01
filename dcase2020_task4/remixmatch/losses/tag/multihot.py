@@ -27,7 +27,7 @@ class ReMixMatchLossMultiHot(ReMixMatchLossTagABC):
 
 	@staticmethod
 	def from_args(args: Namespace) -> 'ReMixMatchLossMultiHot':
-		return ReMixMatchLossMultiHot(hparams.lambda_s, hparams.lambda_u, hparams.lambda_u1, hparams.lambda_r)
+		return ReMixMatchLossMultiHot(args.lambda_s, args.lambda_u, args.lambda_u1, args.lambda_r)
 
 	def __call__(
 		self,

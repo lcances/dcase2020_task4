@@ -22,7 +22,7 @@ class MixUpMixerTag(MixUpMixerTagABC):
 
 	@staticmethod
 	def from_args(args: Namespace) -> 'MixUpMixerTag':
-		return MixUpMixerTag(hparams.mixup_alpha, True, hparams.mixup_distribution_name)
+		return MixUpMixerTag(args.mixup_alpha, True, args.mixup_distribution_name)
 
 	@staticmethod
 	def default() -> 'MixUpMixerTag':

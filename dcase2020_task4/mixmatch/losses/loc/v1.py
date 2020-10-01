@@ -19,7 +19,7 @@ class MixMatchLossMultiHotLoc(MixMatchLossLocABC):
 
 	@staticmethod
 	def from_args(args: Namespace) -> 'MixMatchLossMultiHotLoc':
-		return MixMatchLossMultiHotLoc(hparams.lambda_u)
+		return MixMatchLossMultiHotLoc(args.lambda_u)
 
 	def __call__(
 		self,

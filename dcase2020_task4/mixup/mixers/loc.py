@@ -13,7 +13,7 @@ class MixUpMixerLoc(Callable):
 
 	@staticmethod
 	def from_args(args: Namespace) -> 'MixUpMixerLoc':
-		return MixUpMixerLoc(hparams.mixup_alpha, True)
+		return MixUpMixerLoc(args.mixup_alpha, True)
 
 	def __call__(
 		self, batch_1: Tensor, labels_1: List[Tensor], batch_2: Tensor, labels_2: List[Tensor]

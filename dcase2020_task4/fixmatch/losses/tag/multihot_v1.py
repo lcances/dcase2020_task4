@@ -26,7 +26,7 @@ class FixMatchLossMultiHotV1(FixMatchLossTagABC):
 
 	@staticmethod
 	def from_args(args: Namespace) -> 'FixMatchLossMultiHotV1':
-		return FixMatchLossMultiHotV1(hparams.lambda_s, hparams.lambda_u, hparams.threshold_confidence, hparams.threshold_multihot)
+		return FixMatchLossMultiHotV1(args.lambda_s, args.lambda_u, args.threshold_confidence, args.threshold_multihot)
 
 	def __call__(
 		self,

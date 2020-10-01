@@ -28,7 +28,7 @@ class FixMatchLossMultiHotV4(Callable):
 
 	@staticmethod
 	def from_args(args: Namespace) -> 'FixMatchLossMultiHotV4':
-		return FixMatchLossMultiHotV4(hparams.lambda_s, hparams.lambda_u, hparams.threshold_confidence, hparams.threshold_multihot)
+		return FixMatchLossMultiHotV4(args.lambda_s, args.lambda_u, args.threshold_confidence, args.threshold_multihot)
 
 	def __call__(
 		self,

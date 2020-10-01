@@ -18,7 +18,7 @@ class MixMatchLossMultiHot(MixMatchLossTagABC):
 
 	@staticmethod
 	def from_args(args: Namespace) -> 'MixMatchLossMultiHot':
-		return MixMatchLossMultiHot(hparams.lambda_s, hparams.lambda_u)
+		return MixMatchLossMultiHot(args.lambda_s, args.lambda_u)
 
 	def __call__(self, s_pred: Tensor, s_target: Tensor, u_pred: Tensor, u_target: Tensor) -> (Tensor, Tensor, Tensor):
 		loss_s = self.criterion_s(s_pred, s_target)
