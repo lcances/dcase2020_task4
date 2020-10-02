@@ -55,7 +55,8 @@ def main():
 			class_label = x_label.argmax(dim=1)
 			class_pred = x_pred.argmax(dim=1)
 
-			conf_matrix[class_label][class_pred] += 1
+			for idx_label, idx_pred in zip(class_label, class_pred):
+				conf_matrix[idx_label][idx_pred] += 1
 			mean = metric(x_pred, x_label)
 
 		print("Global mean score : ", mean)
