@@ -19,9 +19,10 @@ class ValidatorTag(ValidatorABC):
 		acti_fn: Callable,
 		loader: DataLoader,
 		metrics: Dict[str, Metrics],
-		writer: Optional[SummaryWriter],
+		writer: Optional[SummaryWriter] = None,
 		checkpoint: Optional[CheckPoint] = None,
 		checkpoint_metric_key: Optional[str] = None,
+		verbose: int = 1,
 	):
 		self.model = model
 		self.acti_fn = acti_fn
@@ -30,6 +31,7 @@ class ValidatorTag(ValidatorABC):
 		self.writer = writer
 		self.checkpoint = checkpoint
 		self.checkpoint_metric_key = checkpoint_metric_key
+		self.verbose = verbose
 
 		self.metrics_recorder = MetricsRecorder(
 			"val/",
@@ -60,7 +62,8 @@ class ValidatorTag(ValidatorABC):
 						(self.metrics, x_pred, x_label)
 					]
 					self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
-					self.metrics_recorder.print_metrics(epoch, i, len(self.loader))
+					if self.verbose >= 1:
+						self.metrics_recorder.print_metrics(epoch, i, len(self.loader))
 
 			print("\n")
 

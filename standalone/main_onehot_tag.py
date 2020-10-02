@@ -19,7 +19,7 @@ from time import time
 from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
-from torchvision.transforms import RandomChoice, Compose, ToTensor
+from torchvision.transforms import Compose, RandomChoice, ToTensor
 from typing import Callable, Dict, List
 
 from augmentation_utils.signal_augmentations import TimeStretch, Occlusion, Noise
