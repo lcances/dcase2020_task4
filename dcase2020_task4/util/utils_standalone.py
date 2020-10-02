@@ -11,6 +11,7 @@ from argparse import Namespace
 
 from torch.nn import Module
 from torch.optim import Adam, SGD
+from torch.optim.lr_scheduler import MultiStepLR
 from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
 from typing import Any, Callable, Optional, Union
@@ -195,7 +196,11 @@ def build_sched_from_args(args: Namespace, optim: Optimizer) -> Optional[object]
 	if name in ["cosinelrscheduler", "cosine"]:
 		scheduler = CosineLRScheduler(optim, nb_epochs=args.nb_epochs, lr0=args.lr)
 	elif name in ["steplrscheduler", "step"]:
+		# TODO : rem ?
+		print("WARNING: Depreciated scheduler. Use MultiStepLR instead.")
 		scheduler = StepLRScheduler(optim, lr0=args.lr, lr_decay_ratio=args.lr_decay_ratio, epoch_steps=args.epoch_steps)
+	elif name in ["multisteplr"]:
+		scheduler = MultiStepLR(optim, milestones=args.epoch_steps, gamma=args.lr_decay_ratio)
 	else:
 		scheduler = None
 

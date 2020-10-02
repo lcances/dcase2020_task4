@@ -112,7 +112,7 @@ def create_args() -> Namespace:
 						choices=["Adam", "SGD", "RAdam", "PlainRAdam", "AdamW"],
 						help="Optimizer used.")
 	parser.add_argument("--scheduler", type=str_to_optional_str, default="Cosine",
-						choices=[None, "CosineLRScheduler", "Cosine", "StepLRScheduler", "Step"],
+						choices=[None, "CosineLRScheduler", "Cosine", "StepLRScheduler", "Step", "MultiStepLR"],
 						help="FixMatch scheduler used. Use \"None\" for constant learning rate.")
 
 	parser.add_argument("--lr", "--learning_rate", type=float, default=1e-3,
@@ -193,19 +193,18 @@ def create_args() -> Namespace:
 	parser.add_argument("--ra_nb_choices", type=int, default=1,
 						help="Nb augmentations composed for RandAugment. ")
 
-	parser.add_argument("--label_smoothing", type=float, default=0.0,
-						help="Label smoothing value for supervised trainings. Use 0.0 for deactivate label smoothing.")
-	parser.add_argument("--nb_classes_self_supervised", type=int, default=4,
-						help="Nb classes in rotation loss (Self-Supervised part) of ReMixMatch.")
-
 	parser.add_argument("--dropout", type=float, default=0.5,
 						help="Dropout used in model. WARNING: All models does not use this dropout argument.")
-
 	parser.add_argument("--supervised_augment", type=str_to_optional_str, default=None,
 						choices=[None, "weak", "strong"],
 						help="Apply identity, weak or strong augment on supervised train dataset.")
 	parser.add_argument("--standardize", type=str_to_bool, default=False,
 						help="Normalize CIFAR10 data. Currently unused on UBS8K.")
+
+	parser.add_argument("--label_smoothing", type=float, default=0.0,
+						help="Label smoothing value for supervised trainings. Use 0.0 for deactivate label smoothing.")
+	parser.add_argument("--nb_classes_self_supervised", type=int, default=4,
+						help="Nb classes in rotation loss (Self-Supervised part) of ReMixMatch.")
 	parser.add_argument("--self_supervised_component", type=str_to_optional_str, default="flips",
 						choices=[None, "rotation", "flips"],
 						help="Self supervised component applied in ReMixMatch training.")
@@ -319,7 +318,8 @@ def main():
 		print("Model selected : %s (%d parameters)." % (args.model, get_nb_parameters(model)))
 
 		if args.write_results:
-			writer = build_writer_from_args(args, start_date, "%d" % fold_val_ubs8k)
+			suffix = "" if args.dataset_name == "CIFAR10" else "%d" % fold_val_ubs8k
+			writer = build_writer_from_args(args, start_date, suffix)
 		else:
 			writer = None
 
