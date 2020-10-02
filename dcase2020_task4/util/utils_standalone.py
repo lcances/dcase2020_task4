@@ -323,7 +323,7 @@ def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namesp
 		args.__dict__.update(args_file_dict)
 
 		# Post process : convert "none" strings to None value
-		for name, value in args.__dict__.keys():
+		for name, value in args.__dict__.items():
 			if isinstance(value, str) and value.lower() == "none":
 				args.__dict__[name] = None
 
