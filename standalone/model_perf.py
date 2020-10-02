@@ -8,13 +8,9 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import ToTensor, Compose
 
-from dcase2020_task4.metrics_recorder import MetricsRecorder
 from dcase2020_task4.util.datasets.onehot_dataset import OneHotDataset
-from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, FnMetric
-from dcase2020_task4.util.utils_match import cross_entropy
+from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot
 from dcase2020_task4.util.utils_standalone import build_model_from_args
-from dcase2020_task4.validation.validator import ValidatorTag
-from metric_utils.metrics import CategoricalAccuracy
 
 
 def create_args() -> Namespace:
@@ -34,6 +30,7 @@ def create_args() -> Namespace:
 def main():
 	args = create_args()
 	dataset_val = get_validation_dataset(args)
+	dataset_val = OneHotDataset(dataset_val, args.nb_classes)
 
 	model = get_model(args)
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
