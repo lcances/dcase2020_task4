@@ -130,7 +130,7 @@ def get_model_from_name(model_name: str, case_sensitive: bool = False, modules: 
 	raise AttributeError("This model does not exist: \"%s\" " % model_name)
 
 
-def get_model_from_args(args: Namespace, case_sensitive: bool = False, modules: list = None) -> Module:
+def build_model_from_args(args: Namespace, case_sensitive: bool = False, modules: list = None) -> Module:
 	"""
 		Instantiate CUDA model from args. Args must be an Namespace containing the attribute "model".
 		Models available are in files : cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot
@@ -151,7 +151,7 @@ def get_model_from_args(args: Namespace, case_sensitive: bool = False, modules: 
 	return model
 
 
-def get_optim_from_args(args: Namespace, model: Module) -> Optimizer:
+def build_optim_from_args(args: Namespace, model: Module) -> Optimizer:
 	"""
 		Instantiate optimizer from args and model.
 		Args must be an Namespace containing the attributes "optimizer", "lr" and "weight_decay".
@@ -182,7 +182,7 @@ def get_optim_from_args(args: Namespace, model: Module) -> Optimizer:
 	return optim
 
 
-def get_sched_from_args(args: Namespace, optim: Optimizer) -> Optional[object]:
+def build_sched_from_args(args: Namespace, optim: Optimizer) -> Optional[object]:
 	"""
 		Instantiate scheduler from args and optimizer.
 		Args must be an Namespace containing the attributes "scheduler", "nb_epochs" and "lr".
@@ -243,7 +243,7 @@ def get_nb_trainable_parameters(model: Module) -> int:
 	return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def build_writer(args: Namespace, start_date: str, pre_suffix: str = "") -> SummaryWriter:
+def build_writer_from_args(args: Namespace, start_date: str, pre_suffix: str = "") -> SummaryWriter:
 	"""
 		Build the tensorboard writer object with a specific name and directory.
 		@param args: argparse arguments.
@@ -318,9 +318,14 @@ def load_args(filepath: str, args: Namespace, check_keys: bool = True) -> Namesp
 		if check_keys:
 			differences = set(args_file_dict.keys()).difference(args.__dict__.keys())
 			if len(differences) > 0:
-				print("WARNING: Found unknown(s) key(s) in JSON file : \"%s\"." % ", ".join(differences))
+				raise RuntimeError("Found unknown(s) key(s) in JSON file : \"%s\"." % ", ".join(differences))
 
 		args.__dict__.update(args_file_dict)
+
+		# Post process : convert "none" strings to None value
+		for name, value in args.__dict__.keys():
+			if isinstance(value, str) and value.lower() == "none":
+				args.__dict__[name] = None
 
 	return args
 

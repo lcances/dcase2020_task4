@@ -83,13 +83,13 @@ def test():
 
 	augms = [
 		Identity(),
-		Invert(ratio=1.0),
-		HorizontalFlip(ratio=1.0),
+		# Invert(ratio=1.0),
+		# HorizontalFlip(ratio=1.0),
 		# AutoContrast(),
-		# Rotation(ratio=ratio, angles=(-30, 30)),
+		Rotation(ratio=ratio, angles=(180, 180)),
 		# Inversion(),
 		# UniColor(),
-		CutOut(),
+		# CutOut(),
 		# Gray(),
 		# Posterize(ratio=ratio, nbs_bits=(3, 4)),
 	]

@@ -60,15 +60,15 @@ from dcase2020_task4.util.datasets.smooth_dataset import SmoothOneHotDataset
 from dcase2020_task4.util.datasets.to_tensor_dataset import ToTensorDataset
 from dcase2020_task4.util.guessers.batch import GuesserModelArgmax, GuesserModelArgmaxSmooth, GuesserMeanModelArgmax, \
 	GuesserModelAlignmentSharpen, GuesserMeanModelSharpen
-from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
+from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, FnMetric
 from dcase2020_task4.util.ramp_up import RampUp
 from dcase2020_task4.util.sharpen import Sharpen
 from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_union_str_int, str_to_optional_int, \
 	str_to_optional_float
 from dcase2020_task4.util.uniloss import ConstantEpochUniloss, WeightLinearUniloss, WeightLinearUnilossStepper
 from dcase2020_task4.util.utils_match import cross_entropy
-from dcase2020_task4.util.utils_standalone import post_process_args, check_args, build_writer, save_and_close_writer, \
-	save_args, save_augms, get_model_from_args, get_optim_from_args, get_sched_from_args, get_nb_parameters
+from dcase2020_task4.util.utils_standalone import post_process_args, check_args, build_writer_from_args, save_and_close_writer, \
+	save_args, save_augms, build_model_from_args, build_optim_from_args, build_sched_from_args, get_nb_parameters
 from dcase2020_task4.util.zip_cycle import ZipCycle
 
 from dcase2020_task4.learner import Learner
@@ -225,7 +225,7 @@ def create_args() -> Namespace:
 							"Use Constant Epoch Uniloss (ceu) for only 1 loss per epoch : supervised-mixed-unsupervised.")
 	parser.add_argument("--direct_labelisation", type=str_to_bool, default=False,
 						help="Experimental mode for MixMatch training (MMV3). "
-							"Use artificial label with non-augmented batch unsupervised.")
+							"Use artificial label with NON-AUGMENTED batch unsupervised.")
 
 	# MMV18, FMV14
 	parser.add_argument("--use_wlu", "--use_weight_linear_uniloss", type=str_to_bool, default=False,
@@ -247,6 +247,9 @@ def main():
 	args = post_process_args(args)
 	check_args(args)
 
+	reset_seed(args.seed)
+	torch.autograd.set_detect_anomaly(args.debug_mode)
+
 	print("Start match_onehot. (suffix: \"%s\")" % args.suffix)
 	print(" - start_date: %s" % start_date)
 
@@ -254,16 +257,13 @@ def main():
 	for name, value in args.__dict__.items():
 		print(" - %s: %s" % (name, str(value)))
 
-	reset_seed(args.seed)
-	torch.autograd.set_detect_anomaly(args.debug_mode)
-
-	# Get default metrics used in training
-	metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val = get_default_metrics(args)
+	# Get default metrics used in training and validation
+	metrics_s, metrics_u, metrics_u1, metrics_r, metrics_val = build_metrics_from_args(args)
+	cross_validation_results = {}
 
 	# Get default activation function
 	# Use clamp for avoiding floating precision problems causing NaN loss
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
-	cross_validation_results = {}
 
 	# Main function for running training on CIFAR10 or UrbanSound8K (UBS8K)
 	def run(fold_val_ubs8k: int):
@@ -310,16 +310,16 @@ def main():
 			batch_size=args.batch_size_u, shuffle=True, num_workers=args.num_workers_u, drop_last=True)
 
 		# Create model, optimizer and learning rate scheduler.
-		model = get_model_from_args(args)
-		optim = get_optim_from_args(args, model)
-		sched = get_sched_from_args(args, optim)
+		model = build_model_from_args(args)
+		optim = build_optim_from_args(args, model)
+		sched = build_sched_from_args(args, optim)
 
 		print("%s: %d train examples supervised, %d train examples unsupervised, %d validation examples" % (
 			args.dataset_name, len(idx_train_s), len(idx_train_u), len(idx_val)))
 		print("Model selected : %s (%d parameters)." % (args.model, get_nb_parameters(model)))
 
 		if args.write_results:
-			writer = build_writer(args, start_date, "%d" % fold_val_ubs8k)
+			writer = build_writer_from_args(args, start_date, "%d" % fold_val_ubs8k)
 		else:
 			writer = None
 
@@ -347,7 +347,7 @@ def main():
 			rampup_lambda_r = None
 
 		if args.use_wlu:
-			# Create Weight Linear uniloss classes
+			# Create experimental Weight Linear Uniloss classes
 			nb_steps_wlu = args.wlu_steps if args.wlu_on_epoch else args.nb_epochs * len(idx_train_u) * args.batch_size_u
 
 			wlu = WeightLinearUniloss(nb_steps_wlu, None)
@@ -662,7 +662,7 @@ def main():
 	# End of main()
 
 
-def get_default_metrics(args: Namespace) -> List[Dict[str, Metrics]]:
+def build_metrics_from_args(args: Namespace) -> List[Dict[str, Metrics]]:
 	metrics_s = {
 		"s_acc": CategoricalAccuracyOnehot(dim=1),
 	}

@@ -68,7 +68,7 @@ class ReMixMatchTrainer(TrainerABC):
 		)
 
 		if not hasattr(model, "forward_rot"):
-			raise RuntimeError("Model must implements a method \"forward_rot\" for compute rotation loss.")
+			raise RuntimeError("Model used for ReMixMatch must implements a method \"forward_rot\" for compute rotation loss.")
 
 	def train(self, epoch: int):
 		self.reset_all_metrics()

@@ -23,7 +23,7 @@ from dcase2020_task4.util.augments.img_augments import *
 from dcase2020_task4.util.augments.spec_augments import CutOutSpec, InversionSpec
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, MaxMetric, FnMetric, EqConfidenceMetric
 from dcase2020_task4.util.utils_match import cross_entropy
-from dcase2020_task4.util.utils_standalone import get_model_from_args, get_optim_from_args, get_sched_from_args
+from dcase2020_task4.util.utils_standalone import build_model_from_args, build_optim_from_args, build_sched_from_args
 from dcase2020_task4.learner import Learner
 
 from ubs8k.datasets import Dataset as UBS8KDataset
@@ -195,9 +195,9 @@ def main():
 		loader_val_origin = DataLoader(
 			dataset_val_origin, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
 
-		model = get_model_from_args(args)
-		optim = get_optim_from_args(args, model)
-		sched = get_sched_from_args(args, optim)
+		model = build_model_from_args(args)
+		optim = build_optim_from_args(args, model)
+		sched = build_sched_from_args(args, optim)
 
 		criterion = cross_entropy
 
@@ -221,7 +221,7 @@ def main():
 
 	else:
 		state_dict = torch.load(filepath)
-		model = get_model_from_args(args)
+		model = build_model_from_args(args)
 		model.load_state_dict(state_dict["state_dict"])
 		print("Load model \"%s\" with best metric \"%f\"." % (filepath, state_dict["best_metric"]))
 

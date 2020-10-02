@@ -121,14 +121,25 @@ class MetricsRecorder(MetricsRecorderABC):
 					self.add_value(metric_name, metric.value.item())
 
 	def reset_epoch(self, print_header: bool = True):
+		"""
+			Method called at the beginning of an epoch.
+			@param print_header: Print keys of the values stored.
+		"""
 		self.data = {k: [] for k in self.keys}
 		self.start = time()
 
 		if print_header:
 			self._print_header()
 
-	def print_metrics(self, epoch: int, i: int, len_: int):
-		percent = int(100 * (i + 1) / len_)
+	def print_metrics(self, epoch: int, iteration: int, nb_iterations: int):
+		"""
+			Print current epoch means of the values stored.
+			@param epoch: Current epoch number.
+			@param iteration: Current iteration number in epoch.
+			@param nb_iterations: Nb iteration in the current epoch.
+			@return:
+		"""
+		percent = int(100 * (iteration + 1) / nb_iterations)
 
 		content = ["Epoch {:3d} - {:3d}%".format(epoch + 1, percent)]
 		content += [("{:.4e}".format(self.get_mean_epoch(name)).center(KEY_MAX_LENGTH)) for name in sorted(self.data.keys())]
@@ -148,6 +159,9 @@ class MetricsRecorder(MetricsRecorderABC):
 		print("- {:s} -".format(" - ".join(content)))
 
 	def update_min_max(self):
+		"""
+			Update min and max of all epochs. Must be called before 'store_min_max_in_writer'.
+		"""
 		for key in self.keys:
 			if len(self.data[key]) > 0:
 				mean_ = self.get_mean_epoch(key)
@@ -158,10 +172,16 @@ class MetricsRecorder(MetricsRecorderABC):
 					self.mins[key] = mean_
 
 	def store_in_writer(self, writer: SummaryWriter, epoch: int):
+		"""
+			Add to writer the current mean of the epoch.
+		"""
 		for metric_name, values in self.data.items():
 			writer.add_scalar("%s%s" % (self.prefix, metric_name), np.mean(values), epoch)
 
 	def store_min_max_in_writer(self, writer: SummaryWriter, epoch: int):
+		"""
+			Add to writer the current min and max of the current and previous epochs.
+		"""
 		for name in self.get_keys():
 			writer.add_scalar("val_min/%s" % name, self.get_min(name), epoch)
 			writer.add_scalar("val_max/%s" % name, self.get_max(name), epoch)
@@ -208,18 +228,6 @@ class MetricsRecorder(MetricsRecorderABC):
 		content += ["took (s)".center(KEY_MAX_LENGTH)]
 
 		print("\n- {:s} -".format(" - ".join(content)))
-
-	def _old_print_metrics(self, epoch: int, i: int, len_: int):
-		""" Unused method. """
-
-		content = ["{:s}: {:.4e}".format(name, np.mean(values)) for name, values in self.data.items()]
-		content += ["took: {:.2f}s".format(time() - self.start)]
-
-		print("Epoch {:3d}, {:3d}% \t {:s}".format(
-			epoch + 1,
-			int(100 * (i + 1) / len_),
-			" - ".join(content)
-		), end="\r")
 
 
 def test():
