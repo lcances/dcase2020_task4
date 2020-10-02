@@ -8,6 +8,7 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import ToTensor, Compose
 
+from dcase2020_task4.util.datasets.onehot_dataset import OneHotDataset
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, FnMetric
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import build_model_from_args
@@ -22,7 +23,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--seed", type=int, default=123)
 
 	parser.add_argument("--batch_size_s", type=int, default=64)
-	parser.add_argument("--model", type=str, default=None, help="Model name.")
+	parser.add_argument("--model", type=str, default="WideResNet28", help="Model name.")
 	parser.add_argument("--filepath_model", type=str, default=None, help="Path to the torch data of the model.")
 
 	return parser.parse_args()
@@ -31,6 +32,7 @@ def create_args() -> Namespace:
 def main():
 	args = create_args()
 	dataset_val = get_validation_dataset(args)
+	dataset_val = OneHotDataset(dataset_val, args.nb_classes)
 
 	model = get_model(args)
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
