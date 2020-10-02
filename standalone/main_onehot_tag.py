@@ -708,11 +708,11 @@ def get_cifar10_datasets(
 	post_process_fn = lambda img: img.transpose()
 
 	if args.standardize:
-		# TODO : always normalize ?
 		# normalize_fn = Normalize(original_range=(0, 255), target_range=(0, 1))
 		# standardize_fn = Standardize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])
 		# post_process_fn = Compose([normalize_fn, standardize_fn, post_process_fn])
 
+		pre_process_fn = lambda img: img
 		post_process_fn = Compose([
 			ToTensor(),
 			transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0),
