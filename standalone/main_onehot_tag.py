@@ -51,7 +51,8 @@ from dcase2020_task4.util.augments.rand_augments import RandAugment
 from dcase2020_task4.util.augments.spec_augments import CutOutSpec
 from dcase2020_task4.util.avg_distributions import DistributionAlignmentOnehot
 from dcase2020_task4.util.checkpoint import CheckPoint
-from dcase2020_task4.util.datasets.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, split_classes_idx
+from dcase2020_task4.util.datasets.dataset_idx import get_classes_idx, shuffle_classes_idx, reduce_classes_idx, \
+	split_classes_idx
 from dcase2020_task4.util.datasets.multiple_dataset import MultipleDataset
 from dcase2020_task4.util.datasets.no_label_dataset import NoLabelDataset
 from dcase2020_task4.util.datasets.onehot_dataset import OneHotDataset
@@ -67,8 +68,9 @@ from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_
 	str_to_optional_float
 from dcase2020_task4.util.uniloss import ConstantEpochUniloss, WeightLinearUniloss, WeightLinearUnilossStepper
 from dcase2020_task4.util.utils_match import cross_entropy
-from dcase2020_task4.util.utils_standalone import post_process_args, check_args, build_writer_from_args, save_and_close_writer, \
-	save_args, save_augms, build_model_from_args, build_optim_from_args, build_sched_from_args, get_nb_parameters
+from dcase2020_task4.util.utils_standalone import post_process_args, check_args, build_writer_from_args, \
+	save_and_close_writer, save_args, save_augms, build_model_from_args, build_optim_from_args, build_sched_from_args, \
+	get_nb_parameters
 from dcase2020_task4.util.zip_cycle import ZipCycle
 
 from dcase2020_task4.learner import Learner
@@ -83,7 +85,13 @@ from ubs8k.datasetManager import DatasetManager as UBS8KDatasetManager
 def create_args() -> Namespace:
 	parser = ArgumentParser()
 	parser.add_argument("--run", type=str, default=None,
-						choices=["fixmatch", "fm", "mixmatch", "mm", "remixmatch", "rmm", "supervised_full", "sf", "supervised_part", "sp"],
+						choices=[
+							"fixmatch", "fm",
+							"mixmatch", "mm",
+							"remixmatch", "rmm",
+							"supervised_full", "sf",
+							"supervised_part", "sp"
+						],
 						help="Training method to run.")
 	parser.add_argument("--seed", type=int, default=123)
 	parser.add_argument("--debug_mode", type=str_to_bool, default=False)
@@ -205,7 +213,7 @@ def create_args() -> Namespace:
 						help="Label smoothing value for supervised trainings. Use 0.0 for deactivate label smoothing.")
 	parser.add_argument("--nb_classes_self_supervised", type=int, default=4,
 						help="Nb classes in rotation loss (Self-Supervised part) of ReMixMatch.")
-	parser.add_argument("--self_supervised_component", type=str_to_optional_str, default="flips",
+	parser.add_argument("--self_supervised_component", type=str_to_optional_str, default=None,
 						choices=[None, "rotation", "flips"],
 						help="Self supervised component applied in ReMixMatch training.")
 
@@ -214,6 +222,10 @@ def create_args() -> Namespace:
 	parser.add_argument("--mean_guesser", type=str_to_bool, default=False,
 						help="Experimental mode for FixMatch training (FMV11). "
 							"Use a mean of predictions to compute artificial label.")
+	# MMV3
+	parser.add_argument("--pseudo_label_with_non_augmented_u", type=str_to_bool, default=False,
+						help="Experimental mode for MixMatch training (MMV3). "
+							"Use artificial label with NON-AUGMENTED batch unsupervised.")
 	# MMV8
 	parser.add_argument("--use_ceu_1", type=str_to_bool, default=False,
 						help="Experimental mode for MixMatch training (MMV8). "
@@ -222,9 +234,6 @@ def create_args() -> Namespace:
 	parser.add_argument("--use_ceu_2", type=str_to_bool, default=False,
 						help="Experimental mode for MixMatch training (MMV9). "
 							"Use Constant Epoch Uniloss (ceu) for only 1 loss per epoch : supervised-mixed-unsupervised.")
-	parser.add_argument("--direct_labelisation", type=str_to_bool, default=False,
-						help="Experimental mode for MixMatch training (MMV3). "
-							"Use artificial label with NON-AUGMENTED batch unsupervised.")
 
 	# MMV18, FMV14
 	parser.add_argument("--use_wlu", "--use_weight_linear_uniloss", type=str_to_bool, default=False,
@@ -596,7 +605,7 @@ def main():
 			)
 
 		else:
-			raise RuntimeError("Unknown run %s" % args.run)
+			raise RuntimeWarning("Unknown run %s" % args.run)
 
 		# Prepare checkpoint for saving best model during training
 		if args.write_results:
@@ -662,7 +671,7 @@ def main():
 	# End of main()
 
 
-def build_metrics_from_args(args: Namespace) -> List[Dict[str, Metrics]]:
+def build_metrics_from_args(_args: Namespace) -> List[Dict[str, Metrics]]:
 	metrics_s = {
 		"s_acc": CategoricalAccuracyOnehot(dim=1),
 	}
@@ -743,7 +752,7 @@ def get_cifar10_datasets(
 	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong
 
 
-def get_ubs8k_augms(args: Namespace) -> (List[Callable], List[Callable]):
+def get_ubs8k_augms(_args: Namespace) -> (List[Callable], List[Callable]):
 	ratio_augm_weak = 0.5
 	augm_list_weak = [
 		HorizontalFlip(ratio_augm_weak),
@@ -781,11 +790,13 @@ def get_ubs8k_datasets(
 	dataset_val = UBS8KDataset(manager, folds=folds_val, augments=(), cached=True, augment_choser=lambda x: x)
 	dataset_val = ToTensorDataset(dataset_val)
 
-	datasets = [UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False) for augm_fn in augm_list_weak]
+	datasets = [
+		UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False) for augm_fn in augm_list_weak]
 	dataset_train_augm_weak = RandomChoiceDataset(datasets)
 	dataset_train_augm_weak = ToTensorDataset(dataset_train_augm_weak)
 
-	datasets = [UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False) for augm_fn in augm_list_strong]
+	datasets = [
+		UBS8KDataset(manager, folds=folds_train, augments=(augm_fn,), cached=False) for augm_fn in augm_list_strong]
 	dataset_train_augm_strong = RandomChoiceDataset(datasets)
 	dataset_train_augm_strong = ToTensorDataset(dataset_train_augm_strong)
 

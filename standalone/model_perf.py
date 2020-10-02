@@ -59,7 +59,7 @@ def main():
 				conf_matrix[idx_label][idx_pred] += 1
 			mean = metric(x_pred, x_label)
 
-		print("Global mean score : ", mean)
+		print("Global mean score : ", mean.item())
 		print("Conf matrix : \n", conf_matrix)
 
 		max_error, i_max, j_max = 0, 0, 0
@@ -71,7 +71,6 @@ def main():
 					max_error = v
 		classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
 		print("Max error [label=%s (%d)][pred=%s (%d)] = %d" % (classes[i_max], i_max, classes[j_max], j_max, max_error))
-
 
 
 def get_validation_dataset(args: Namespace) -> Dataset:
