@@ -72,7 +72,7 @@ from dcase2020_task4.util.utils_standalone import post_process_args, check_args,
 from dcase2020_task4.util.zip_cycle import ZipCycle
 
 from dcase2020_task4.learner import Learner
-from dcase2020_task4.validator import ValidatorTag
+from dcase2020_task4.validation.validator import ValidatorTag
 
 from metric_utils.metrics import Metrics
 

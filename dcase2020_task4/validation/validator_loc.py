@@ -8,7 +8,7 @@ from typing import Callable, Dict, List, Optional
 from metric_utils.metrics import Metrics
 
 from dcase2020_task4.metrics_recorder import MetricsRecorder, MetricsRecorderABC
-from dcase2020_task4.validator_abc import ValidatorABC
+from dcase2020_task4.validation.validator_abc import ValidatorABC
 from dcase2020_task4.util.checkpoint import CheckPoint
 
 
@@ -57,13 +57,12 @@ class ValidatorLoc(ValidatorABC):
 				pred_strong = self.acti_fn(logits_strong, dim=1)
 
 				# Compute metrics
-				with torch.no_grad():
-					metrics_preds_labels = [
-						(self.metrics_weak, pred_weak, labels_weak),
-						(self.metrics_strong, pred_strong, labels_strong),
-					]
-					self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
-					self.metrics_recorder.print_metrics(epoch, i, len(self.loader))
+				metrics_preds_labels = [
+					(self.metrics_weak, pred_weak, labels_weak),
+					(self.metrics_strong, pred_strong, labels_strong),
+				]
+				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
+				self.metrics_recorder.print_metrics(epoch, i, len(self.loader))
 
 			print("")
 

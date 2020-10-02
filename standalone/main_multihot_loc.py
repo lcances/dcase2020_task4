@@ -53,7 +53,7 @@ from dcase2020_task4.util.utils import reset_seed, get_datetime
 from dcase2020_task4.util.utils_standalone import build_writer_from_args, get_nb_parameters, save_and_close_writer, build_model_from_args, \
 	build_optim_from_args, build_sched_from_args, post_process_args, check_args, save_args
 
-from dcase2020_task4.validator_loc import ValidatorLoc
+from dcase2020_task4.validation.validator_loc import ValidatorLoc
 
 from metric_utils.metrics import FScore
 

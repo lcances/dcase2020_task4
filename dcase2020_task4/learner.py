@@ -3,8 +3,8 @@ from abc import ABC
 from time import time
 from typing import Optional
 
-from dcase2020_task4.trainer_abc import TrainerABC, TrainerABC
-from dcase2020_task4.validator import ValidatorABC
+from dcase2020_task4.trainer_abc import TrainerABC
+from dcase2020_task4.validation.validator import ValidatorABC
 
 
 class LearnerABC(ABC):

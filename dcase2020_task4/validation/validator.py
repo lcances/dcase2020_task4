@@ -9,7 +9,7 @@ from metric_utils.metrics import Metrics
 
 from dcase2020_task4.metrics_recorder import MetricsRecorder, MetricsRecorderABC
 from dcase2020_task4.util.checkpoint import CheckPoint
-from dcase2020_task4.validator_abc import ValidatorABC
+from dcase2020_task4.validation.validator_abc import ValidatorABC
 
 
 class ValidatorTag(ValidatorABC):
@@ -57,13 +57,12 @@ class ValidatorTag(ValidatorABC):
 				x_pred = self.acti_fn(x_logits, dim=1)
 
 				# Compute metrics
-				with torch.no_grad():
-					metrics_preds_labels = [
-						(self.metrics, x_pred, x_label)
-					]
-					self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
-					if self.verbose >= 1:
-						self.metrics_recorder.print_metrics(epoch, i, len(self.loader))
+				metrics_preds_labels = [
+					(self.metrics, x_pred, x_label)
+				]
+				self.metrics_recorder.apply_metrics_and_add(metrics_preds_labels)
+				if self.verbose >= 1:
+					self.metrics_recorder.print_metrics(epoch, i, len(self.loader))
 
 			print("\n")
 

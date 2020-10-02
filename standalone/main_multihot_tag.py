@@ -59,7 +59,7 @@ from dcase2020_task4.util.utils_standalone import build_writer_from_args, get_nb
 
 from dcase2020_task4.util.guessers.batch import GuesserModelThreshold, GuesserMeanModelSharpen, GuesserModelAlignmentSharpen
 from dcase2020_task4.learner import Learner
-from dcase2020_task4.validator import ValidatorTag
+from dcase2020_task4.validation.validator import ValidatorTag
 
 from metric_utils.metrics import FScore
 

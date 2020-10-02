@@ -8,11 +8,13 @@ from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import ToTensor, Compose
 
+from dcase2020_task4.metrics_recorder import MetricsRecorder
 from dcase2020_task4.util.datasets.onehot_dataset import OneHotDataset
 from dcase2020_task4.util.other_metrics import CategoricalAccuracyOnehot, FnMetric
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import build_model_from_args
-from dcase2020_task4.validator import ValidatorTag
+from dcase2020_task4.validation.validator import ValidatorTag
+from metric_utils.metrics import CategoricalAccuracy
 
 
 def create_args() -> Namespace:
@@ -32,21 +34,35 @@ def create_args() -> Namespace:
 def main():
 	args = create_args()
 	dataset_val = get_validation_dataset(args)
-	dataset_val = OneHotDataset(dataset_val, args.nb_classes)
 
 	model = get_model(args)
 	acti_fn = lambda x, dim: x.softmax(dim=dim).clamp(min=2e-30)
 	loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
 
-	metrics_val = {
-		"acc": CategoricalAccuracyOnehot(dim=1),
-		"ce": FnMetric(cross_entropy),
-	}
+	with torch.no_grad():
+		metric = CategoricalAccuracyOnehot(dim=1)
+		conf_matrix = torch.zeros(args.nb_classes, args.nb_classes)
+		mean = None
 
-	validator = ValidatorTag(
-		model, acti_fn, loader_val, metrics_val
-	)
-	validator.val(0)
+		metric.reset()
+		model.eval()
+
+		iter_val = iter(loader_val)
+		for i, (x_batch, x_label) in enumerate(iter_val):
+			x_batch = x_batch.cuda().float()
+			x_label = x_label.cuda().float()
+
+			x_logits = model(x_batch)
+			x_pred = acti_fn(x_logits, dim=1)
+
+			class_label = x_label.argmax(dim=1)
+			class_pred = x_pred.argmax(dim=1)
+
+			conf_matrix[class_label][class_pred] += 1
+			mean = metric(x_pred, x_label)
+
+		print("Global mean score : ", mean)
+		print("Conf matrix : \n", conf_matrix)
 
 
 def get_validation_dataset(args: Namespace) -> Dataset:

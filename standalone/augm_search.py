@@ -15,7 +15,7 @@ from augmentation_utils.spec_augmentations import Noise as NoiseS
 from dcase2020.util.utils import get_datetime, reset_seed
 
 from dcase2020_task4.supervised.trainer import SupervisedTrainer
-from dcase2020_task4.validator import ValidatorTag
+from dcase2020_task4.validation.validator import ValidatorTag
 from dcase2020_task4.util.checkpoint import CheckPoint
 from dcase2020_task4.util.datasets.fn_dataset import FnDataset
 from dcase2020_task4.util.datasets.onehot_dataset import OneHotDataset
