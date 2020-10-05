@@ -1,0 +1,13 @@
+{
+	"args": {
+		"run": "fixmatch",
+		"scheduler": "Cosine",
+		"use_rampup": false,
+		"nb_rampup_steps": 16000,
+		"rampup_each_epoch": false,
+		"threshold_confidence": 0.9,
+		"use_wlu": false,
+		"wlu_on_epoch": true,
+		"wlu_steps": 10
+	}
+}

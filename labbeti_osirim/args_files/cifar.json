@@ -1,0 +1,45 @@
+{
+	"args": {
+		"dataset_path": "/projets/samova/leocances/CIFAR10/",
+		"logdir": "/users/samova/elabbe/root/tensorboard/CIFAR10/default/",
+		"dataset_name": "CIFAR10",
+		"nb_classes": 10,
+		"dataset_ratio": 1.0,
+		"supervised_ratio": 0.08,
+		"dropout": 0.5,
+		"num_workers_s": 4,
+		"num_workers_u": 4,
+		"nb_epochs": 300,
+		"batch_size_s": 128,
+		"batch_size_u": 64,
+		"standardize": false,
+		"model": "WideResNet28Rot",
+		"optimizer": "Adam",
+		"lr": 0.001,
+		"weight_decay": 0.0,
+		"momentum": null,
+		"label_smoothing_value": 0.000
+	},
+	"other": {
+		"model": "WideResNetOld",
+		"optimizer": "Adam",
+		"lr": 0.001,
+		"weight_decay": 0.0,
+		"momentum": null,
+
+		"model": "VGG11Rot",
+		"optimizer": "RAdam",
+		"lr": 1e-3,
+		
+		"model": "WideResNet28Rot",
+		"optimizer": "SGD",
+		"lr": 0.1,
+		"weight_decay": 0.0005,
+		"momentum": 0.9,
+		
+		"optimizer": "Adam",
+        "scheduler": "None",
+        "lr": 0.001,
+        "weight_decay": 0.0
+	}
+}

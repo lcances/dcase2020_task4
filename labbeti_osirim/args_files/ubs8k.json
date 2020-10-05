@@ -1,0 +1,23 @@
+{
+	"args": {
+		"dataset_path": "/projets/samova/leocances/UrbanSound8K/",
+		"logdir": "/users/samova/elabbe/root/tensorboard/UBS8K/default/",
+		"dataset_name": "UBS8K",
+		"nb_classes": 10,
+		"batch_size_s": 64,
+		"batch_size_u": 64,
+		"dataset_ratio": 1.0,
+		"supervised_ratio": 0.10,
+		"nb_epochs": 100,
+		"model": "CNN03Rot",
+		"dropout": 0.5,
+		"num_workers_s": 4,
+		"num_workers_u": 4,
+		"optimizer": "Adam",
+		"lr": 1e-3,
+		"weight_decay": "none",
+		"momentum": "none",
+		"standardize": true,
+		"label_smoothing_value": 0.000
+	}
+}

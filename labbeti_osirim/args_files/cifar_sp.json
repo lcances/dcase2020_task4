@@ -1,0 +1,11 @@
+{
+	"args": {
+		"run": "sp",
+		"supervised_augment": "none",
+		"scheduler": "MultiStepLR",
+		"lr_decay_ratio": 0.2,
+		"epoch_steps": [
+			60, 120, 160
+		]
+	}
+}

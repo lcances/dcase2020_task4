@@ -12,14 +12,15 @@ $path_py $path_script \
 	--run "$run" \
 	--suffix "$suffix" \
 	--nb_epochs 300 \
-	--experimental "none" \
-	--optimizer "Adam" \
-	--scheduler "none" \
+	--optimizer "SGD" \
+	--scheduler "Step" \
 	--use_rampup false \
 	--nb_rampup_steps 10 \
 	--cross_validation false \
 	--threshold_confidence 0.9 \
-	--lr 1e-3 \
+	--lr 0.1 \
+	--weight_decay 0.0005 \
+	--momentum 0.9 \
 	--nb_augms 2 \
 	--nb_augms_strong 8 \
 	--lambda_u 1.0 \
@@ -44,11 +45,9 @@ $path_py $path_script \
 	--dataset_name "CIFAR10" \
 	--nb_classes 10 \
 	--supervised_ratio 0.08 \
-	--model "WideResNetRot" \
+	--model "WideResNet28Rot" \
 	--num_workers_s 4 \
 	--num_workers_u 4 \
 	--checkpoint_metric_name "acc" \
-	--write_results true \
-	--debug_mode false \
-	--wrn_depth 28 \
-	--wrn_widen_factor 2 \
+	--write_results false \
+	--debug_mode true \

@@ -1,0 +1,7 @@
+{
+	"args": {
+		"run": "sf",
+		"scheduler": "None",
+		"supervised_augment": "none"
+	}
+}

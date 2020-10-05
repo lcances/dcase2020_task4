@@ -1,0 +1,19 @@
+{
+	"args": {
+		"run": "remixmatch",
+		"use_rampup": false,
+		"nb_rampup_steps": 16000,
+		"rampup_each_epoch": false,
+		"shuffle_s_with_u": true,
+		"self_supervised_component": "rotation",
+		"nb_augms_strong": 8,
+		"lambda_u": 1.5,
+		"lambda_u1": 0.5,
+		"lambda_r": 0.5,
+		"use_wlu": false,
+		"wlu_on_epoch": true,
+		"wlu_steps": 10,
+		"scheduler": "none",
+		"history_size": 8192
+	}
+}

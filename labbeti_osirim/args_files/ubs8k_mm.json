@@ -1,0 +1,16 @@
+{
+	"args": {
+		"run": "mixmatch",
+		"scheduler": "None",
+		"use_rampup": true,
+		"nb_rampup_steps": 16000,
+		"rampup_each_epoch": false,
+		"shuffle_s_with_u": true,
+		"criterion_name_u": "cross_entropy",
+		"nb_augms": 2,
+		"lambda_u": 1.5,
+		"use_wlu": false,
+		"wlu_on_epoch": true,
+		"wlu_steps": 10
+	}
+}
