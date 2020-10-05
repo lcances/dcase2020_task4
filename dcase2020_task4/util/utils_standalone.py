@@ -249,29 +249,20 @@ def get_nb_trainable_parameters(model: Module) -> int:
 	return sum(p.numel() for p in model.parameters() if p.requires_grad)
 
 
-def build_writer_from_args(args: Namespace, start_date: str, pre_suffix: str = "") -> SummaryWriter:
+def build_writer_from_args(args: Namespace, start_date: str, augments: Any, pre_suffix: str = "") -> SummaryWriter:
 	"""
 		Build the tensorboard writer object with a specific name and directory.
 		@param args: argparse arguments.
-		@param start_date: Date of the start of the program.
+		@param start_date: Start date of the program.
+		@param augments: A dictionary or list of augments used.
 		@param pre_suffix: An additional suffix added before the real suffix given by "args.suffix".
-		@return: The SummaryWriter object.
+		@return: The SummaryWriter object created for saving data.
 	"""
 	dirname = "%s_%s_%s_%s_%s_%s" % (args.dataset_name, start_date, args.model, args.train_name, pre_suffix, args.suffix)
 	dirpath = osp.join(args.logdir, dirname)
 	writer = SummaryWriter(log_dir=dirpath, comment=args.train_name)
-	return writer
 
-
-def save_and_close_writer(writer: SummaryWriter, args: Namespace, augments: Any):
-	"""
-		Save hyperparameters and augments in writer and close it.
-		@param writer: The tensorboard SummaryWriter.
-		@param args: argparse arguments.
-		@param augments: A dictionary or list of augments used.
-	"""
-
-	def filter_args(args: Namespace) -> dict:
+	def filter_args(args_: Namespace) -> dict:
 		""" Modify args values for storing them in SummaryWriter. """
 
 		def filter_item(v):
@@ -282,7 +273,7 @@ def save_and_close_writer(writer: SummaryWriter, args: Namespace, augments: Any)
 			else:
 				return v
 
-		hparams = args.__dict__
+		hparams = args_.__dict__
 		for key_, val_ in hparams.items():
 			hparams[key_] = filter_item(val_)
 		return hparams
@@ -290,8 +281,8 @@ def save_and_close_writer(writer: SummaryWriter, args: Namespace, augments: Any)
 	writer.add_hparams(hparam_dict=filter_args(args), metric_dict={})
 	writer.add_text("args", json.dumps(args.__dict__, indent="\t"))
 	writer.add_text("augments", json.dumps(to_dict_rec(augments), indent="\t"))
-	writer.close()
-	print("Data will saved in tensorboard writer \"%s\"." % writer.log_dir)
+
+	return writer
 
 
 def save_args(filepath: str, args: Namespace):

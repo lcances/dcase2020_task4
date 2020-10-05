@@ -69,8 +69,7 @@ from dcase2020_task4.util.types import str_to_bool, str_to_optional_str, str_to_
 from dcase2020_task4.util.uniloss import ConstantEpochUniloss, WeightLinearUniloss, WeightLinearUnilossStepper
 from dcase2020_task4.util.utils_match import cross_entropy
 from dcase2020_task4.util.utils_standalone import post_process_args, check_args, build_writer_from_args, \
-	save_and_close_writer, save_args, save_augms, build_model_from_args, build_optim_from_args, build_sched_from_args, \
-	get_nb_parameters
+	save_args, save_augms, build_model_from_args, build_optim_from_args, build_sched_from_args, get_nb_parameters
 from dcase2020_task4.util.zip_cycle import ZipCycle
 
 from dcase2020_task4.learner import Learner
@@ -209,7 +208,7 @@ def create_args() -> Namespace:
 	parser.add_argument("--standardize", type=str_to_bool, default=False,
 						help="Normalize CIFAR10 data. Currently unused on UBS8K.")
 
-	parser.add_argument("--label_smoothing", type=float, default=0.0,
+	parser.add_argument("--label_smoothing_value", type=float, default=0.0,
 						help="Label smoothing value for supervised trainings. Use 0.0 for deactivate label smoothing.")
 	parser.add_argument("--nb_classes_self_supervised", type=int, default=4,
 						help="Nb classes in rotation loss (Self-Supervised part) of ReMixMatch.")
@@ -303,11 +302,11 @@ def main():
 		dataset_train_augm_weak = OneHotDataset(dataset_train_augm_weak, args.nb_classes)
 		dataset_train_augm_strong = OneHotDataset(dataset_train_augm_strong, args.nb_classes)
 
-		if args.label_smoothing > 0.0:
-			dataset_train = SmoothOneHotDataset(dataset_train, args.nb_classes, args.label_smoothing)
-			dataset_val = SmoothOneHotDataset(dataset_val, args.nb_classes, args.label_smoothing)
-			dataset_train_augm_weak = SmoothOneHotDataset(dataset_train_augm_weak, args.nb_classes, args.label_smoothing)
-			dataset_train_augm_strong = SmoothOneHotDataset(dataset_train_augm_strong, args.nb_classes, args.label_smoothing)
+		if args.label_smoothing_value > 0.0:
+			dataset_train = SmoothOneHotDataset(dataset_train, args.nb_classes, args.label_smoothing_value)
+			dataset_val = SmoothOneHotDataset(dataset_val, args.nb_classes, args.label_smoothing_value)
+			dataset_train_augm_weak = SmoothOneHotDataset(dataset_train_augm_weak, args.nb_classes, args.label_smoothing_value)
+			dataset_train_augm_strong = SmoothOneHotDataset(dataset_train_augm_strong, args.nb_classes, args.label_smoothing_value)
 
 		dataset_val = Subset(dataset_val, idx_val)
 		loader_val = DataLoader(dataset_val, batch_size=args.batch_size_s, shuffle=False, drop_last=True)
@@ -326,9 +325,10 @@ def main():
 			args.dataset_name, len(idx_train_s), len(idx_train_u), len(idx_val)))
 		print("Model selected : %s (%d parameters)." % (args.model, get_nb_parameters(model)))
 
+		augments_dict = {"augm_weak": augm_list_weak, "augm_strong": augm_list_strong}
 		if args.write_results:
-			suffix = "" if args.dataset_name == "CIFAR10" else "%d" % fold_val_ubs8k
-			writer = build_writer_from_args(args, start_date, suffix)
+			suffix = "" if args.dataset_name != "UBS8K" else "%d" % fold_val_ubs8k
+			writer = build_writer_from_args(args, start_date, augments_dict, suffix)
 		else:
 			writer = None
 
@@ -402,8 +402,8 @@ def main():
 				wlu.set_targets(targets_wlu)
 
 			if not args.mean_guesser:
-				if args.label_smoothing > 0.0:
-					guesser = GuesserModelArgmaxSmooth(model, acti_fn, args.label_smoothing, args.nb_classes)
+				if args.label_smoothing_value > 0.0:
+					guesser = GuesserModelArgmaxSmooth(model, acti_fn, args.label_smoothing_value, args.nb_classes)
 				else:
 					guesser = GuesserModelArgmax(model, acti_fn)
 
@@ -628,9 +628,8 @@ def main():
 
 		# Save results
 		if writer is not None:
-			augments_dict = {"augm_weak": augm_list_weak, "augm_strong": augm_list_strong}
-
-			save_and_close_writer(writer, args, augments_dict)
+			writer.close()
+			print("Data will be saved in tensorboard writer \"%s\"." % writer.log_dir)
 
 			filepath_args = osp.join(writer.log_dir, "args.json")
 			save_args(filepath_args, args)
@@ -717,6 +716,7 @@ def get_cifar10_datasets(
 	post_process_fn = lambda img: img.transpose()
 
 	if args.standardize:
+		# TODO : rem ?
 		# normalize_fn = Normalize(original_range=(0, 255), target_range=(0, 1))
 		# standardize_fn = Standardize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])
 		# post_process_fn = Compose([normalize_fn, standardize_fn, post_process_fn])
@@ -728,26 +728,26 @@ def get_cifar10_datasets(
 		])
 
 	# Prepare TRAIN data
-	transforms_train = [pre_process_fn, post_process_fn]
+	transforms_train = Compose([pre_process_fn, post_process_fn])
 	dataset_train = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose(transforms_train))
+		args.dataset_path, train=True, download=True, transform=transforms_train)
 
 	# Prepare VALIDATION data
-	transforms_val = [pre_process_fn, post_process_fn]
+	transforms_val = Compose([pre_process_fn, post_process_fn])
 	dataset_val = CIFAR10(
-		args.dataset_path, train=False, download=True, transform=Compose(transforms_val))
+		args.dataset_path, train=False, download=True, transform=transforms_val)
 
 	# Prepare WEAKLY AUGMENTED TRAIN data
 	augm_weak_fn = RandomChoice(augm_list_weak)
-	transforms_train_weak = [pre_process_fn, augm_weak_fn, post_process_fn]
+	transforms_train_weak = Compose([pre_process_fn, augm_weak_fn, post_process_fn])
 	dataset_train_augm_weak = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose(transforms_train_weak))
+		args.dataset_path, train=True, download=True, transform=transforms_train_weak)
 
 	# Prepare STRONGLY AUGMENTED TRAIN data
 	augm_strong_fn = RandomChoice(augm_list_strong)
-	transforms_train_strong = [pre_process_fn, augm_strong_fn, post_process_fn]
+	transforms_train_strong = Compose([pre_process_fn, augm_strong_fn, post_process_fn])
 	dataset_train_augm_strong = CIFAR10(
-		args.dataset_path, train=True, download=True, transform=Compose(transforms_train_strong))
+		args.dataset_path, train=True, download=True, transform=transforms_train_strong)
 
 	return dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong
 
