@@ -92,9 +92,9 @@ class WideResNetOld(nn.Module):
 	@staticmethod
 	def from_args(args: Namespace) -> 'WideResNetOld':
 		return WideResNetOld(
-			depth=args.wrn_depth,
+			depth=28,
 			num_classes=args.nb_classes,
-			widen_factor=args.wrn_widen_factor,
+			widen_factor=2,
 			dropout=args.dropout,
 		)
 
@@ -125,9 +125,9 @@ class WideResNetRotOld(WideResNetOld):
 	@staticmethod
 	def from_args(args: Namespace) -> 'WideResNetRotOld':
 		return WideResNetRotOld(
-			depth=args.wrn_depth,
+			depth=28,
 			num_classes=args.nb_classes,
-			widen_factor=args.wrn_widen_factor,
+			widen_factor=2,
 			dropout=args.dropout,
 			rot_output_size=args.nb_classes_self_supervised,
 		)
