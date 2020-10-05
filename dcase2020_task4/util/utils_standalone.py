@@ -53,7 +53,8 @@ def check_args(args: Namespace):
 		if args.model not in ["VGG11", "VGG11Rot",
 							  "ResNet18", "ResNet18Rot",
 							  "WideResNet", "WideResNetRot",
-							  "WideResNet28", "WideResNet28Rot"]:
+							  "WideResNet28", "WideResNet28Rot",
+							  "WideResNetOld", "WideResNetRotOld"]:
 			raise RuntimeError("Invalid model \"%s\" for dataset \"%s\"" % (args.model, args.dataset_name))
 		if args.cross_validation:
 			raise RuntimeError("Cross-validation on \"%s\" dataset is not supported." % args.dataset_name)
