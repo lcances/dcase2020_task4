@@ -7,7 +7,7 @@ from metric_utils.metrics import CategoricalAccuracy, Metrics
 
 
 class CategoricalAccuracyOnehot(CategoricalAccuracy):
-	""" Just Categorical Accuracy with a binarization with threshold. """
+	""" Just Categorical Accuracy with a binarization with threshold. It takes one-hot vectors as input. """
 
 	def __init__(self, dim: int, epsilon: float = 1e-10):
 		super().__init__(epsilon)

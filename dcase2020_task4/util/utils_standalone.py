@@ -16,7 +16,7 @@ from torch.optim.optimizer import Optimizer
 from torch.utils.tensorboard import SummaryWriter
 from typing import Any, Callable, Optional, Union
 
-from dcase2020_task4.other_models import cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wrn28_2
+from dcase2020_task4.other_models import cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wrn28_2, wrn_old
 from dcase2020_task4.util.cosine_scheduler import CosineLRScheduler
 from dcase2020_task4.util.radam import RAdam, PlainRAdam, AdamW
 from dcase2020_task4.util.step_scheduler import StepLRScheduler
@@ -139,7 +139,7 @@ def build_model_from_args(args: Namespace, case_sensitive: bool = False, modules
 	"""
 	if modules is None:
 		modules = []
-	modules += [cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wrn28_2]
+	modules += [cnn03, cnn03mish, resnet, ubs8k_baseline, vgg, weak_baseline_rot, wrn28_2, wrn_old]
 
 	model_class = get_model_from_name(args.model, case_sensitive, modules)
 
@@ -155,7 +155,7 @@ def build_model_from_args(args: Namespace, case_sensitive: bool = False, modules
 def build_optim_from_args(args: Namespace, model: Module) -> Optimizer:
 	"""
 		Instantiate optimizer from args and model.
-		Args must be an Namespace containing the attributes "optimizer", "lr" and "weight_decay".
+		Args must be an Namespace containing the attributes "optimizer", "lr" and optionals "weight_decay" and "momentum".
 	"""
 	name = args.optimizer.lower()
 

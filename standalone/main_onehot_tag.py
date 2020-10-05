@@ -285,7 +285,7 @@ def main():
 			dataset_train, dataset_val, dataset_train_augm_weak, dataset_train_augm_strong = \
 				get_ubs8k_datasets(args, fold_val_ubs8k, augm_list_weak, augm_list_strong)
 		else:
-			raise RuntimeError("Unknown dataset \"%s\"" % args.dataset_name)
+			raise RuntimeError("Unknown dataset \"%s\"." % args.dataset_name)
 
 		sub_loaders_ratios = [args.supervised_ratio, 1.0 - args.supervised_ratio]
 
