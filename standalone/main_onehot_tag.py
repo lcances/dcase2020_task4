@@ -20,7 +20,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
 from torchvision.transforms import Compose, RandomChoice, ToTensor
-from typing import Callable, Dict, List
+from typing import Callable, Dict, Iterable, List
 
 from augmentation_utils.signal_augmentations import TimeStretch, Occlusion, Noise
 from augmentation_utils.spec_augmentations import HorizontalFlip, RandomTimeDropout, RandomFreqDropout
@@ -343,17 +343,13 @@ def main():
 			rampup_lambda_r = RampUp(args.nb_rampup_steps, args.lambda_r, obj=None, attr_name="lambda_r")
 
 			if args.rampup_each_epoch:
-				steppables_epoch.append(rampup_lambda_u)
-				steppables_epoch.append(rampup_lambda_u1)
-				steppables_epoch.append(rampup_lambda_r)
+				for rampup in [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]:
+					steppables_epoch.append(rampup)
 			else:
-				steppables_iteration.append(rampup_lambda_u)
-				steppables_iteration.append(rampup_lambda_u1)
-				steppables_iteration.append(rampup_lambda_r)
+				for rampup in [rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r]:
+					steppables_iteration.append(rampup)
 		else:
-			rampup_lambda_u = None
-			rampup_lambda_u1 = None
-			rampup_lambda_r = None
+			rampup_lambda_u, rampup_lambda_u1, rampup_lambda_r = None, None, None
 
 		if args.use_wlu:
 			# Create experimental Weight Linear Uniloss classes
@@ -384,11 +380,13 @@ def main():
 			if args.mean_guesser:
 				dataset_train_u_augm_weak = MultipleDataset([dataset_train_u_augm_weak] * args.nb_augms)
 
-			dataset_train_u_augms_weak_strong = MultipleDataset([dataset_train_u_augm_weak, dataset_train_u_augm_strong])
+			dataset_train_u_augms_weak_strong = MultipleDataset(
+				[dataset_train_u_augm_weak, dataset_train_u_augm_strong])
 
 			loader_train_s_augm_weak = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
-			loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong, **args_loader_train_u)
-			loader = ZipCycle([loader_train_s_augm_weak, loader_train_u_augms_weak_strong])
+			loader_train_u_augms_weak_strong = DataLoader(dataset=dataset_train_u_augms_weak_strong,
+														  **args_loader_train_u)
+			loader_train = ZipCycle([loader_train_s_augm_weak, loader_train_u_augms_weak_strong])
 
 			criterion = FixMatchLossOneHot.from_args(args)
 			if rampup_lambda_u is not None:
@@ -408,14 +406,14 @@ def main():
 					guesser = GuesserModelArgmax(model, acti_fn)
 
 				trainer = FixMatchTrainer(
-					model, acti_fn, optim, loader, criterion, guesser, metrics_s, metrics_u,
+					model, acti_fn, optim, loader_train, criterion, guesser, metrics_s, metrics_u,
 					writer, steppables_iteration
 				)
 			else:
 				# FMV11
 				guesser = GuesserMeanModelArgmax(model, acti_fn)
 				trainer = FixMatchTrainerV11(
-					model, acti_fn, optim, loader, criterion, guesser, metrics_s, metrics_u,
+					model, acti_fn, optim, loader_train, criterion, guesser, metrics_s, metrics_u,
 					writer, steppables_iteration
 				)
 
@@ -433,7 +431,7 @@ def main():
 
 			loader_train_s_augm = DataLoader(dataset=dataset_train_s_augm_weak, **args_loader_train_s)
 			loader_train_u_augms = DataLoader(dataset=dataset_train_u_augms, **args_loader_train_u)
-			loader = ZipCycle([loader_train_s_augm, loader_train_u_augms])
+			loader_train = ZipCycle([loader_train_s_augm, loader_train_u_augms])
 
 			if loader_train_s_augm.batch_size != loader_train_u_augms.batch_size:
 				raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
@@ -488,12 +486,12 @@ def main():
 
 			if not args.direct_labelisation:
 				trainer = MixMatchTrainer(
-					model, acti_fn, optim, loader, criterion, guesser, metrics_s, metrics_u,
+					model, acti_fn, optim, loader_train, criterion, guesser, metrics_s, metrics_u,
 					writer, mixer, steppables_iteration
 				)
 			else:
 				trainer = MixMatchTrainerV3(
-					model, acti_fn, optim, loader, criterion, guesser, metrics_s, metrics_u,
+					model, acti_fn, optim, loader_train, criterion, guesser, metrics_s, metrics_u,
 					writer, mixer, steppables_iteration
 				)
 
@@ -510,7 +508,7 @@ def main():
 
 			loader_train_s_strong = DataLoader(dataset_train_s_augm_strong, **args_loader_train_s)
 			loader_train_u_augms_weak_strongs = DataLoader(dataset_train_u_weak_strongs, **args_loader_train_u)
-			loader = ZipCycle([loader_train_s_strong, loader_train_u_augms_weak_strongs])
+			loader_train = ZipCycle([loader_train_s_strong, loader_train_u_augms_weak_strongs])
 
 			if loader_train_s_strong.batch_size != loader_train_u_augms_weak_strongs.batch_size:
 				raise RuntimeError("Supervised and unsupervised batch size must be equal. (%d != %d)" % (
@@ -561,7 +559,7 @@ def main():
 				wlu.set_targets(targets_wlu)
 
 			trainer = ReMixMatchTrainer(
-				model, acti_fn, acti_rot_fn, optim, loader, criterion, guesser,
+				model, acti_fn, acti_rot_fn, optim, loader_train, criterion, guesser,
 				metrics_s, metrics_u, metrics_u1, metrics_r,
 				writer, mixer, distributions, ss_transform, steppables_iteration
 			)
@@ -721,10 +719,13 @@ def get_cifar10_datasets(
 		# standardize_fn = Standardize([0.4914, 0.4822, 0.4465], [0.2023, 0.1994, 0.2010])
 		# post_process_fn = Compose([normalize_fn, standardize_fn, post_process_fn])
 
+		cifar10_mean = (0.4914, 0.4822, 0.4465)
+		cifar10_std = (0.2471, 0.2435, 0.2616)
+
 		pre_process_fn = lambda img: img
 		post_process_fn = Compose([
 			ToTensor(),
-			transforms.Normalize(np.array([125.3, 123.0, 113.9]) / 255.0, np.array([63.0, 62.1, 66.7]) / 255.0),
+			transforms.Normalize(cifar10_mean, cifar10_std),
 		])
 
 	# Prepare TRAIN data
